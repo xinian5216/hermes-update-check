@@ -103,7 +103,10 @@ class DiskCache:
         except (TypeError, ValueError):
             return None
         age = time.time() - saved_at
-        fresh = age <= self.ttl_seconds
+        # Strict comparison on purpose: a TTL of 0 means "never serve from cache",
+        # and `age <= 0` would be clock-resolution dependent (a just-written entry
+        # could look fresh on a filesystem with coarse timestamps - Windows CI).
+        fresh = age < self.ttl_seconds
         if not fresh and not (allow_stale and age <= max_stale_seconds):
             return None
         return payload.get("data"), age

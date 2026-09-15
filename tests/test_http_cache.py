@@ -46,6 +46,18 @@ def test_cache_clear(tmp_path: Path) -> None:
     assert cache.clear() == 2
 
 
+def test_zero_ttl_cache_is_never_fresh(tmp_path: Path) -> None:
+    """Regression (found by CI on Windows): ttl_minutes=0 must mean "always refetch".
+
+    The old ``age <= ttl`` comparison made a just-written entry look fresh when the
+    filesystem timestamp resolution rounded the age to exactly 0.
+    """
+    cache = DiskCache(tmp_path, ttl_minutes=0)
+    cache.set("k", {"cached": True})
+    assert cache.get("k") is None  # not fresh
+    assert cache.get("k", allow_stale=True) is not None  # but usable as a fallback
+
+
 def test_http_client_reports_connection_failure() -> None:
     client = HttpClient(timeout=2, retries=0)
     result = client.get_json("http://127.0.0.1:1/nothing-here", use_cache=False)
