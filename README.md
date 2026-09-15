@@ -8,6 +8,22 @@
 
 设计原则：**宁可漏掉一次更新，也不要推荐一个可能有严重回归的新版本。**
 
+## 快速开始（一键安装）
+
+```bash
+# Linux / macOS / WSL
+curl -fsSL https://raw.githubusercontent.com/xinian5216/hermes-update-check/main/install.sh | bash
+```
+
+```powershell
+# Windows PowerShell
+irm https://raw.githubusercontent.com/xinian5216/hermes-update-check/main/install.ps1 | iex
+```
+
+装完直接 `hermes-update-check check` 看结论。想交给 AI 助手代劳？
+[第二节「方式 B」](#方式-b把下面这段直接发给-hermes或任何-ai-助手让它自己装)
+有一段可以直接复制发给 Hermes 的指令。安装脚本不用 `sudo`、不动 `HERMES_HOME`、**不执行 `hermes update`**。
+
 ---
 
 ## 目录
@@ -121,35 +137,88 @@ hermes-update-check/
 
 ## 二、安装方式
 
-需要 Python ≥ 3.9（Debian/Ubuntu 优先，Windows 同样可用）。
+需要 Python ≥ 3.9（Debian/Ubuntu 优先，macOS / WSL / Windows 同样可用）。
 
-### 方式 A：uv（推荐，VPS 上最快）
+### 方式 A：一键安装脚本（推荐）
+
+**Linux / macOS / WSL：**
 
 ```bash
-cd /opt
-git clone <你的仓库地址> hermes-update-check   # 或直接拷贝目录
-cd hermes-update-check
-uv venv .venv
-uv pip install -e . --python .venv/bin/python
+curl -fsSL https://raw.githubusercontent.com/xinian5216/hermes-update-check/main/install.sh | bash
 ```
 
-### 方式 B：pip / pipx
+带参数（例如装到 `/opt`、跳过钩子）：
 
 ```bash
-# Debian/Ubuntu
-sudo apt-get install -y python3 python3-venv python3-pip
-python3 -m venv .venv && . .venv/bin/activate
-pip install -e .
-# 或者作为独立工具
+curl -fsSL https://raw.githubusercontent.com/xinian5216/hermes-update-check/main/install.sh   | bash -s -- --dir /opt/hermes-update-check --no-hook
+```
+
+**Windows（PowerShell 5.1+，不需要管理员）：**
+
+```powershell
+irm https://raw.githubusercontent.com/xinian5216/hermes-update-check/main/install.ps1 | iex
+```
+
+脚本会：克隆仓库 → 建**独立虚拟环境**（有 `uv` 用 `uv`，否则 `python -m venv`）→ 安装包 →
+把 `hermes-update-check` 命令链接到 `~/.local/bin` → 启用提交前脱敏扫描钩子 → 跑一次自检。
+
+脚本**不会**：用 `sudo`、改动 `HERMES_HOME`、执行 `hermes update`（安装脚本只负责安装；
+升级 Hermes 永远是另一个需要你确认的动作）。
+
+| 参数 | 默认值 | 说明 |
+|---|---|---|
+| `--dir PATH` / `-Dir PATH` | `~/projects/hermes-update-check` | 安装位置 |
+| `--repo URL` | 本仓库 | 换成 fork 或本地路径 |
+| `--branch NAME` | `main` | 分支 |
+| `--bin-dir PATH` / `-BinDir PATH` | `~/.local/bin` | 命令链接位置 |
+| `--no-hook` / `-NoHook` | 关闭 | 不启用 pre-commit 脱敏钩子 |
+
+重复执行同一个命令 = 升级（`git pull --ff-only` + 重新安装依赖），不会重复建环境。
+
+### 方式 B：把下面这段直接发给 Hermes（或任何 AI 助手），让它自己装
+
+> 复制整段发过去即可。它是自包含的，不需要额外解释。
+
+```text
+帮我安装 hermes-update-check —— Hermes Agent 的"更新前风险检查"工具
+（只做检查和评估，从不自动更新 Hermes）。请按顺序执行，任何一步失败就停下并告诉我原因：
+
+1. git clone https://github.com/xinian5216/hermes-update-check.git ~/projects/hermes-update-check
+2. 进入该目录并把包装进独立虚拟环境：
+   uv venv .venv && uv pip install -e . --python .venv/bin/python
+   （没有 uv 就用 python3 -m venv .venv && .venv/bin/pip install -e .）
+3. 启用提交前脱敏扫描：git config core.hooksPath .githooks
+4. 自检：.venv/bin/hermes-update-check version
+5. 运行 .venv/bin/hermes-update-check check，用中文把结果复述给我：
+   当前 channel（STABLE/MAIN/PRERELEASE/DETACHED）、代码来源、最新正式版本、
+   Change Risk / Regression Signal / Data Confidence、触发的硬门禁、最终建议与复查时间。
+   注意：退出码 10 表示"建议暂缓"，11 表示"数据不足"，都属于正常结论而不是报错。
+6. 可选：把 GITHUB_TOKEN 写进 Hermes 的 .env（未认证的 GitHub API 只有 60 次/小时）。
+
+约束：不要执行 `hermes update`，不要修改 HERMES_HOME，不要改动我现有的配置、备份和定时任务。
+```
+
+> Windows 上把第 2、4、5 步的路径换成 `.venv\Scripts\python.exe` 与
+> `.venv\Scripts\hermes-update-check.exe`，或者直接用上面的 `install.ps1`。
+
+### 方式 C：手动安装（uv / pip）
+
+```bash
+# uv（推荐）
+cd /opt && git clone https://github.com/xinian5216/hermes-update-check.git
+cd hermes-update-check && uv venv .venv && uv pip install -e . --python .venv/bin/python
+
+# 或者 pip / pipx
+sudo apt-get install -y python3 python3-venv python3-pip     # Debian/Ubuntu
+python3 -m venv .venv && . .venv/bin/activate && pip install -e .
 pipx install .
 ```
 
-### 方式 C：不安装，直接运行
+### 方式 D：不安装，直接跑
 
 ```bash
 python3 -m venv .venv && . .venv/bin/activate
 pip install pyyaml rich            # 两个运行依赖（缺 rich 也能跑，只是没颜色）
-python -m hermes_update_check check   # 需要把 src/ 加入 PYTHONPATH
 PYTHONPATH=src python -m hermes_update_check check
 ```
 
