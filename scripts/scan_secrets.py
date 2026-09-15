@@ -61,8 +61,18 @@ SECRET_RULES: list[tuple[str, re.Pattern[str]]] = [
 
 #: (rule name, regex, what to say when it fires)
 PRIVACY_RULES: list[tuple[str, re.Pattern[str], str]] = [
-    ("windows-user-path", re.compile(r"[A-Za-z]:\\Users\\[^\\\s\"'`]+"), "absolute Windows user path"),
-    ("windows-drive-path", re.compile(r"\b[A-Za-z]:\\(?!Users\\)[A-Za-z0-9_.-]+"), "absolute Windows path"),
+    # Windows paths appear with either separator in logs, JSON and URLs, so both
+    # are matched; the lookahead keeps `http://` and `a://` out of the results.
+    (
+        "windows-user-path",
+        re.compile(r"(?<![A-Za-z0-9])[A-Za-z]:[\\/]Users[\\/][^\\/\s\"'`]+"),
+        "absolute Windows user path",
+    ),
+    (
+        "windows-drive-path",
+        re.compile(r"(?<![A-Za-z0-9])[A-Za-z]:[\\/](?!/)(?!Users[\\/])[A-Za-z0-9_.\-]+"),
+        "absolute Windows path",
+    ),
     (
         "unix-home-path",
         re.compile(r"/(?:home|Users)/(?!hermes\b|user\b|you\b|example\b)[a-z0-9._-]{3,}"),
@@ -213,14 +223,31 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("paths", nargs="*", help="files or directories (default: current directory)")
     parser.add_argument("--staged", action="store_true", help="scan only what is staged for commit")
     parser.add_argument("--all-history", action="store_true", help="scan every blob in git history")
+    parser.add_argument(
+        "--text",
+        nargs="*",
+        metavar="TEXT",
+        help="scan literal text instead of files (e-mail body, webhook/API payload, chat message)",
+    )
+    parser.add_argument("--stdin", action="store_true", help="scan text piped in on standard input")
     args = parser.parse_args(argv)
 
     problems: list[str] = []
+    if args.text is not None or args.stdin:
+        chunks: list[str] = []
+        if args.stdin:
+            chunks.append(sys.stdin.read())
+        chunks.extend(args.text or [])
+        for index, chunk in enumerate(chunks, 1):
+            label = "stdin" if (args.stdin and index == 1) else f"text[{index}]"
+            for lineno, line in enumerate(chunk.splitlines() or [chunk], 1):
+                for rule, value in scan_text(line):
+                    problems.append(f"{label}:{lineno}: [{rule}] {redact(value)[:80]}")
     if args.staged:
         problems += scan_staged()
     if args.all_history:
         problems += scan_git_history()
-    if not args.staged and not args.all_history:
+    if not args.staged and not args.all_history and args.text is None and not args.stdin:
         roots = [Path(p) for p in args.paths] or [Path.cwd()]
         for root in roots:
             if root.is_file():

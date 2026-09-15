@@ -40,4 +40,6 @@ domains). Run it manually any time:
 python scripts/scan_secrets.py            # working tree
 python scripts/scan_secrets.py --staged   # staged only
 python scripts/scan_secrets.py --all-history
+python scripts/scan_secrets.py --text "…"  # any outbound text (e-mail/webhook/API body)
+cat payload.json | python scripts/scan_secrets.py --stdin
 ```
