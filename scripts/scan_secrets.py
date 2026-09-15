@@ -87,12 +87,21 @@ ALLOWLIST: list[str] = [
     "1.1.1.1",
     "192.168.0.1",
     "10.0.0.1",
-    "192.0.2.1",  # RFC 5737 documentation range
-    "198.51.100.1",
-    "203.0.113.1",
     "C:" + chr(92) + "hermes",  # placeholder install path used in test fixtures
     "C:" + chr(92) + "Users" + chr(92) + "...",  # the literal in the README's rule description
 ]
+
+#: prefixes that are fine too (RFC 5737 documentation ranges, example hosts)
+ALLOWLIST_PREFIXES: tuple[str, ...] = (
+    "192.0.2.",
+    "198.51.100.",
+    "203.0.113.",
+)
+
+
+def is_allowlisted(value: str) -> bool:
+    return value in ALLOWLIST or value.startswith(ALLOWLIST_PREFIXES)
+
 
 #: file types we do not scan (binary or generated)
 SKIP_SUFFIXES = {
@@ -130,13 +139,13 @@ def scan_text(text: str) -> list[tuple[str, str]]:
     for name, pattern in SECRET_RULES:
         for match in pattern.finditer(text):
             value = match.group(0)
-            if value in ALLOWLIST:
+            if is_allowlisted(value):
                 continue
             found.append((name, value))
     for name, pattern, _why in PRIVACY_RULES:
         for match in pattern.finditer(text):
             value = match.group(0)
-            if value in ALLOWLIST:
+            if is_allowlisted(value):
                 continue
             found.append((name, value))
     return found
