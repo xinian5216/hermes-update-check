@@ -3,11 +3,11 @@
   "repo": "NousResearch/hermes-agent",
   "local": {
     "hermes_home": "/opt/hermes",
-    "config_path": "/opt/hermes\\config.yaml",
-    "state_db": "/opt/hermes\\state.db",
+    "config_path": "/opt/hermes/config.yaml",
+    "state_db": "/opt/hermes/state.db",
     "install_kind": "git",
-    "install_dir": "/opt/hermes\\hermes-agent",
-    "hermes_cli": "/opt/hermes\\bin\\hermes.exe",
+    "install_dir": "/opt/hermes/hermes-agent",
+    "hermes_cli": "/opt/hermes/bin/hermes",
     "version": "0.21.2",
     "release_tag": "v2026.9.11",
     "commit": "5eb99eb2",
@@ -22,10 +22,10 @@
       "full_commit": "5eb99eb2844b22ebb723711b8e6a0bbb80bb5f04",
       "dirty": true,
       "dirty_files": [
-        "M package-lock.json",
-        "M website/docs/user-stories.mdx",
-        "M website/i18n/zh-Hans/docusaurus-plugin-content-docs/current/index.mdx",
-        "M website/i18n/zh-Hans/docusaurus-plugin-content-docs/current/user-stories.mdx"
+        "M README.md",
+        "M docs/guide.md",
+        "M docs/index.md",
+        "M package-lock.json"
       ],
       "tags_at_head": [],
       "describe": "5eb99eb",
@@ -35,8 +35,8 @@
       "on_main": true,
       "error": null
     },
-    "venv_python": "/opt/hermes\\hermes-agent\\venv\\Scripts\\python.exe",
-    "uv_path": "/opt/hermes\\bin\\uv.exe",
+    "venv_python": "/opt/hermes/hermes-agent/venv/bin/python",
+    "uv_path": "/opt/hermes/bin/uv",
     "errors": [],
     "notes": [],
     "reported_version": "0.21.2",

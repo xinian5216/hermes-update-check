@@ -6,9 +6,33 @@ venv/
 dist/
 build/
 .pytest_cache/
+.mypy_cache/
 .coverage
 htmlcov/
 *.log
+
+# local configuration and runtime state (never publish)
 config.yaml
 !config.example.yaml
+update_state.json
+watch_state.json
+*.state.json
+*.sqlite3
+*.db
+
+# secrets and credentials (never publish)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.kdbx
+secrets*
+credentials*
+*_token*
+*_secret*
+
 .DS_Store
+Thumbs.db

@@ -20,7 +20,7 @@ from hermes_update_check.versioning import (
 )
 
 REAL_VERSION_OUTPUT = """Hermes Agent v0.21.2 (2026.9.11) - upstream 5eb99eb2
-Install directory: D:\\software\\Hermes\\hermes-agent
+Install directory: C:\\hermes\\hermes-agent
 Install method: git
 Python: 3.11.16
 OpenAI SDK: 2.24.0
@@ -34,7 +34,7 @@ def test_parse_version_output_real_layout() -> None:
     assert parsed.version == "0.21.2"
     assert parsed.release_tag == "v2026.9.11"
     assert parsed.commit == "5eb99eb2"
-    assert parsed.install_dir == "D:\\software\\Hermes\\hermes-agent"
+    assert parsed.install_dir == "C:\\hermes\\hermes-agent"
     assert parsed.install_method == "git"
     assert parsed.python_version == "3.11.16"
     assert parsed.sdk_version == "2.24.0"

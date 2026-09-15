@@ -204,10 +204,10 @@ Issues matching risk keywords since the release: 102 (scanned 55); baseline wind
 LOCAL ENVIRONMENT ─────────────────────────────────────────────────────────────
   HERMES_HOME       /opt/hermes                                       
   Install method    git                                                      
-  Install dir       /opt/hermes\hermes-agent                          
+  Install dir       /opt/hermes/hermes-agent                          
   Python            3.11.16                                                  
-  venv python       /opt/hermes\hermes-agent\venv\Scripts\python.exe  
-  uv                /opt/hermes\bin\uv.exe                            
+  venv python       /opt/hermes/hermes-agent/venv/bin/python  
+  uv                /opt/hermes/bin/uv                            
 
 NOTES ─────────────────────────────────────────────────────────────────────────
   - local HEAD is 125 commits behind v2026.9.14

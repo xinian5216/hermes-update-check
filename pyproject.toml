@@ -32,7 +32,9 @@ dev = [
 ]
 
 [project.urls]
-Repository = "https://github.com/NousResearch/hermes-agent"
+Repository = "https://github.com/xinian5216/hermes-update-check"
+Upstream = "https://github.com/NousResearch/hermes-agent"
+Issues = "https://github.com/xinian5216/hermes-update-check/issues"
 
 [project.scripts]
 hermes-update-check = "hermes_update_check.cli:main"

@@ -1,0 +1,32 @@
+#!/bin/sh
+# Block commits that would publish a secret or a private path.
+#
+# Enable once per clone:
+#     git config core.hooksPath .githooks
+#
+# The scan covers staged content only, so it stays fast. CI re-runs it over the
+# whole history (see .github/workflows/ci.yml).
+set -e
+
+root=$(git rev-parse --show-toplevel)
+
+# Windows ships "python3.exe" stubs on PATH that exist but fail to run, so a
+# bare `command -v` is not enough - the candidate has to actually execute.
+pick_python() {
+    for candidate in python3 python py; do
+        if command -v "$candidate" >/dev/null 2>&1 &&
+            "$candidate" -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 8) else 1)' >/dev/null 2>&1; then
+            echo "$candidate"
+            return 0
+        fi
+    done
+    return 1
+}
+
+if ! PY=$(pick_python); then
+    echo "pre-commit: WARNING - no working python >=3.8 found, secret scan SKIPPED" >&2
+    echo "pre-commit: install python or run: python3 scripts/scan_secrets.py --staged manually" >&2
+    exit 0
+fi
+
+exec "$PY" "$root/scripts/scan_secrets.py" --staged

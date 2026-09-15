@@ -27,7 +27,8 @@
 13. [JSON 输出契约](#十二json-输出契约)
 14. [退出码](#十三退出码cron--ci-用)
 15. [安全边界（明确说明）](#十四安全边界)
-16. [测试与开发](#十五测试与开发)
+16. [隐私与密钥](#十六隐私与密钥公开仓库的三道防线)
+17. [测试与开发](#十五测试与开发)
 
 ---
 
@@ -750,6 +751,40 @@ uv venv .venv && uv pip install -e ".[dev]" --python .venv/bin/python
 以及一阶段既有测试（版本号双体系解析、每一组风险因子、场景化评估、配置优先级与校验、
 GitHub 响应解析与查询长度限制、缓存过期降级、状态文件往返、更新前/后检查、更新命令构造与回滚计划、
 「没有确认就绝不更新」这条最重要的安全属性）——**二阶段没有删除任何旧测试**。
+
+---
+
+## 十六、隐私与密钥（公开仓库的三道防线）
+
+1. **代码里不写死任何凭据**：配置只写**变量名**（如 `bot_token_env: HERMES_UPDATE_CHECK_TELEGRAM_TOKEN`），值一律来自环境变量；
+   `.gitignore` 已排除 `.env*`、`*.pem`、`*.key`、`*.p12`、`config.yaml`、`update_state.json` 等本地文件。
+2. **提交前扫描**（pre-commit hook，每个 clone 启用一次）：
+
+   ```bash
+   git config core.hooksPath .githooks
+   ```
+
+   之后每次 `git commit` 都会对**暂存内容**跑 `scripts/scan_secrets.py --staged`，命中即中止提交。
+3. **CI 双保险**：`.github/workflows/ci.yml` 在 push / PR 时运行
+   `scan_secrets.py --all-history`（扫描全部历史对象，能抓"提交过又删掉"的内容）+ [gitleaks](https://github.com/gitleaks/gitleaks)。
+   公开仓库还默认开启 GitHub 自带的 secret scanning 与 push protection（会直接拒绝包含已知密钥的推送）。
+
+手动检查（发布前建议跑一遍）：
+
+```bash
+python scripts/scan_secrets.py                  # 工作区全部文件
+python scripts/scan_secrets.py --staged         # 只查暂存区（hook 用的就是它）
+python scripts/scan_secrets.py --all-history    # 全部 git 历史对象
+```
+
+规则分两类：
+
+* **凭据**：GitHub token（`ghp_/gho_/ghs_/github_pat_`）、OpenAI/Anthropic key、Telegram bot token、AWS/GCP key、JWT、PEM 私钥块、Stripe、npm/PyPI token，以及 `password = "..."` / `token = "..."` 这类赋值；
+* **隐私**：Windows 绝对路径（`C:\Users\...`）、真实 home 目录、公网 IP、个人邮箱域名、手机号样式数字串。
+
+命中时退出码为 1，输出**脱敏**片段（只留前几个字符），全文只打印规则名与行号。
+
+`examples/` 里的示例是**脱敏后的真实输出**：安装路径替换为 `/opt/hermes`、`/home/hermes`，本地修改文件名单替换为占位符。发布新示例前请先跑一遍扫描。
 
 ---
 
