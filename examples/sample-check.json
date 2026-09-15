@@ -1,0 +1,1874 @@
+{
+  "generated_at": "2026-09-15T07:24:54Z",
+  "repo": "NousResearch/hermes-agent",
+  "local": {
+    "hermes_home": "/opt/hermes",
+    "config_path": "/opt/hermes\\config.yaml",
+    "state_db": "/opt/hermes\\state.db",
+    "install_kind": "git",
+    "install_dir": "/opt/hermes\\hermes-agent",
+    "hermes_cli": "/opt/hermes\\bin\\hermes.exe",
+    "version": "0.21.2",
+    "release_tag": "v2026.9.11",
+    "commit": "5eb99eb2",
+    "python_version": "3.11.16",
+    "sdk_version": "2.24.0",
+    "says_up_to_date": true,
+    "tracking_main": true,
+    "git": {
+      "is_repo": true,
+      "branch": "main",
+      "commit": "5eb99eb2",
+      "full_commit": "5eb99eb2844b22ebb723711b8e6a0bbb80bb5f04",
+      "dirty": true,
+      "dirty_files": [
+        "M package-lock.json",
+        "M website/docs/user-stories.mdx",
+        "M website/i18n/zh-Hans/docusaurus-plugin-content-docs/current/index.mdx",
+        "M website/i18n/zh-Hans/docusaurus-plugin-content-docs/current/user-stories.mdx"
+      ],
+      "tags_at_head": [],
+      "describe": "5eb99eb",
+      "remote_url": "https://github.com/NousResearch/hermes-agent.git",
+      "upstream_ref": "origin/main",
+      "upstream_commit": "b82c79ac",
+      "on_main": true,
+      "error": null
+    },
+    "venv_python": "/opt/hermes\\hermes-agent\\venv\\Scripts\\python.exe",
+    "uv_path": "/opt/hermes\\bin\\uv.exe",
+    "errors": [],
+    "notes": [],
+    "reported_version": "0.21.2",
+    "channel": "MAIN",
+    "branch": "main",
+    "nearest_tag": "v2026.9.11",
+    "ahead_by": null,
+    "dirty": true,
+    "reported_tag": "v2026.9.11",
+    "detached": false,
+    "nearest_tag_version": "0.21.2",
+    "behind_by": 125,
+    "tag_matched": false,
+    "is_git_install": true,
+    "compare_available": true,
+    "dirty_files": 4,
+    "evidence": [
+      {
+        "zh": "本地 HEAD 落后 v2026.9.14 125 个 commit",
+        "en": "local HEAD is 125 commits behind v2026.9.14"
+      }
+    ]
+  },
+  "provenance": {
+    "reported_version": "0.21.2",
+    "channel": "MAIN",
+    "branch": "main",
+    "commit": "5eb99eb2",
+    "nearest_tag": "v2026.9.11",
+    "ahead_by": null,
+    "dirty": true,
+    "reported_tag": "v2026.9.11",
+    "detached": false,
+    "nearest_tag_version": "0.21.2",
+    "behind_by": 125,
+    "tag_matched": false,
+    "is_git_install": true,
+    "compare_available": true,
+    "dirty_files": 4,
+    "evidence": [
+      {
+        "zh": "本地 HEAD 落后 v2026.9.14 125 个 commit",
+        "en": "local HEAD is 125 commits behind v2026.9.14"
+      }
+    ]
+  },
+  "release": {
+    "tag": "v2026.9.14",
+    "name": "Hermes Agent v0.21.3 (v2026.9.14)",
+    "display_version": "0.21.3",
+    "published_at": "2026-09-14T16:04:14+00:00",
+    "prerelease": false,
+    "draft": false,
+    "html_url": "https://github.com/NousResearch/hermes-agent/releases/tag/v2026.9.14",
+    "age_hours": 15.34,
+    "body_length": 2939,
+    "previous_tag": "v2026.9.11",
+    "pr_count": 338,
+    "pr_count_from_notes": true,
+    "compare": {
+      "base_tag": "v2026.9.11",
+      "head_tag": "v2026.9.14",
+      "status": "ahead",
+      "total_commits": 1039,
+      "commits_in_payload": 250,
+      "truncated": true,
+      "files_changed": 300,
+      "pr_numbers_seen": 11,
+      "html_url": "https://github.com/NousResearch/hermes-agent/compare/v2026.9.11...v2026.9.14"
+    }
+  },
+  "latest_release": {
+    "tag": "v2026.9.14",
+    "name": "Hermes Agent v0.21.3 (v2026.9.14)",
+    "display_version": "0.21.3",
+    "published_at": "2026-09-14T16:04:14+00:00",
+    "prerelease": false,
+    "draft": false,
+    "html_url": "https://github.com/NousResearch/hermes-agent/releases/tag/v2026.9.14",
+    "age_hours": 15.34,
+    "body_length": 2939
+  },
+  "previous_release": {
+    "tag": "v2026.9.11",
+    "name": "Hermes Agent v0.21.2 (v2026.9.11)",
+    "display_version": "0.21.2",
+    "published_at": "2026-09-11T19:20:31+00:00",
+    "prerelease": false,
+    "draft": false,
+    "html_url": "https://github.com/NousResearch/hermes-agent/releases/tag/v2026.9.11",
+    "age_hours": 84.07,
+    "body_length": 14769
+  },
+  "compare": {
+    "base_tag": "v2026.9.11",
+    "head_tag": "v2026.9.14",
+    "status": "ahead",
+    "total_commits": 1039,
+    "commits_in_payload": 250,
+    "truncated": true,
+    "files_changed": 300,
+    "pr_numbers_seen": 11,
+    "html_url": "https://github.com/NousResearch/hermes-agent/compare/v2026.9.11...v2026.9.14"
+  },
+  "versions_behind": 1,
+  "update_available": true,
+  "update_status": "update_available",
+  "update_decision": {
+    "status": "update_available",
+    "is_update_candidate": true,
+    "target_version": "0.21.3",
+    "target_tag": "v2026.9.14",
+    "message_zh": "当前在 main 分支且落后最新正式版本 125 个 commit：可以同步代码，但注意更新后拿到的是 main 而不是该 Release。",
+    "message_en": "on the main branch and 125 commits behind the latest stable release: the code can be brought forward, but you will end up on main, not on the tagged release."
+  },
+  "target_version": "0.21.3",
+  "target_tag": "v2026.9.14",
+  "pr_count": 338,
+  "pr_count_from_notes": true,
+  "main_ahead_commits": null,
+  "channel": "MAIN",
+  "risk": {
+    "change_risk": 86,
+    "regression_signal": 88,
+    "data_confidence": 100,
+    "environment_risk": 67,
+    "overall": 99,
+    "stability": 1,
+    "level": "VERY HIGH",
+    "score_is_lower_bound": false,
+    "confidence": 1.0
+  },
+  "assessment": {
+    "score": 99,
+    "level": "VERY HIGH",
+    "stability": 1,
+    "recommendation": "AVOID",
+    "confidence": 1.0,
+    "recheck_in_days": 7,
+    "age_days": 0.64,
+    "insufficient_data": false,
+    "unknown_areas": [],
+    "factors": [
+      {
+        "key": "keywords",
+        "label_zh": "变更内容风险（Release Notes / commit）",
+        "label_en": "Changed-area risk (release notes / commits)",
+        "points": 31.28,
+        "detail_zh": "数据库 / 迁移 / schema(14), Session / 状态存储(19), 认证 / 凭证 / Token(22), 大规模重写 / 重构(16), Gateway(27), 配置 / 配置迁移(2), 存储 / 序列化 / 后端(5), Provider / SDK / MCP / 工具系统(16)",
+        "detail_en": "Database / migration / schema(14), Session / state store(19), Auth / credentials / tokens(22), Rewrite / refactor(16), Gateway(27), Config / config migration(2), Storage / serialization / backend(5), Provider / SDK / MCP / tool system(16)",
+        "unknown": false
+      },
+      {
+        "key": "age",
+        "label_zh": "发布年龄",
+        "label_en": "Release age",
+        "points": 18.0,
+        "detail_zh": "less than 24 h old",
+        "detail_en": "less than 24 h old",
+        "unknown": false
+      },
+      {
+        "key": "volume",
+        "label_zh": "改动规模与版本类型",
+        "label_en": "Diff size and release type",
+        "points": 16.0,
+        "detail_zh": "very large diff；patch release bundling a large number of merged PRs",
+        "detail_en": "very large diff; patch release bundling a large number of merged PRs",
+        "unknown": false
+      },
+      {
+        "key": "issues",
+        "label_zh": "发布后 Issue 信号",
+        "label_en": "Post-release issue signals",
+        "points": 19.0,
+        "detail_zh": "基线窗口 Issue 数量过大（10044），速率对比不可靠；以严重问题报告为准；多个独立报告：Gateway 无法启动 / 异常（3 个）；多个独立报告：数据损坏 / Session 丢失（2 个）；单个报告：配置迁移异常；发布后 72 小时内有仍处于 open 的严重问题",
+        "detail_en": "baseline issue volume is too large (10044) for a reliable rate comparison; relying on the severity reports instead; multiple independent reports: gateway broken or down (3); multiple independent reports: data corruption / session loss (2); single report: config migration problems; open severe issue filed within 72 h of the release",
+        "unknown": false
+      },
+      {
+        "key": "context",
+        "label_zh": "安装方式与本地上下文",
+        "label_en": "Install method and local context",
+        "points": 8.0,
+        "detail_zh": "install tracks the main branch；git working tree has uncommitted changes",
+        "detail_en": "install tracks the main branch; git working tree has uncommitted changes",
+        "unknown": false
+      },
+      {
+        "key": "bonus",
+        "label_zh": "稳定性加分（负分）",
+        "label_en": "Stability bonus (negative points)",
+        "points": 0.0,
+        "detail_zh": "无",
+        "detail_en": "none",
+        "unknown": false
+      },
+      {
+        "key": "regression_clusters",
+        "label_zh": "回归聚类可信度（Regression Signal）",
+        "label_en": "Regression cluster credibility",
+        "points": 26.4,
+        "detail_zh": "Gateway：CRITICAL × 可信度 HIGH（7 报告 / 6 报告人）；Provider / 模型接入：CRITICAL × 可信度 HIGH（7 报告 / 7 报告人）；崩溃 / 进程异常：CRITICAL × 可信度 MEDIUM（8 报告 / 8 报告人）；数据库 / state.db：CRITICAL × 可信度 MEDIUM（2 报告 / 2 报告人）；… (+7)",
+        "detail_en": "Gateway: CRITICAL x confidence HIGH (7 reports / 6 reporters); Provider / model access: CRITICAL x confidence HIGH (7 reports / 7 reporters); Crash / process failure: CRITICAL x confidence MEDIUM (8 reports / 8 reporters); Database / state.db: CRITICAL x confidence MEDIUM (2 reports / 2 reporters); … (+7)",
+        "unknown": false
+      }
+    ],
+    "change_risk": 86,
+    "regression_signal": 88,
+    "data_confidence": 100,
+    "environment_risk": 67,
+    "overall": 99,
+    "score_is_lower_bound": false,
+    "regression_detail": {
+      "value": 88,
+      "floor": 88,
+      "unknown": false,
+      "cluster_ratio": 0.8691,
+      "volume_ratio": 0.1333,
+      "reasons_zh": [
+        "Gateway：CRITICAL × 可信度 HIGH（7 报告 / 6 报告人）",
+        "Provider / 模型接入：CRITICAL × 可信度 HIGH（7 报告 / 7 报告人）",
+        "崩溃 / 进程异常：CRITICAL × 可信度 MEDIUM（8 报告 / 8 报告人）",
+        "数据库 / state.db：CRITICAL × 可信度 MEDIUM（2 报告 / 2 报告人）",
+        "Session / 会话数据：CRITICAL × 可信度 LOW（1 报告 / 1 报告人）",
+        "认证 / 凭证：HIGH × 可信度 MEDIUM（3 报告 / 3 报告人）",
+        "升级 / 回滚：HIGH × 可信度 MEDIUM（2 报告 / 2 报告人）",
+        "配置迁移：HIGH × 可信度 LOW（1 报告 / 1 报告人）",
+        "MCP：MEDIUM × 可信度 LOW（1 报告 / 1 报告人）",
+        "按 Issue 数据可信度折算（80/100 → ×0.91）",
+        "Issue 命中量组件按半权重计入（0.13）"
+      ],
+      "reasons_en": [
+        "Gateway: CRITICAL x confidence HIGH (7 reports / 6 reporters)",
+        "Provider / model access: CRITICAL x confidence HIGH (7 reports / 7 reporters)",
+        "Crash / process failure: CRITICAL x confidence MEDIUM (8 reports / 8 reporters)",
+        "Database / state.db: CRITICAL x confidence MEDIUM (2 reports / 2 reporters)",
+        "Session data: CRITICAL x confidence LOW (1 reports / 1 reporters)",
+        "Auth / credentials: HIGH x confidence MEDIUM (3 reports / 3 reporters)",
+        "Update / rollback failure: HIGH x confidence MEDIUM (2 reports / 2 reporters)",
+        "Config migration: HIGH x confidence LOW (1 reports / 1 reporters)",
+        "MCP: MEDIUM x confidence LOW (1 reports / 1 reporters)",
+        "graded by issue-signal confidence (80/100 -> x0.91)",
+        "raw issue-volume component folded in at half weight (0.13)"
+      ]
+    }
+  },
+  "hard_gates": [
+    {
+      "key": "insufficient_data",
+      "label_zh": "观测数据是否充分",
+      "label_en": "observation data sufficient",
+      "status": "PASS",
+      "reason_zh": "数据充分",
+      "reason_en": "enough data",
+      "remediation_zh": "",
+      "remediation_en": "",
+      "earliest_recheck": null
+    },
+    {
+      "key": "environment",
+      "label_zh": "本地环境状态",
+      "label_en": "local environment state",
+      "status": "PASS",
+      "reason_zh": "环境正常",
+      "reason_en": "environment OK",
+      "remediation_zh": "",
+      "remediation_en": "",
+      "earliest_recheck": null
+    },
+    {
+      "key": "release_age",
+      "label_zh": "Release 年龄 >= 48h",
+      "label_en": "release at least 48h old",
+      "status": "BLOCK",
+      "reason_zh": "Release 仅发布 15.3 小时，低于最小观察期 48 小时",
+      "reason_en": "release is only 15.3 hours old; the minimum observation period is 48 h",
+      "remediation_zh": "等观察期结束、且没有新的严重 Issue 后再评估",
+      "remediation_en": "wait for the observation window and no new severe issues before re-evaluating",
+      "earliest_recheck": "2026-09-16T16:04:14Z"
+    },
+    {
+      "key": "main_branch",
+      "label_zh": "禁止在 main 开发分支上执行更新",
+      "label_en": "no update while tracking the main development branch",
+      "status": "BLOCK",
+      "reason_zh": "当前安装跟踪 main 开发分支（代码可能领先正式 Release）",
+      "reason_en": "the installation tracks the main development branch (code may be ahead of the latest release)",
+      "remediation_zh": "如需更新，先切回正式 Release（备份后执行 git checkout <tag>）；本工具不会自动切换",
+      "remediation_en": "to update, switch back to a release tag first (git checkout <tag> after a backup); this tool never switches automatically",
+      "earliest_recheck": null
+    },
+    {
+      "key": "dirty_worktree",
+      "label_zh": "工作区必须干净",
+      "label_en": "clean git worktree",
+      "status": "BLOCK",
+      "reason_zh": "工作区有 4 个未提交修改",
+      "reason_en": "worktree has 4 uncommitted change(s)",
+      "remediation_zh": "先提交或 stash 本地修改（更新会 stash，但可能与新版冲突）",
+      "remediation_en": "commit or stash local changes first (the update stashes them, but conflicts are possible)",
+      "earliest_recheck": null
+    },
+    {
+      "key": "prerelease",
+      "label_zh": "禁止预发布版本",
+      "label_en": "no prerelease builds",
+      "status": "PASS",
+      "reason_zh": "非预发布版本",
+      "reason_en": "not a prerelease",
+      "remediation_zh": "",
+      "remediation_en": "",
+      "earliest_recheck": null
+    },
+    {
+      "key": "active_database_regression",
+      "label_zh": "禁止存在活跃的数据库回归",
+      "label_en": "no active active database regression",
+      "status": "BLOCK",
+      "reason_zh": "数据库 / state.db 存在 2 个报告（2 位报告人，2 个 open），严重程度 CRITICAL，可信度 MEDIUM",
+      "reason_en": "2 report(s) of Database / state.db (2 reporter(s), 2 open), severity CRITICAL, confidence MEDIUM",
+      "remediation_zh": "等这些 Issue 关闭或出现修复版本后再更新",
+      "remediation_en": "wait until those issues are closed or a fix release ships",
+      "earliest_recheck": null
+    },
+    {
+      "key": "active_session_regression",
+      "label_zh": "禁止存在活跃的Session/数据丢失回归",
+      "label_en": "no active active session/data-loss regression",
+      "status": "PASS",
+      "reason_zh": "无活跃回归报告",
+      "reason_en": "no active regression reports",
+      "remediation_zh": "",
+      "remediation_en": "",
+      "earliest_recheck": null
+    },
+    {
+      "key": "active_gateway_regression",
+      "label_zh": "禁止存在活跃的Gateway 回归",
+      "label_en": "no active active gateway regression",
+      "status": "SKIP",
+      "reason_zh": "无活跃回归报告",
+      "reason_en": "no active regression reports",
+      "remediation_zh": "",
+      "remediation_en": "",
+      "earliest_recheck": null
+    },
+    {
+      "key": "active_update_failure_regression",
+      "label_zh": "禁止存在活跃的升级失败回归",
+      "label_en": "no active active update-failure regression",
+      "status": "BLOCK",
+      "reason_zh": "升级 / 回滚 存在 2 个报告（2 位报告人，1 个 open），严重程度 HIGH，可信度 MEDIUM",
+      "reason_en": "2 report(s) of Update / rollback failure (2 reporter(s), 1 open), severity HIGH, confidence MEDIUM",
+      "remediation_zh": "等这些 Issue 关闭或出现修复版本后再更新",
+      "remediation_en": "wait until those issues are closed or a fix release ships",
+      "earliest_recheck": null
+    },
+    {
+      "key": "channel_mismatch",
+      "label_zh": "Channel 与 preferred_channel 不一致",
+      "label_en": "channel differs from preferred_channel",
+      "status": "WARN",
+      "reason_zh": "当前跟踪的是 MAIN，而 preferred_channel 是 stable：建议备份后切换到正式 Release（本工具不会自动降级）",
+      "reason_en": "You are currently tracking MAIN while preferred_channel is stable. Consider switching to a stable release after backing up (this tool never downgrades automatically).",
+      "remediation_zh": "",
+      "remediation_en": "",
+      "earliest_recheck": null
+    }
+  ],
+  "hard_gates_summary": {
+    "enabled": true,
+    "blocked": true,
+    "blocking": [
+      "release_age",
+      "main_branch",
+      "dirty_worktree",
+      "active_database_regression",
+      "active_update_failure_regression"
+    ],
+    "warning": [
+      "channel_mismatch"
+    ],
+    "gates": [
+      {
+        "key": "insufficient_data",
+        "label_zh": "观测数据是否充分",
+        "label_en": "observation data sufficient",
+        "status": "PASS",
+        "reason_zh": "数据充分",
+        "reason_en": "enough data",
+        "remediation_zh": "",
+        "remediation_en": "",
+        "earliest_recheck": null
+      },
+      {
+        "key": "environment",
+        "label_zh": "本地环境状态",
+        "label_en": "local environment state",
+        "status": "PASS",
+        "reason_zh": "环境正常",
+        "reason_en": "environment OK",
+        "remediation_zh": "",
+        "remediation_en": "",
+        "earliest_recheck": null
+      },
+      {
+        "key": "release_age",
+        "label_zh": "Release 年龄 >= 48h",
+        "label_en": "release at least 48h old",
+        "status": "BLOCK",
+        "reason_zh": "Release 仅发布 15.3 小时，低于最小观察期 48 小时",
+        "reason_en": "release is only 15.3 hours old; the minimum observation period is 48 h",
+        "remediation_zh": "等观察期结束、且没有新的严重 Issue 后再评估",
+        "remediation_en": "wait for the observation window and no new severe issues before re-evaluating",
+        "earliest_recheck": "2026-09-16T16:04:14Z"
+      },
+      {
+        "key": "main_branch",
+        "label_zh": "禁止在 main 开发分支上执行更新",
+        "label_en": "no update while tracking the main development branch",
+        "status": "BLOCK",
+        "reason_zh": "当前安装跟踪 main 开发分支（代码可能领先正式 Release）",
+        "reason_en": "the installation tracks the main development branch (code may be ahead of the latest release)",
+        "remediation_zh": "如需更新，先切回正式 Release（备份后执行 git checkout <tag>）；本工具不会自动切换",
+        "remediation_en": "to update, switch back to a release tag first (git checkout <tag> after a backup); this tool never switches automatically",
+        "earliest_recheck": null
+      },
+      {
+        "key": "dirty_worktree",
+        "label_zh": "工作区必须干净",
+        "label_en": "clean git worktree",
+        "status": "BLOCK",
+        "reason_zh": "工作区有 4 个未提交修改",
+        "reason_en": "worktree has 4 uncommitted change(s)",
+        "remediation_zh": "先提交或 stash 本地修改（更新会 stash，但可能与新版冲突）",
+        "remediation_en": "commit or stash local changes first (the update stashes them, but conflicts are possible)",
+        "earliest_recheck": null
+      },
+      {
+        "key": "prerelease",
+        "label_zh": "禁止预发布版本",
+        "label_en": "no prerelease builds",
+        "status": "PASS",
+        "reason_zh": "非预发布版本",
+        "reason_en": "not a prerelease",
+        "remediation_zh": "",
+        "remediation_en": "",
+        "earliest_recheck": null
+      },
+      {
+        "key": "active_database_regression",
+        "label_zh": "禁止存在活跃的数据库回归",
+        "label_en": "no active active database regression",
+        "status": "BLOCK",
+        "reason_zh": "数据库 / state.db 存在 2 个报告（2 位报告人，2 个 open），严重程度 CRITICAL，可信度 MEDIUM",
+        "reason_en": "2 report(s) of Database / state.db (2 reporter(s), 2 open), severity CRITICAL, confidence MEDIUM",
+        "remediation_zh": "等这些 Issue 关闭或出现修复版本后再更新",
+        "remediation_en": "wait until those issues are closed or a fix release ships",
+        "earliest_recheck": null
+      },
+      {
+        "key": "active_session_regression",
+        "label_zh": "禁止存在活跃的Session/数据丢失回归",
+        "label_en": "no active active session/data-loss regression",
+        "status": "PASS",
+        "reason_zh": "无活跃回归报告",
+        "reason_en": "no active regression reports",
+        "remediation_zh": "",
+        "remediation_en": "",
+        "earliest_recheck": null
+      },
+      {
+        "key": "active_gateway_regression",
+        "label_zh": "禁止存在活跃的Gateway 回归",
+        "label_en": "no active active gateway regression",
+        "status": "SKIP",
+        "reason_zh": "无活跃回归报告",
+        "reason_en": "no active regression reports",
+        "remediation_zh": "",
+        "remediation_en": "",
+        "earliest_recheck": null
+      },
+      {
+        "key": "active_update_failure_regression",
+        "label_zh": "禁止存在活跃的升级失败回归",
+        "label_en": "no active active update-failure regression",
+        "status": "BLOCK",
+        "reason_zh": "升级 / 回滚 存在 2 个报告（2 位报告人，1 个 open），严重程度 HIGH，可信度 MEDIUM",
+        "reason_en": "2 report(s) of Update / rollback failure (2 reporter(s), 1 open), severity HIGH, confidence MEDIUM",
+        "remediation_zh": "等这些 Issue 关闭或出现修复版本后再更新",
+        "remediation_en": "wait until those issues are closed or a fix release ships",
+        "earliest_recheck": null
+      },
+      {
+        "key": "channel_mismatch",
+        "label_zh": "Channel 与 preferred_channel 不一致",
+        "label_en": "channel differs from preferred_channel",
+        "status": "WARN",
+        "reason_zh": "当前跟踪的是 MAIN，而 preferred_channel 是 stable：建议备份后切换到正式 Release（本工具不会自动降级）",
+        "reason_en": "You are currently tracking MAIN while preferred_channel is stable. Consider switching to a stable release after backing up (this tool never downgrades automatically).",
+        "remediation_zh": "",
+        "remediation_en": "",
+        "earliest_recheck": null
+      }
+    ],
+    "environment": {
+      "abnormal": false,
+      "hermes_home_exists": true,
+      "config_readable": true,
+      "install_kind_known": true,
+      "state_db_readable": true,
+      "problems_zh": [],
+      "problems_en": []
+    },
+    "channel_warning_en": "You are currently tracking MAIN while preferred_channel is stable. Consider switching to a stable release after backing up (this tool never downgrades automatically)."
+  },
+  "regressions": [
+    {
+      "key": "GATEWAY",
+      "label_zh": "Gateway",
+      "label_en": "Gateway",
+      "severity": "CRITICAL",
+      "confidence": "HIGH",
+      "reports": 7,
+      "unique_reporters": 6,
+      "open": 6,
+      "maintainer_confirmed": 0,
+      "linked_pr": 2,
+      "with_reproduction": 7,
+      "mentions_version": 2,
+      "signatures": 7,
+      "contribution": 1.0,
+      "samples": [
+        {
+          "number": 111272,
+          "title": "bug(update): successful update + gateway restart leaves `fleet_restart_pending` marker — every CLI startup and `hermes doctor` print a false \"did not restart running gateways\" warning",
+          "state": "open",
+          "created_at": "2026-09-14T22:36:27+00:00",
+          "html_url": "https://github.com/NousResearch/hermes-agent/issues/111272",
+          "labels": [
+            "type/bug",
+            "comp/cli",
+            "comp/gateway",
+            "P2",
+            "sweeper:risk-compatibility",
+            "area/install-update"
+          ],
+          "comments": 3,
+          "author": "Ilnarforweb",
+          "author_association": "NONE"
+        },
+        {
+          "number": 111091,
+          "title": "[Bug]: Uncached skills rglob in _check_unavailable_skill blocks the gateway event loop ~2 min; loop-liveness watchdog then kills the gateway mid-session",
+          "state": "open",
+          "created_at": "2026-09-14T18:17:54+00:00",
+          "html_url": "https://github.com/NousResearch/hermes-agent/issues/111091",
+          "labels": [
+            "type/bug",
+            "comp/gateway",
+            "tool/skills",
+            "P2",
+            "sweeper:risk-message-delivery"
+          ],
+          "comments": 2,
+          "author": "ar27111994",
+          "author_association": "NONE"
+        },
+        {
+          "number": 111531,
+          "title": "[Bug]: Desktop turn dies with `AttributeError: 'NoneType' object has no attribute 'interim_assistant_callback'` when a session's agent is None — prompt silently dropped",
+          "state": "open",
+          "created_at": "2026-09-15T03:17:53+00:00",
+          "html_url": "https://github.com/NousResearch/hermes-agent/issues/111531",
+          "labels": [
+            "type/bug",
+            "comp/tui",
+            "P2",
+            "sweeper:risk-session-state",
+            "comp/desktop"
+          ],
+          "comments": 1,
+          "author": "zqy1-1",
+          "author_association": "NONE"
+        }
+      ],
+      "notes_zh": [
+        "报告描述的故障各不相同（可能是不同问题）"
+      ],
+      "notes_en": [
+        "reports describe different failures (may be separate problems)"
+      ]
+    },
+    {
+      "key": "PROVIDER",
+      "label_zh": "Provider / 模型接入",
+      "label_en": "Provider / model access",
+      "severity": "CRITICAL",
+      "confidence": "HIGH",
+      "reports": 7,
+      "unique_reporters": 7,
+      "open": 6,
+      "maintainer_confirmed": 0,
+      "linked_pr": 1,
+      "with_reproduction": 7,
+      "mentions_version": 1,
+      "signatures": 7,
+      "contribution": 1.0,
+      "samples": [
+        {
+          "number": 111309,
+          "title": "[Bug]: opencode-zen wrapped \"encrypted_content was not issued to this caller\" 400 is not classified as invalid_encrypted_content — session permanently poisoned, forces new session",
+          "state": "open",
+          "created_at": "2026-09-14T23:50:59+00:00",
+          "html_url": "https://github.com/NousResearch/hermes-agent/issues/111309",
+          "labels": [
+            "type/bug",
+            "duplicate",
+            "comp/agent",
+            "P2",
+            "area/sessions"
+          ],
+          "comments": 2,
+          "author": "AITextMax",
+          "author_association": "NONE"
+        },
+        {
+          "number": 111231,
+          "title": "[bug] Strict providers 400 on replayed tool history: duplicate function_call_output (Responses) + unclassified NVIDIA serde error",
+          "state": "open",
+          "created_at": "2026-09-14T21:33:57+00:00",
+          "html_url": "https://github.com/NousResearch/hermes-agent/issues/111231",
+          "labels": [
+            "type/bug",
+            "comp/agent",
+            "provider/openai",
+            "provider/nvidia",
+            "P2",
+            "sweeper:risk-session-state"
+          ],
+          "comments": 2,
+          "author": "Apollyon81",
+          "author_association": "NONE"
+        },
+        {
+          "number": 111323,
+          "title": "[Bug]: managed llama-server never starts on newer llama.cpp builds — _spawn() pins the removed -dio flag",
+          "state": "open",
+          "created_at": "2026-09-15T00:25:54+00:00",
+          "html_url": "https://github.com/NousResearch/hermes-agent/issues/111323",
+          "labels": [
+            "type/bug",
+            "comp/agent",
+            "comp/cli",
+            "P2"
+          ],
+          "comments": 1,
+          "author": "bbearla",
+          "author_association": "NONE"
+        }
+      ],
+      "notes_zh": [
+        "报告描述的故障各不相同（可能是不同问题）"
+      ],
+      "notes_en": [
+        "reports describe different failures (may be separate problems)"
+      ]
+    },
+    {
+      "key": "CRASH",
+      "label_zh": "崩溃 / 进程异常",
+      "label_en": "Crash / process failure",
+      "severity": "CRITICAL",
+      "confidence": "MEDIUM",
+      "reports": 8,
+      "unique_reporters": 8,
+      "open": 5,
+      "maintainer_confirmed": 0,
+      "linked_pr": 1,
+      "with_reproduction": 7,
+      "mentions_version": 0,
+      "signatures": 8,
+      "contribution": 0.6,
+      "samples": [
+        {
+          "number": 111598,
+          "title": "[Bug]: _terminate_host_pid tree-kill crash-dumps Desktop (SIGTRAP, GPU error_code=1002) instead of a clean exit",
+          "state": "open",
+          "created_at": "2026-09-15T06:09:27+00:00",
+          "html_url": "https://github.com/NousResearch/hermes-agent/issues/111598",
+          "labels": [
+            "type/bug",
+            "tool/terminal",
+            "P2",
+            "comp/desktop"
+          ],
+          "comments": 1,
+          "author": "Battlelamb",
+          "author_association": "NONE"
+        },
+        {
+          "number": 111568,
+          "title": "[Bug] ResponseStore SQLite race condition under concurrent aiohttp requests",
+          "state": "open",
+          "created_at": "2026-09-15T05:26:34+00:00",
+          "html_url": "https://github.com/NousResearch/hermes-agent/issues/111568",
+          "labels": [
+            "type/bug",
+            "comp/gateway",
+            "P3",
+            "needs-repro",
+            "sweeper:risk-session-state"
+          ],
+          "comments": 1,
+          "author": "Baophan00",
+          "author_association": "CONTRIBUTOR"
+        },
+        {
+          "number": 111531,
+          "title": "[Bug]: Desktop turn dies with `AttributeError: 'NoneType' object has no attribute 'interim_assistant_callback'` when a session's agent is None — prompt silently dropped",
+          "state": "open",
+          "created_at": "2026-09-15T03:17:53+00:00",
+          "html_url": "https://github.com/NousResearch/hermes-agent/issues/111531",
+          "labels": [
+            "type/bug",
+            "comp/tui",
+            "P2",
+            "sweeper:risk-session-state",
+            "comp/desktop"
+          ],
+          "comments": 1,
+          "author": "zqy1-1",
+          "author_association": "NONE"
+        }
+      ],
+      "notes_zh": [
+        "报告描述的故障各不相同（可能是不同问题）"
+      ],
+      "notes_en": [
+        "reports describe different failures (may be separate problems)"
+      ]
+    },
+    {
+      "key": "DATABASE",
+      "label_zh": "数据库 / state.db",
+      "label_en": "Database / state.db",
+      "severity": "CRITICAL",
+      "confidence": "MEDIUM",
+      "reports": 2,
+      "unique_reporters": 2,
+      "open": 2,
+      "maintainer_confirmed": 0,
+      "linked_pr": 1,
+      "with_reproduction": 1,
+      "mentions_version": 0,
+      "signatures": 2,
+      "contribution": 0.36,
+      "samples": [
+        {
+          "number": 111568,
+          "title": "[Bug] ResponseStore SQLite race condition under concurrent aiohttp requests",
+          "state": "open",
+          "created_at": "2026-09-15T05:26:34+00:00",
+          "html_url": "https://github.com/NousResearch/hermes-agent/issues/111568",
+          "labels": [
+            "type/bug",
+            "comp/gateway",
+            "P3",
+            "needs-repro",
+            "sweeper:risk-session-state"
+          ],
+          "comments": 1,
+          "author": "Baophan00",
+          "author_association": "CONTRIBUTOR"
+        },
+        {
+          "number": 111497,
+          "title": "Update receipts never carry the SQLite runtime repair outcome: a failed repair records only 'partially complete'",
+          "state": "open",
+          "created_at": "2026-09-15T02:35:03+00:00",
+          "html_url": "https://github.com/NousResearch/hermes-agent/issues/111497",
+          "labels": [
+            "type/bug",
+            "comp/cli",
+            "P3",
+            "area/install-update"
+          ],
+          "comments": 1,
+          "author": "Ckarey007",
+          "author_association": "NONE"
+        }
+      ],
+      "notes_zh": [
+        "报告描述的故障各不相同（可能是不同问题）"
+      ],
+      "notes_en": [
+        "reports describe different failures (may be separate problems)"
+      ]
+    },
+    {
+      "key": "SESSION",
+      "label_zh": "Session / 会话数据",
+      "label_en": "Session data",
+      "severity": "CRITICAL",
+      "confidence": "LOW",
+      "reports": 1,
+      "unique_reporters": 1,
+      "open": 1,
+      "maintainer_confirmed": 0,
+      "linked_pr": 1,
+      "with_reproduction": 1,
+      "mentions_version": 0,
+      "signatures": 1,
+      "contribution": 0.105,
+      "samples": [
+        {
+          "number": 111594,
+          "title": "[Bug]: Attached TUI loses recovery events and resumes with the wrong session ID after WebSocket reconnect",
+          "state": "open",
+          "created_at": "2026-09-15T06:05:28+00:00",
+          "html_url": "https://github.com/NousResearch/hermes-agent/issues/111594",
+          "labels": [
+            "type/bug",
+            "comp/tui",
+            "P2",
+            "sweeper:risk-session-state",
+            "area/sessions"
+          ],
+          "comments": 0,
+          "author": "gustavosmendes",
+          "author_association": "CONTRIBUTOR"
+        }
+      ],
+      "notes_zh": [],
+      "notes_en": []
+    },
+    {
+      "key": "AUTH",
+      "label_zh": "认证 / 凭证",
+      "label_en": "Auth / credentials",
+      "severity": "HIGH",
+      "confidence": "MEDIUM",
+      "reports": 3,
+      "unique_reporters": 3,
+      "open": 3,
+      "maintainer_confirmed": 0,
+      "linked_pr": 1,
+      "with_reproduction": 2,
+      "mentions_version": 0,
+      "signatures": 3,
+      "contribution": 0.3825,
+      "samples": [
+        {
+          "number": 111135,
+          "title": "[Bug]: Figma MCP OAuth fails - redirect omits iss parameter its metadata advertises",
+          "state": "open",
+          "created_at": "2026-09-14T19:10:35+00:00",
+          "html_url": "https://github.com/NousResearch/hermes-agent/issues/111135",
+          "labels": [
+            "type/bug",
+            "comp/cli",
+            "tool/mcp",
+            "area/auth",
+            "P2",
+            "sweeper:risk-security-boundary"
+          ],
+          "comments": 2,
+          "author": "terminallygarrett",
+          "author_association": "NONE"
+        },
+        {
+          "number": 111009,
+          "title": "[Bug]: MCP OAuth never refreshes an expired token on a cold start (Windows) — expires_in clamped to 0 + same-tick is_token_valid()",
+          "state": "open",
+          "created_at": "2026-09-14T16:19:47+00:00",
+          "html_url": "https://github.com/NousResearch/hermes-agent/issues/111009",
+          "labels": [
+            "type/bug",
+            "comp/tools",
+            "tool/mcp",
+            "area/auth",
+            "P2",
+            "sweeper:risk-platform-windows",
+            "platform/windows"
+          ],
+          "comments": 1,
+          "author": "rmb4244",
+          "author_association": "NONE"
+        },
+        {
+          "number": 111007,
+          "title": "[Bug]: Codex /usage never recovers from a server-revoked access token — refresh trusts local JWT exp only, no 401-triggered retry on the quota path",
+          "state": "open",
+          "created_at": "2026-09-14T16:18:10+00:00",
+          "html_url": "https://github.com/NousResearch/hermes-agent/issues/111007",
+          "labels": [
+            "type/bug",
+            "comp/agent",
+            "comp/cli",
+            "provider/openai",
+            "area/auth",
+            "P2",
+            "area/usage-cost"
+          ],
+          "comments": 1,
+          "author": "NealZhouPanda",
+          "author_association": "CONTRIBUTOR"
+        }
+      ],
+      "notes_zh": [
+        "报告描述的故障各不相同（可能是不同问题）"
+      ],
+      "notes_en": [
+        "reports describe different failures (may be separate problems)"
+      ]
+    },
+    {
+      "key": "UPDATE_FAILURE",
+      "label_zh": "升级 / 回滚",
+      "label_en": "Update / rollback failure",
+      "severity": "HIGH",
+      "confidence": "MEDIUM",
+      "reports": 2,
+      "unique_reporters": 2,
+      "open": 1,
+      "maintainer_confirmed": 0,
+      "linked_pr": 0,
+      "with_reproduction": 2,
+      "mentions_version": 1,
+      "signatures": 2,
+      "contribution": 0.27,
+      "samples": [
+        {
+          "number": 111271,
+          "title": "bug(update): config migration fails inside `hermes update` — \"cannot import name _configurable_keys from hermes_cli.tools_config\" (stale modules), config stays behind and update exits 1",
+          "state": "open",
+          "created_at": "2026-09-14T22:36:26+00:00",
+          "html_url": "https://github.com/NousResearch/hermes-agent/issues/111271",
+          "labels": [
+            "type/bug",
+            "comp/cli",
+            "area/config",
+            "P2",
+            "sweeper:risk-compatibility",
+            "area/install-update"
+          ],
+          "comments": 0,
+          "author": "Ilnarforweb",
+          "author_association": "NONE"
+        },
+        {
+          "number": 111171,
+          "title": "[Bug]: Install hangs at Model selection prompt",
+          "state": "closed",
+          "created_at": "2026-09-14T19:53:42+00:00",
+          "html_url": "https://github.com/NousResearch/hermes-agent/issues/111171",
+          "labels": [
+            "type/bug",
+            "comp/cli",
+            "P2",
+            "needs-repro",
+            "bug",
+            "area/install-update"
+          ],
+          "comments": 0,
+          "author": "sr99622",
+          "author_association": "NONE"
+        }
+      ],
+      "notes_zh": [
+        "报告描述的故障各不相同（可能是不同问题）"
+      ],
+      "notes_en": [
+        "reports describe different failures (may be separate problems)"
+      ]
+    },
+    {
+      "key": "CONFIG_MIGRATION",
+      "label_zh": "配置迁移",
+      "label_en": "Config migration",
+      "severity": "HIGH",
+      "confidence": "LOW",
+      "reports": 1,
+      "unique_reporters": 1,
+      "open": 1,
+      "maintainer_confirmed": 0,
+      "linked_pr": 0,
+      "with_reproduction": 1,
+      "mentions_version": 1,
+      "signatures": 1,
+      "contribution": 0.0787,
+      "samples": [
+        {
+          "number": 111271,
+          "title": "bug(update): config migration fails inside `hermes update` — \"cannot import name _configurable_keys from hermes_cli.tools_config\" (stale modules), config stays behind and update exits 1",
+          "state": "open",
+          "created_at": "2026-09-14T22:36:26+00:00",
+          "html_url": "https://github.com/NousResearch/hermes-agent/issues/111271",
+          "labels": [
+            "type/bug",
+            "comp/cli",
+            "area/config",
+            "P2",
+            "sweeper:risk-compatibility",
+            "area/install-update"
+          ],
+          "comments": 0,
+          "author": "Ilnarforweb",
+          "author_association": "NONE"
+        }
+      ],
+      "notes_zh": [],
+      "notes_en": []
+    },
+    {
+      "key": "MCP",
+      "label_zh": "MCP",
+      "label_en": "MCP",
+      "severity": "MEDIUM",
+      "confidence": "LOW",
+      "reports": 1,
+      "unique_reporters": 1,
+      "open": 1,
+      "maintainer_confirmed": 0,
+      "linked_pr": 0,
+      "with_reproduction": 0,
+      "mentions_version": 0,
+      "signatures": 1,
+      "contribution": 0.0473,
+      "samples": [
+        {
+          "number": 111135,
+          "title": "[Bug]: Figma MCP OAuth fails - redirect omits iss parameter its metadata advertises",
+          "state": "open",
+          "created_at": "2026-09-14T19:10:35+00:00",
+          "html_url": "https://github.com/NousResearch/hermes-agent/issues/111135",
+          "labels": [
+            "type/bug",
+            "comp/cli",
+            "tool/mcp",
+            "area/auth",
+            "P2",
+            "sweeper:risk-security-boundary"
+          ],
+          "comments": 2,
+          "author": "terminallygarrett",
+          "author_association": "NONE"
+        }
+      ],
+      "notes_zh": [],
+      "notes_en": []
+    }
+  ],
+  "issues": {
+    "window_days": 0.64,
+    "post_release_total": 102,
+    "baseline_total": 10044,
+    "baseline_window_days": 3.0,
+    "scanned_items": 55,
+    "category_counts": {
+      "data_loss": 2,
+      "gateway_down": 3,
+      "config_migration": 1
+    },
+    "open_severe_recent": 6,
+    "degraded": false,
+    "unavailable_reason": null,
+    "queries": [
+      "repo:NousResearch/hermes-agent type:issue created:>=2026-09-14 in:title bug OR crash OR corrupt OR regression OR broken OR failed",
+      "repo:NousResearch/hermes-agent type:issue label:\"bug\" created:>=2026-09-14",
+      "repo:NousResearch/hermes-agent type:issue created:>=2026-09-11 created:<2026-09-14 in:title bug OR crash OR corrupt OR regression OR broken OR failed"
+    ],
+    "signal_confidence": 80,
+    "enriched_issues": 3,
+    "clusters": [
+      {
+        "key": "GATEWAY",
+        "label_zh": "Gateway",
+        "label_en": "Gateway",
+        "severity": "CRITICAL",
+        "confidence": "HIGH",
+        "reports": 7,
+        "unique_reporters": 6,
+        "open": 6,
+        "maintainer_confirmed": 0,
+        "linked_pr": 2,
+        "with_reproduction": 7,
+        "mentions_version": 2,
+        "signatures": 7,
+        "contribution": 1.0,
+        "samples": [
+          {
+            "number": 111272,
+            "title": "bug(update): successful update + gateway restart leaves `fleet_restart_pending` marker — every CLI startup and `hermes doctor` print a false \"did not restart running gateways\" warning",
+            "state": "open",
+            "created_at": "2026-09-14T22:36:27+00:00",
+            "html_url": "https://github.com/NousResearch/hermes-agent/issues/111272",
+            "labels": [
+              "type/bug",
+              "comp/cli",
+              "comp/gateway",
+              "P2",
+              "sweeper:risk-compatibility",
+              "area/install-update"
+            ],
+            "comments": 3,
+            "author": "Ilnarforweb",
+            "author_association": "NONE"
+          },
+          {
+            "number": 111091,
+            "title": "[Bug]: Uncached skills rglob in _check_unavailable_skill blocks the gateway event loop ~2 min; loop-liveness watchdog then kills the gateway mid-session",
+            "state": "open",
+            "created_at": "2026-09-14T18:17:54+00:00",
+            "html_url": "https://github.com/NousResearch/hermes-agent/issues/111091",
+            "labels": [
+              "type/bug",
+              "comp/gateway",
+              "tool/skills",
+              "P2",
+              "sweeper:risk-message-delivery"
+            ],
+            "comments": 2,
+            "author": "ar27111994",
+            "author_association": "NONE"
+          },
+          {
+            "number": 111531,
+            "title": "[Bug]: Desktop turn dies with `AttributeError: 'NoneType' object has no attribute 'interim_assistant_callback'` when a session's agent is None — prompt silently dropped",
+            "state": "open",
+            "created_at": "2026-09-15T03:17:53+00:00",
+            "html_url": "https://github.com/NousResearch/hermes-agent/issues/111531",
+            "labels": [
+              "type/bug",
+              "comp/tui",
+              "P2",
+              "sweeper:risk-session-state",
+              "comp/desktop"
+            ],
+            "comments": 1,
+            "author": "zqy1-1",
+            "author_association": "NONE"
+          }
+        ],
+        "notes_zh": [
+          "报告描述的故障各不相同（可能是不同问题）"
+        ],
+        "notes_en": [
+          "reports describe different failures (may be separate problems)"
+        ]
+      },
+      {
+        "key": "PROVIDER",
+        "label_zh": "Provider / 模型接入",
+        "label_en": "Provider / model access",
+        "severity": "CRITICAL",
+        "confidence": "HIGH",
+        "reports": 7,
+        "unique_reporters": 7,
+        "open": 6,
+        "maintainer_confirmed": 0,
+        "linked_pr": 1,
+        "with_reproduction": 7,
+        "mentions_version": 1,
+        "signatures": 7,
+        "contribution": 1.0,
+        "samples": [
+          {
+            "number": 111309,
+            "title": "[Bug]: opencode-zen wrapped \"encrypted_content was not issued to this caller\" 400 is not classified as invalid_encrypted_content — session permanently poisoned, forces new session",
+            "state": "open",
+            "created_at": "2026-09-14T23:50:59+00:00",
+            "html_url": "https://github.com/NousResearch/hermes-agent/issues/111309",
+            "labels": [
+              "type/bug",
+              "duplicate",
+              "comp/agent",
+              "P2",
+              "area/sessions"
+            ],
+            "comments": 2,
+            "author": "AITextMax",
+            "author_association": "NONE"
+          },
+          {
+            "number": 111231,
+            "title": "[bug] Strict providers 400 on replayed tool history: duplicate function_call_output (Responses) + unclassified NVIDIA serde error",
+            "state": "open",
+            "created_at": "2026-09-14T21:33:57+00:00",
+            "html_url": "https://github.com/NousResearch/hermes-agent/issues/111231",
+            "labels": [
+              "type/bug",
+              "comp/agent",
+              "provider/openai",
+              "provider/nvidia",
+              "P2",
+              "sweeper:risk-session-state"
+            ],
+            "comments": 2,
+            "author": "Apollyon81",
+            "author_association": "NONE"
+          },
+          {
+            "number": 111323,
+            "title": "[Bug]: managed llama-server never starts on newer llama.cpp builds — _spawn() pins the removed -dio flag",
+            "state": "open",
+            "created_at": "2026-09-15T00:25:54+00:00",
+            "html_url": "https://github.com/NousResearch/hermes-agent/issues/111323",
+            "labels": [
+              "type/bug",
+              "comp/agent",
+              "comp/cli",
+              "P2"
+            ],
+            "comments": 1,
+            "author": "bbearla",
+            "author_association": "NONE"
+          }
+        ],
+        "notes_zh": [
+          "报告描述的故障各不相同（可能是不同问题）"
+        ],
+        "notes_en": [
+          "reports describe different failures (may be separate problems)"
+        ]
+      },
+      {
+        "key": "CRASH",
+        "label_zh": "崩溃 / 进程异常",
+        "label_en": "Crash / process failure",
+        "severity": "CRITICAL",
+        "confidence": "MEDIUM",
+        "reports": 8,
+        "unique_reporters": 8,
+        "open": 5,
+        "maintainer_confirmed": 0,
+        "linked_pr": 1,
+        "with_reproduction": 7,
+        "mentions_version": 0,
+        "signatures": 8,
+        "contribution": 0.6,
+        "samples": [
+          {
+            "number": 111598,
+            "title": "[Bug]: _terminate_host_pid tree-kill crash-dumps Desktop (SIGTRAP, GPU error_code=1002) instead of a clean exit",
+            "state": "open",
+            "created_at": "2026-09-15T06:09:27+00:00",
+            "html_url": "https://github.com/NousResearch/hermes-agent/issues/111598",
+            "labels": [
+              "type/bug",
+              "tool/terminal",
+              "P2",
+              "comp/desktop"
+            ],
+            "comments": 1,
+            "author": "Battlelamb",
+            "author_association": "NONE"
+          },
+          {
+            "number": 111568,
+            "title": "[Bug] ResponseStore SQLite race condition under concurrent aiohttp requests",
+            "state": "open",
+            "created_at": "2026-09-15T05:26:34+00:00",
+            "html_url": "https://github.com/NousResearch/hermes-agent/issues/111568",
+            "labels": [
+              "type/bug",
+              "comp/gateway",
+              "P3",
+              "needs-repro",
+              "sweeper:risk-session-state"
+            ],
+            "comments": 1,
+            "author": "Baophan00",
+            "author_association": "CONTRIBUTOR"
+          },
+          {
+            "number": 111531,
+            "title": "[Bug]: Desktop turn dies with `AttributeError: 'NoneType' object has no attribute 'interim_assistant_callback'` when a session's agent is None — prompt silently dropped",
+            "state": "open",
+            "created_at": "2026-09-15T03:17:53+00:00",
+            "html_url": "https://github.com/NousResearch/hermes-agent/issues/111531",
+            "labels": [
+              "type/bug",
+              "comp/tui",
+              "P2",
+              "sweeper:risk-session-state",
+              "comp/desktop"
+            ],
+            "comments": 1,
+            "author": "zqy1-1",
+            "author_association": "NONE"
+          }
+        ],
+        "notes_zh": [
+          "报告描述的故障各不相同（可能是不同问题）"
+        ],
+        "notes_en": [
+          "reports describe different failures (may be separate problems)"
+        ]
+      },
+      {
+        "key": "DATABASE",
+        "label_zh": "数据库 / state.db",
+        "label_en": "Database / state.db",
+        "severity": "CRITICAL",
+        "confidence": "MEDIUM",
+        "reports": 2,
+        "unique_reporters": 2,
+        "open": 2,
+        "maintainer_confirmed": 0,
+        "linked_pr": 1,
+        "with_reproduction": 1,
+        "mentions_version": 0,
+        "signatures": 2,
+        "contribution": 0.36,
+        "samples": [
+          {
+            "number": 111568,
+            "title": "[Bug] ResponseStore SQLite race condition under concurrent aiohttp requests",
+            "state": "open",
+            "created_at": "2026-09-15T05:26:34+00:00",
+            "html_url": "https://github.com/NousResearch/hermes-agent/issues/111568",
+            "labels": [
+              "type/bug",
+              "comp/gateway",
+              "P3",
+              "needs-repro",
+              "sweeper:risk-session-state"
+            ],
+            "comments": 1,
+            "author": "Baophan00",
+            "author_association": "CONTRIBUTOR"
+          },
+          {
+            "number": 111497,
+            "title": "Update receipts never carry the SQLite runtime repair outcome: a failed repair records only 'partially complete'",
+            "state": "open",
+            "created_at": "2026-09-15T02:35:03+00:00",
+            "html_url": "https://github.com/NousResearch/hermes-agent/issues/111497",
+            "labels": [
+              "type/bug",
+              "comp/cli",
+              "P3",
+              "area/install-update"
+            ],
+            "comments": 1,
+            "author": "Ckarey007",
+            "author_association": "NONE"
+          }
+        ],
+        "notes_zh": [
+          "报告描述的故障各不相同（可能是不同问题）"
+        ],
+        "notes_en": [
+          "reports describe different failures (may be separate problems)"
+        ]
+      },
+      {
+        "key": "SESSION",
+        "label_zh": "Session / 会话数据",
+        "label_en": "Session data",
+        "severity": "CRITICAL",
+        "confidence": "LOW",
+        "reports": 1,
+        "unique_reporters": 1,
+        "open": 1,
+        "maintainer_confirmed": 0,
+        "linked_pr": 1,
+        "with_reproduction": 1,
+        "mentions_version": 0,
+        "signatures": 1,
+        "contribution": 0.105,
+        "samples": [
+          {
+            "number": 111594,
+            "title": "[Bug]: Attached TUI loses recovery events and resumes with the wrong session ID after WebSocket reconnect",
+            "state": "open",
+            "created_at": "2026-09-15T06:05:28+00:00",
+            "html_url": "https://github.com/NousResearch/hermes-agent/issues/111594",
+            "labels": [
+              "type/bug",
+              "comp/tui",
+              "P2",
+              "sweeper:risk-session-state",
+              "area/sessions"
+            ],
+            "comments": 0,
+            "author": "gustavosmendes",
+            "author_association": "CONTRIBUTOR"
+          }
+        ],
+        "notes_zh": [],
+        "notes_en": []
+      },
+      {
+        "key": "AUTH",
+        "label_zh": "认证 / 凭证",
+        "label_en": "Auth / credentials",
+        "severity": "HIGH",
+        "confidence": "MEDIUM",
+        "reports": 3,
+        "unique_reporters": 3,
+        "open": 3,
+        "maintainer_confirmed": 0,
+        "linked_pr": 1,
+        "with_reproduction": 2,
+        "mentions_version": 0,
+        "signatures": 3,
+        "contribution": 0.3825,
+        "samples": [
+          {
+            "number": 111135,
+            "title": "[Bug]: Figma MCP OAuth fails - redirect omits iss parameter its metadata advertises",
+            "state": "open",
+            "created_at": "2026-09-14T19:10:35+00:00",
+            "html_url": "https://github.com/NousResearch/hermes-agent/issues/111135",
+            "labels": [
+              "type/bug",
+              "comp/cli",
+              "tool/mcp",
+              "area/auth",
+              "P2",
+              "sweeper:risk-security-boundary"
+            ],
+            "comments": 2,
+            "author": "terminallygarrett",
+            "author_association": "NONE"
+          },
+          {
+            "number": 111009,
+            "title": "[Bug]: MCP OAuth never refreshes an expired token on a cold start (Windows) — expires_in clamped to 0 + same-tick is_token_valid()",
+            "state": "open",
+            "created_at": "2026-09-14T16:19:47+00:00",
+            "html_url": "https://github.com/NousResearch/hermes-agent/issues/111009",
+            "labels": [
+              "type/bug",
+              "comp/tools",
+              "tool/mcp",
+              "area/auth",
+              "P2",
+              "sweeper:risk-platform-windows",
+              "platform/windows"
+            ],
+            "comments": 1,
+            "author": "rmb4244",
+            "author_association": "NONE"
+          },
+          {
+            "number": 111007,
+            "title": "[Bug]: Codex /usage never recovers from a server-revoked access token — refresh trusts local JWT exp only, no 401-triggered retry on the quota path",
+            "state": "open",
+            "created_at": "2026-09-14T16:18:10+00:00",
+            "html_url": "https://github.com/NousResearch/hermes-agent/issues/111007",
+            "labels": [
+              "type/bug",
+              "comp/agent",
+              "comp/cli",
+              "provider/openai",
+              "area/auth",
+              "P2",
+              "area/usage-cost"
+            ],
+            "comments": 1,
+            "author": "NealZhouPanda",
+            "author_association": "CONTRIBUTOR"
+          }
+        ],
+        "notes_zh": [
+          "报告描述的故障各不相同（可能是不同问题）"
+        ],
+        "notes_en": [
+          "reports describe different failures (may be separate problems)"
+        ]
+      },
+      {
+        "key": "UPDATE_FAILURE",
+        "label_zh": "升级 / 回滚",
+        "label_en": "Update / rollback failure",
+        "severity": "HIGH",
+        "confidence": "MEDIUM",
+        "reports": 2,
+        "unique_reporters": 2,
+        "open": 1,
+        "maintainer_confirmed": 0,
+        "linked_pr": 0,
+        "with_reproduction": 2,
+        "mentions_version": 1,
+        "signatures": 2,
+        "contribution": 0.27,
+        "samples": [
+          {
+            "number": 111271,
+            "title": "bug(update): config migration fails inside `hermes update` — \"cannot import name _configurable_keys from hermes_cli.tools_config\" (stale modules), config stays behind and update exits 1",
+            "state": "open",
+            "created_at": "2026-09-14T22:36:26+00:00",
+            "html_url": "https://github.com/NousResearch/hermes-agent/issues/111271",
+            "labels": [
+              "type/bug",
+              "comp/cli",
+              "area/config",
+              "P2",
+              "sweeper:risk-compatibility",
+              "area/install-update"
+            ],
+            "comments": 0,
+            "author": "Ilnarforweb",
+            "author_association": "NONE"
+          },
+          {
+            "number": 111171,
+            "title": "[Bug]: Install hangs at Model selection prompt",
+            "state": "closed",
+            "created_at": "2026-09-14T19:53:42+00:00",
+            "html_url": "https://github.com/NousResearch/hermes-agent/issues/111171",
+            "labels": [
+              "type/bug",
+              "comp/cli",
+              "P2",
+              "needs-repro",
+              "bug",
+              "area/install-update"
+            ],
+            "comments": 0,
+            "author": "sr99622",
+            "author_association": "NONE"
+          }
+        ],
+        "notes_zh": [
+          "报告描述的故障各不相同（可能是不同问题）"
+        ],
+        "notes_en": [
+          "reports describe different failures (may be separate problems)"
+        ]
+      },
+      {
+        "key": "CONFIG_MIGRATION",
+        "label_zh": "配置迁移",
+        "label_en": "Config migration",
+        "severity": "HIGH",
+        "confidence": "LOW",
+        "reports": 1,
+        "unique_reporters": 1,
+        "open": 1,
+        "maintainer_confirmed": 0,
+        "linked_pr": 0,
+        "with_reproduction": 1,
+        "mentions_version": 1,
+        "signatures": 1,
+        "contribution": 0.0787,
+        "samples": [
+          {
+            "number": 111271,
+            "title": "bug(update): config migration fails inside `hermes update` — \"cannot import name _configurable_keys from hermes_cli.tools_config\" (stale modules), config stays behind and update exits 1",
+            "state": "open",
+            "created_at": "2026-09-14T22:36:26+00:00",
+            "html_url": "https://github.com/NousResearch/hermes-agent/issues/111271",
+            "labels": [
+              "type/bug",
+              "comp/cli",
+              "area/config",
+              "P2",
+              "sweeper:risk-compatibility",
+              "area/install-update"
+            ],
+            "comments": 0,
+            "author": "Ilnarforweb",
+            "author_association": "NONE"
+          }
+        ],
+        "notes_zh": [],
+        "notes_en": []
+      },
+      {
+        "key": "MCP",
+        "label_zh": "MCP",
+        "label_en": "MCP",
+        "severity": "MEDIUM",
+        "confidence": "LOW",
+        "reports": 1,
+        "unique_reporters": 1,
+        "open": 1,
+        "maintainer_confirmed": 0,
+        "linked_pr": 0,
+        "with_reproduction": 0,
+        "mentions_version": 0,
+        "signatures": 1,
+        "contribution": 0.0473,
+        "samples": [
+          {
+            "number": 111135,
+            "title": "[Bug]: Figma MCP OAuth fails - redirect omits iss parameter its metadata advertises",
+            "state": "open",
+            "created_at": "2026-09-14T19:10:35+00:00",
+            "html_url": "https://github.com/NousResearch/hermes-agent/issues/111135",
+            "labels": [
+              "type/bug",
+              "comp/cli",
+              "tool/mcp",
+              "area/auth",
+              "P2",
+              "sweeper:risk-security-boundary"
+            ],
+            "comments": 2,
+            "author": "terminallygarrett",
+            "author_association": "NONE"
+          }
+        ],
+        "notes_zh": [],
+        "notes_en": []
+      }
+    ],
+    "samples": {
+      "data_loss": [
+        {
+          "number": 111311,
+          "title": "[Bug]: Gemini 3.8 flash can't process images because of corrupted thought signature",
+          "state": "open",
+          "created_at": "2026-09-15T00:00:32+00:00",
+          "html_url": "https://github.com/NousResearch/hermes-agent/issues/111311",
+          "labels": [
+            "type/bug",
+            "comp/agent",
+            "tool/vision",
+            "provider/openrouter",
+            "provider/gemini",
+            "P2",
+            "needs-repro",
+            "comp/desktop",
+            "bug"
+          ],
+          "comments": 0,
+          "author": "drakessword",
+          "author_association": "NONE"
+        },
+        {
+          "number": 110979,
+          "title": "[Bug]: intact /steer OOB marker spliced onto a short/unrelated tool result is misread as corrupted tool output → agent halts (false positive)",
+          "state": "open",
+          "created_at": "2026-09-14T15:36:33+00:00",
+          "html_url": "https://github.com/NousResearch/hermes-agent/issues/110979",
+          "labels": [
+            "type/bug",
+            "comp/agent",
+            "P3",
+            "needs-repro"
+          ],
+          "comments": 2,
+          "author": "AltenLi",
+          "author_association": "NONE"
+        }
+      ],
+      "gateway_down": [
+        {
+          "number": 111272,
+          "title": "bug(update): successful update + gateway restart leaves `fleet_restart_pending` marker — every CLI startup and `hermes doctor` print a false \"did not restart running gateways\" warning",
+          "state": "open",
+          "created_at": "2026-09-14T22:36:27+00:00",
+          "html_url": "https://github.com/NousResearch/hermes-agent/issues/111272",
+          "labels": [
+            "type/bug",
+            "comp/cli",
+            "comp/gateway",
+            "P2",
+            "sweeper:risk-compatibility",
+            "area/install-update"
+          ],
+          "comments": 3,
+          "author": "Ilnarforweb",
+          "author_association": "NONE"
+        },
+        {
+          "number": 111092,
+          "title": "[Bug]: Gateway restart live-lock on large installs — pre-logging startup phases hold no progress leases; startup watchdog kills each attempt (exit 75) before the first log line",
+          "state": "open",
+          "created_at": "2026-09-14T18:18:08+00:00",
+          "html_url": "https://github.com/NousResearch/hermes-agent/issues/111092",
+          "labels": [
+            "type/bug",
+            "comp/gateway",
+            "P2",
+            "area/sessions"
+          ],
+          "comments": 1,
+          "author": "ar27111994",
+          "author_association": "NONE"
+        },
+        {
+          "number": 111091,
+          "title": "[Bug]: Uncached skills rglob in _check_unavailable_skill blocks the gateway event loop ~2 min; loop-liveness watchdog then kills the gateway mid-session",
+          "state": "open",
+          "created_at": "2026-09-14T18:17:54+00:00",
+          "html_url": "https://github.com/NousResearch/hermes-agent/issues/111091",
+          "labels": [
+            "type/bug",
+            "comp/gateway",
+            "tool/skills",
+            "P2",
+            "sweeper:risk-message-delivery"
+          ],
+          "comments": 2,
+          "author": "ar27111994",
+          "author_association": "NONE"
+        }
+      ],
+      "config_migration": [
+        {
+          "number": 111271,
+          "title": "bug(update): config migration fails inside `hermes update` — \"cannot import name _configurable_keys from hermes_cli.tools_config\" (stale modules), config stays behind and update exits 1",
+          "state": "open",
+          "created_at": "2026-09-14T22:36:26+00:00",
+          "html_url": "https://github.com/NousResearch/hermes-agent/issues/111271",
+          "labels": [
+            "type/bug",
+            "comp/cli",
+            "area/config",
+            "P2",
+            "sweeper:risk-compatibility",
+            "area/install-update"
+          ],
+          "comments": 0,
+          "author": "Ilnarforweb",
+          "author_association": "NONE"
+        }
+      ]
+    }
+  },
+  "recommendation": "WAIT",
+  "recommendation_detail": {
+    "action": "WAIT",
+    "decided_by": "hard_gate",
+    "level": "VERY HIGH",
+    "overall": 99,
+    "stability": 1,
+    "change_risk": 86,
+    "regression_signal": 88,
+    "data_confidence": 100,
+    "score_is_lower_bound": false,
+    "blocking_gates": [
+      "release_age",
+      "main_branch",
+      "dirty_worktree",
+      "active_database_regression",
+      "active_update_failure_regression"
+    ],
+    "reasons_zh": [
+      "Release 仅发布 15.3 小时，低于最小观察期 48 小时",
+      "当前安装跟踪 main 开发分支（代码可能领先正式 Release）",
+      "工作区有 4 个未提交修改",
+      "数据库 / state.db 存在 2 个报告（2 位报告人，2 个 open），严重程度 CRITICAL，可信度 MEDIUM",
+      "升级 / 回滚 存在 2 个报告（2 位报告人，1 个 open），严重程度 HIGH，可信度 MEDIUM",
+      "涉及 数据库 / 迁移 / schema（命中 14 次）",
+      "涉及 Session / 状态存储（命中 19 次）",
+      "涉及 认证 / 凭证 / Token（命中 22 次）",
+      "涉及 大规模重写 / 重构（命中 16 次）",
+      "涉及 Gateway（命中 27 次）",
+      "涉及 配置 / 配置迁移（命中 2 次）"
+    ],
+    "reasons_en": [
+      "release is only 15.3 hours old; the minimum observation period is 48 h",
+      "the installation tracks the main development branch (code may be ahead of the latest release)",
+      "worktree has 4 uncommitted change(s)",
+      "2 report(s) of Database / state.db (2 reporter(s), 2 open), severity CRITICAL, confidence MEDIUM",
+      "2 report(s) of Update / rollback failure (2 reporter(s), 1 open), severity HIGH, confidence MEDIUM",
+      "Database / migration / schema touched (14 mentions)",
+      "Session / state store touched (19 mentions)",
+      "Auth / credentials / tokens touched (22 mentions)",
+      "Rewrite / refactor touched (16 mentions)",
+      "Gateway touched (27 mentions)",
+      "Config / config migration touched (2 mentions)"
+    ],
+    "remediation_zh": [
+      "等观察期结束、且没有新的严重 Issue 后再评估",
+      "如需更新，先切回正式 Release（备份后执行 git checkout <tag>）；本工具不会自动切换",
+      "先提交或 stash 本地修改（更新会 stash，但可能与新版冲突）",
+      "等这些 Issue 关闭或出现修复版本后再更新",
+      "等这些 Issue 关闭或出现修复版本后再更新"
+    ],
+    "remediation_en": [
+      "wait for the observation window and no new severe issues before re-evaluating",
+      "to update, switch back to a release tag first (git checkout <tag> after a backup); this tool never switches automatically",
+      "commit or stash local changes first (the update stashes them, but conflicts are possible)",
+      "wait until those issues are closed or a fix release ships",
+      "wait until those issues are closed or a fix release ships"
+    ],
+    "recheck_at": "2026-09-15T19:24:54Z",
+    "recheck_hours": 12.0,
+    "recheck_reason_zh": "存在 open 的 CRITICAL 回归（Gateway、Provider / 模型接入、崩溃 / 进程异常）：建议 12 小时后复查",
+    "recheck_reason_en": "open CRITICAL regression(s) (Gateway, Provider / model access, Crash / process failure): re-check in 12 h"
+  },
+  "recommended_recheck": "2026-09-15T19:24:54Z",
+  "recommended_recheck_hours": 12.0,
+  "degradation": [],
+  "rate_limit": {
+    "resources": {
+      "code_search": {
+        "limit": 60,
+        "remaining": 48,
+        "reset": 1789460103,
+        "used": 12
+      },
+      "core": {
+        "limit": 60,
+        "remaining": 48,
+        "reset": 1789460103,
+        "used": 12
+      },
+      "graphql": {
+        "limit": 0,
+        "remaining": 0,
+        "reset": 1789460694,
+        "used": 0
+      },
+      "integration_manifest": {
+        "limit": 5000,
+        "remaining": 5000,
+        "reset": 1789460694,
+        "used": 0
+      },
+      "search": {
+        "limit": 10,
+        "remaining": 10,
+        "reset": 1789457154,
+        "used": 0
+      }
+    },
+    "rate": {
+      "limit": 60,
+      "remaining": 48,
+      "reset": 1789460103,
+      "used": 12
+    }
+  },
+  "token_used": false
+}

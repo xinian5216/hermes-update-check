@@ -1,0 +1,216 @@
+
+Hermes Update Advisor
+
+LOCAL INSTALLATION ────────────────────────────────────────────────────────────
+  Reported Version    v0.21.2                                          
+  Channel             MAIN   (tracking the development branch (main))  
+  Git Branch          main                                             
+  Git Commit          5eb99eb2                                         
+  Nearest Release     v2026.9.11 (v0.21.2)                             
+  Behind Latest       125 commits                                      
+  Working Tree        dirty (4 uncommitted change(s))                  
+
+LATEST STABLE ─────────────────────────────────────────────────────────────────
+  Release         v0.21.3 (v2026.9.14)                                         
+  Published       15.3 hours ago  (2026-09-14T16:04:14Z)                       
+  Commits         1039+                                                        
+  Merged PRs      338 (from release notes)                                     
+  Release page    https://github.com/NousResearch/hermes-agent/releases/tag/…  
+
+Latest != safest: the newest tag is only worth taking once it has matured.
+
+UPDATE STATUS ─────────────────────────────────────────────────────────────────
+  a newer stable release exists
+  on the main branch and 125 commits behind the latest stable release: the code can be brought
+  forward, but you will end up on main, not on the tagged release.
+
+RISK ──────────────────────────────────────────────────────────────────────────
+  Change Risk          86 / 100   
+  Regression Signal    88 / 100   
+  Data Confidence      100 / 100  
+  Environment Risk     67 / 100   
+  Overall Risk         99/100     
+  Risk Level           VERY HIGH  
+  Stability            1/100      
+  Issue Signal Confidence: 80/100 (scanned 55, clusters 9)
+
+HARD GATES ────────────────────────────────────────────────────────────────────
+  PASS  observation data sufficient
+  PASS  local environment state
+  BLOCK release at least 48h old
+        release is only 15.3 hours old; the minimum observation period is 48 h
+  BLOCK no update while tracking the main development branch
+        the installation tracks the main development branch (code may be ahead of the latest release)
+  BLOCK clean git worktree
+        worktree has 4 uncommitted change(s)
+  PASS  no prerelease builds
+  BLOCK no active active database regression
+        2 report(s) of Database / state.db (2 reporter(s), 2 open), severity CRITICAL, confidence MEDIUM
+  PASS  no active active session/data-loss regression
+  BLOCK no active active update-failure regression
+        2 report(s) of Update / rollback failure (2 reporter(s), 1 open), severity HIGH, confidence MEDIUM
+  WARN  channel differs from preferred_channel
+        You are currently tracking MAIN while preferred_channel is stable. Consider switching to a stable release after backing up (this tool never downgrades automatically).
+
+hard gates override the score: a blocked gate means no update even at a low score.
+
+REGRESSION SIGNALS ────────────────────────────────────────────────────────────
+  Gateway                    CRITICAL HIGH
+      7 reports / 6 unique reporters / 6 open / 0 maintainer-confirmed / linked PR 2
+      - reports describe different failures (may be separate problems)
+      #111272 [open] bug(update): successful update + gateway restart leaves `fleet_restart_pending` marker — every C
+        https://github.com/NousResearch/hermes-agent/issues/111272
+      #111091 [open] [Bug]: Uncached skills rglob in _check_unavailable_skill blocks the gateway event loop ~2 min; l
+        https://github.com/NousResearch/hermes-agent/issues/111091
+  Provider / model access    CRITICAL HIGH
+      7 reports / 7 unique reporters / 6 open / 0 maintainer-confirmed / linked PR 1
+      - reports describe different failures (may be separate problems)
+      #111309 [open] [Bug]: opencode-zen wrapped "encrypted_content was not issued to this caller" 400 is not classif
+        https://github.com/NousResearch/hermes-agent/issues/111309
+      #111231 [open] [bug] Strict providers 400 on replayed tool history: duplicate function_call_output (Responses) 
+        https://github.com/NousResearch/hermes-agent/issues/111231
+  Crash / process failure    CRITICAL MEDIUM
+      8 reports / 8 unique reporters / 5 open / 0 maintainer-confirmed / linked PR 1
+      - reports describe different failures (may be separate problems)
+      #111598 [open] [Bug]: _terminate_host_pid tree-kill crash-dumps Desktop (SIGTRAP, GPU error_code=1002) instead 
+        https://github.com/NousResearch/hermes-agent/issues/111598
+      #111568 [open] [Bug] ResponseStore SQLite race condition under concurrent aiohttp requests
+        https://github.com/NousResearch/hermes-agent/issues/111568
+  Database / state.db        CRITICAL MEDIUM
+      2 reports / 2 unique reporters / 2 open / 0 maintainer-confirmed / linked PR 1
+      - reports describe different failures (may be separate problems)
+      #111568 [open] [Bug] ResponseStore SQLite race condition under concurrent aiohttp requests
+        https://github.com/NousResearch/hermes-agent/issues/111568
+      #111497 [open] Update receipts never carry the SQLite runtime repair outcome: a failed repair records only 'par
+        https://github.com/NousResearch/hermes-agent/issues/111497
+  Session data               CRITICAL LOW
+      1 reports / 1 unique reporters / 1 open / 0 maintainer-confirmed / linked PR 1
+      #111594 [open] [Bug]: Attached TUI loses recovery events and resumes with the wrong session ID after WebSocket 
+        https://github.com/NousResearch/hermes-agent/issues/111594
+  Auth / credentials         HIGH     MEDIUM
+      3 reports / 3 unique reporters / 3 open / 0 maintainer-confirmed / linked PR 1
+      - reports describe different failures (may be separate problems)
+      #111135 [open] [Bug]: Figma MCP OAuth fails - redirect omits iss parameter its metadata advertises
+        https://github.com/NousResearch/hermes-agent/issues/111135
+      #111009 [open] [Bug]: MCP OAuth never refreshes an expired token on a cold start (Windows) — expires_in clamped
+        https://github.com/NousResearch/hermes-agent/issues/111009
+  Update / rollback failure  HIGH     MEDIUM
+      2 reports / 2 unique reporters / 1 open / 0 maintainer-confirmed / linked PR 0
+      - reports describe different failures (may be separate problems)
+      #111271 [open] bug(update): config migration fails inside `hermes update` — "cannot import name _configurable_k
+        https://github.com/NousResearch/hermes-agent/issues/111271
+      #111171 [closed] [Bug]: Install hangs at Model selection prompt
+        https://github.com/NousResearch/hermes-agent/issues/111171
+  Config migration           HIGH     LOW
+      1 reports / 1 unique reporters / 1 open / 0 maintainer-confirmed / linked PR 0
+      #111271 [open] bug(update): config migration fails inside `hermes update` — "cannot import name _configurable_k
+        https://github.com/NousResearch/hermes-agent/issues/111271
+  MCP                        MEDIUM   LOW
+      1 reports / 1 unique reporters / 1 open / 0 maintainer-confirmed / linked PR 0
+      #111135 [open] [Bug]: Figma MCP OAuth fails - redirect omits iss parameter its metadata advertises
+        https://github.com/NousResearch/hermes-agent/issues/111135
+
+RISK FACTOR BREAKDOWN ─────────────────────────────────────────────────────────
+  Changed-area risk (release notes / commits)  +31.3    Database / migration   
+                                                        / schema(14), Session  
+                                                        / state store(19),     
+                                                        Auth / credentials /   
+                                                        tokens(22), Rewrite /  
+                                                        refactor(16),          
+                                                        Gateway(27), Config /  
+                                                        config migration(2),   
+                                                        Storage /              
+                                                        serialization /        
+                                                        backend(5), Provider   
+                                                        / SDK / MCP / tool     
+                                                        system(16)             
+  Release age  +18.0                                    less than 24 h old     
+  Diff size and release type  +16.0                     very large diff;       
+                                                        patch release          
+                                                        bundling a large       
+                                                        number of merged PRs   
+  Post-release issue signals  +19.0                     baseline issue volume  
+                                                        is too large (10044)   
+                                                        for a reliable rate    
+                                                        comparison; relying    
+                                                        on the severity        
+                                                        reports instead;       
+                                                        multiple independent   
+                                                        reports: gateway       
+                                                        broken or down (3);    
+                                                        multiple independent   
+                                                        reports: data          
+                                                        corruption / session   
+                                                        loss (2); single       
+                                                        report: config         
+                                                        migration problems;    
+                                                        open severe issue      
+                                                        filed within 72 h of   
+                                                        the release            
+  Install method and local context  +8.0                install tracks the     
+                                                        main branch; git       
+                                                        working tree has       
+                                                        uncommitted changes    
+  Stability bonus (negative points)  +0.0               none                   
+  Regression cluster credibility  +26.4                 Gateway: CRITICAL x    
+                                                        confidence HIGH (7     
+                                                        reports / 6            
+                                                        reporters); Provider   
+                                                        / model access:        
+                                                        CRITICAL x confidence  
+                                                        HIGH (7 reports / 7    
+                                                        reporters); Crash /    
+                                                        process failure:       
+                                                        CRITICAL x confidence  
+                                                        MEDIUM (8 reports / 8  
+                                                        reporters); Database   
+                                                        / state.db: CRITICAL   
+                                                        x confidence MEDIUM    
+                                                        (2 reports / 2         
+                                                        reporters); … (+7)     
+
+RECOMMENDATION ────────────────────────────────────────────────────────────────
+WAIT
+
+  HARD GATE TRIGGERED - WAIT
+  (decided by hard_gate; Overall Risk: 99)
+
+  Why:
+    - release is only 15.3 hours old; the minimum observation period is 48 h
+    - the installation tracks the main development branch (code may be ahead of the latest
+      release)
+    - worktree has 4 uncommitted change(s)
+    - 2 report(s) of Database / state.db (2 reporter(s), 2 open), severity CRITICAL,
+      confidence MEDIUM
+    - 2 report(s) of Update / rollback failure (2 reporter(s), 1 open), severity HIGH,
+      confidence MEDIUM
+    - Database / migration / schema touched (14 mentions)
+    - Session / state store touched (19 mentions)
+    - Auth / credentials / tokens touched (22 mentions)
+
+  Next steps:
+    - wait for the observation window and no new severe issues before re-evaluating
+    - to update, switch back to a release tag first (git checkout <tag> after a backup); this tool never switches automatically
+    - commit or stash local changes first (the update stashes them, but conflicts are possible)
+    - wait until those issues are closed or a fix release ships
+
+  Recommended recheck: 2026-09-15T19:25:10Z (~12 hours later)
+    open CRITICAL regression(s) (Gateway, Provider / model access, Crash / process failure): re-check in 12 h
+
+  hermes-update-check check              # look again later
+
+Issues matching risk keywords since the release: 102 (scanned 55); baseline window (3d before): 10044
+
+LOCAL ENVIRONMENT ─────────────────────────────────────────────────────────────
+  HERMES_HOME       /opt/hermes                                       
+  Install method    git                                                      
+  Install dir       /opt/hermes\hermes-agent                          
+  Python            3.11.16                                                  
+  venv python       /opt/hermes\hermes-agent\venv\Scripts\python.exe  
+  uv                /opt/hermes\bin\uv.exe                            
+
+NOTES ─────────────────────────────────────────────────────────────────────────
+  - local HEAD is 125 commits behind v2026.9.14
+  - GitHub API remaining: 46/60 (no token - set GITHUB_TOKEN)
+  - generated at: 2026-09-15T07:25:10Z
+

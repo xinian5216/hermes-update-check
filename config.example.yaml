@@ -1,0 +1,170 @@
+# hermes-update-check configuration example
+#
+# Copy to the default location (see `hermes-update-check config path`):
+#   Linux/macOS : ~/.config/hermes-update-check/config.yaml
+#   Windows     : %APPDATA%\hermes-update-check\config.yaml
+# Or point at any file with:  --config /path/to/config.yaml
+#                            HERMES_UPDATE_CHECK_CONFIG=/path/to/config.yaml
+#
+# Precedence:  built-in defaults  <  config file  <  HERMES_UPDATE_CHECK_* env vars  <  CLI flags
+
+# ── Risk gate ────────────────────────────────────────────────────────────────
+# Maximum Update Risk Score (0-100) that is still considered "safe to update".
+# Above this the tool recommends WAIT / AVOID.
+risk_threshold: 40
+
+# Releases younger than this are never recommended for update, no matter how
+# low the risk score is (release-age observation window).
+minimum_release_age_days: 5
+
+# ── Safety switches ──────────────────────────────────────────────────────────
+# auto_update is ALWAYS false by default and must stay false unless you
+# consciously accept unattended updates. Even when true, `update` still prints
+# the full report and health-checks afterwards; it only skips the y/N prompt.
+auto_update: false
+
+# Pass --backup to `hermes update` (full pre-update backup) unless disabled.
+backup_before_update: true
+
+# Look at GitHub issues filed after the release date (costs GitHub API calls).
+check_github_issues: true
+
+# Also fetch the pre-release issue window to normalise noisy repositories
+# (recommended: a very busy repo should not look "risky" just for being busy).
+check_issue_baseline: true
+
+# ── Channel ──────────────────────────────────────────────────────────────────
+# stable     : only tagged, non-prerelease releases count
+# prerelease : prereleases are considered too
+# main       : you track the main branch; the newest release is only a reference
+preferred_channel: stable
+allow_prerelease: false
+
+# ── Output ───────────────────────────────────────────────────────────────────
+# zh | en
+language: zh
+# plain text output (no rich formatting) - also honour NO_COLOR / --plain
+plain_output: false
+
+# ── GitHub ───────────────────────────────────────────────────────────────────
+github:
+  repo: NousResearch/hermes-agent
+  # Environment variable that holds a GitHub token (optional but recommended:
+  # 60 req/h unauthenticated vs 5000 req/h authenticated).
+  token_env: GITHUB_TOKEN
+  # Alternative token env vars tried in order after the one above.
+  token_env_fallbacks: [GH_TOKEN, HERMES_UPDATE_CHECK_GITHUB_TOKEN]
+  # Cache GitHub responses on disk (minutes). Stale cache is used as a fallback
+  # when the network is down; the report then marks the data as degraded.
+  cache_ttl_minutes: 360
+  # Maximum number of issue searches per run (search API is limited to 10/min
+  # unauthenticated). Keep small for cron usage.
+  max_issue_searches: 3
+  # How many issues per run get their comments fetched to look for maintainer
+  # confirmation / linked PRs (1 core API call each). 0 disables enrichment.
+  issue_enrichment_limit: 3
+
+# ── Hard gates (override the risk score) ─────────────────────────────────────
+# A gate is a rule, not a score: when one blocks, the recommendation is WAIT even
+# if the computed risk is LOW. Priority: data -> environment -> gates -> score ->
+# cooling period -> UPDATE.
+hard_gates:
+  enabled: true
+  # BLOCK any release younger than this many hours (observation window).
+  minimum_release_age_hours: 48
+  # BLOCK updating while the install tracks the main development branch.
+  block_main_branch_update: true
+  # BLOCK updating with uncommitted changes in the git worktree.
+  block_dirty_worktree: true
+  # BLOCK updating while running a prerelease build / moving to a prerelease.
+  block_prerelease: true
+  # BLOCK while there are open, corroborated regression reports per class:
+  block_active_database_regression: true
+  block_active_session_regression: true
+  block_active_gateway_regression: false      # noisy class: off by default
+  block_active_update_failure: true           # "hermes update fails" regressions
+  # BLOCK when the observation data itself is incomplete (never guess from gaps).
+  block_on_insufficient_data: true
+
+# ── Network ──────────────────────────────────────────────────────────────────
+network:
+  timeout_seconds: 15
+  retries: 2
+
+# ── Paths ────────────────────────────────────────────────────────────────────
+paths:
+  # Hermes data directory. Default resolution: $HERMES_HOME  ->  ~/.hermes
+  hermes_home: null
+  # Where this tool keeps state, cache, logs, snapshots and update_state.json.
+  # Default: ~/.hermes-update-check
+  state_dir: null
+
+# ── Update execution ─────────────────────────────────────────────────────────
+update:
+  # Branch passed to `hermes update --branch` (git installs only).
+  branch: main
+  # Extra arguments appended to `hermes update` (advanced users only).
+  extra_args: []
+  # Restart the gateway after a successful update (hermes gateway restart).
+  restart_gateway: false
+  # Run the post-update health check automatically.
+  health_check_after_update: true
+  # Roll back automatically when the post-update health check FAILS.
+  # Off by default: after a failed check the tool prints rollback instructions
+  # and waits for you.
+  auto_rollback_on_failed_health: false
+  # Minimum free disk space (GiB) required before updating.
+  min_free_disk_gib: 2.0
+
+# ── Watch mode ───────────────────────────────────────────────────────────────
+watch:
+  # Notify when a release appears that we have not seen before.
+  notify_on_new_release: true
+  # Notify when the risk level of the seen release improves
+  # (e.g. HIGH -> LOW-MEDIUM once the release matures).
+  notify_on_risk_improvement: true
+  # Notify when a previously unseen *new* release exists and its risk is
+  # already acceptable (i.e. "you may now update").
+  notify_when_safe: true
+  # Also notify on the very first run (otherwise the first run only seeds state).
+  notify_on_first_run: false
+  # Never notify more often than this.
+  min_interval_hours: 20
+
+# ── Notifications ────────────────────────────────────────────────────────────
+# Secrets are read from environment variables, never from this file.
+notify:
+  telegram:
+    enabled: false
+    # Token env var. Get one from @BotFather.
+    bot_token_env: HERMES_UPDATE_CHECK_TELEGRAM_TOKEN
+    # Chat/user id to send to (send a message to your bot, then open
+    # https://api.telegram.org/bot<TOKEN>/getUpdates to find your chat id).
+    chat_id: ""
+  webhook:
+    enabled: false
+    url: ""
+    # Optional bearer token env var.
+    bearer_token_env: HERMES_UPDATE_CHECK_WEBHOOK_TOKEN
+
+# ── Logging ──────────────────────────────────────────────────────────────────
+logging:
+  # DEBUG | INFO | WARNING | ERROR
+  level: INFO
+  # null -> <state_dir>/logs/hermes-update-check.log
+  file: null
+  # also echo log records to stderr (never on by default: the report owns stdout)
+  console: false
+
+# ── Risk model tuning (advanced) ─────────────────────────────────────────────
+# Group caps in points. The report shows them as *component scores* on a 0-100
+# scale: Change Risk = keywords+age+volume, Regression Signal = graded clusters
+# (+ the raw issue volume at half weight), Data Confidence = the checklist.
+# Overall = 1 - (1-change)(1-regression)(1-environment) - stability bonus.
+risk:
+  keyword_cap: 40      # severity of the changed area, from release notes/commits
+  age_cap: 18          # how young the release is
+  volume_cap: 18       # size of the diff (commits / PRs) and release type
+  issues_cap: 30       # post-release issue signals (also the regression scale)
+  context_cap: 12      # main-tracking / prerelease / dirty tree / unknown install
+  bonus_cap: 15        # maximum stability bonus (negative points)
