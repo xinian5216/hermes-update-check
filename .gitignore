@@ -1,6 +1,10 @@
 __pycache__/
 *.py[cod]
 *.egg-info/
+
+# uv may materialise a lock file when someone runs `uv run` here; the project itself
+# is pip/pyproject based, so it is not part of the repository.
+uv.lock
 .venv/
 venv/
 dist/

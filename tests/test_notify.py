@@ -116,6 +116,11 @@ def test_webhook_without_token_sends_no_authorization_header(monkeypatch: pytest
         (__import__("urllib.error", fromlist=["URLError"]).URLError("dns"), "connection failed"),
         (TimeoutError("slow"), "connection failed"),
     ],
+    # explicit ids on purpose: below Python 3.11 `urllib.response.addbase` derives from
+    # `tempfile._TemporaryFileWrapper`, and pytest's id generation calls
+    # `getattr(value, "__name__")` on the exception object, which raises
+    # `KeyError: 'file'` from the wrapper's `__getattr__` and aborts collection.
+    ids=["http-500", "dns-failure", "timeout"],
 )
 def test_webhook_reports_transport_failures(monkeypatch: pytest.MonkeyPatch, error: Exception, expected: str) -> None:
     def fake_urlopen(request, timeout=None):

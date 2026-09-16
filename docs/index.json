@@ -3128,7 +3128,7 @@
     },
     {
       "path": "tests/test_notify.py",
-      "lines": 257,
+      "lines": 262,
       "summary": "Notification-channel tests: payload shape, failure handling, no secret leakage",
       "tests": 14,
       "names": [
