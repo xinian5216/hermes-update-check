@@ -83,7 +83,9 @@ def test_preflight_missing_hermes_home_blocks(cfg: Config, tmp_path: Path, state
 
 def test_preflight_detects_broken_state_db(cfg: Config, hermes_home: Path, state_root: Path) -> None:
     (hermes_home / "state.db").write_bytes(b"definitely not a sqlite database")
-    report = run_preflight(cfg, make_env(hermes_home), state_root=state_root, check_processes=False, update_help_text="--backup")
+    report = run_preflight(
+        cfg, make_env(hermes_home), state_root=state_root, check_processes=False, update_help_text="--backup"
+    )
     db_check = next(c for c in report.checks if c.key == "state_db")
     assert db_check.status == STATUS_FAIL
     assert report.ok_to_proceed is False
@@ -94,7 +96,9 @@ def test_preflight_unreadable_config_fails(cfg: Config, hermes_home: Path, state
     target = hermes_home / "config.yaml"
     target.unlink()
     target.mkdir()
-    report = run_preflight(cfg, make_env(hermes_home), state_root=state_root, check_processes=False, update_help_text="--backup")
+    report = run_preflight(
+        cfg, make_env(hermes_home), state_root=state_root, check_processes=False, update_help_text="--backup"
+    )
     assert any(c.key == "config_file" and c.status in {STATUS_WARN, STATUS_FAIL} for c in report.checks)
 
 
@@ -142,7 +146,7 @@ def test_health_mcp_section_detected(cfg: Config, hermes_home: Path, state_root:
     assert "mcp" in mcp.detail_en
 
 
-def _gateway_probe(monkeypatch, output: str, returncode: int = 0) -> None:  # noqa: ANN001
+def _gateway_probe(monkeypatch, output: str, returncode: int = 0) -> None:
     from hermes_update_check import health as health_module
     from hermes_update_check.util import ProcResult
 
@@ -153,7 +157,9 @@ def _gateway_probe(monkeypatch, output: str, returncode: int = 0) -> None:  # no
     )
 
 
-def test_gateway_down_is_warn_when_it_was_never_running(cfg: Config, hermes_home: Path, state_root: Path, monkeypatch) -> None:  # noqa: ANN001
+def test_gateway_down_is_warn_when_it_was_never_running(
+    cfg: Config, hermes_home: Path, state_root: Path, monkeypatch
+) -> None:
     _gateway_probe(monkeypatch, "Gateway is not running\n")
     report = run_health_checks(cfg, make_env(hermes_home), state_root=state_root, gateway_was_running=None)
     gateway = next(c for c in report.checks if c.key == "gateway")
@@ -161,7 +167,9 @@ def test_gateway_down_is_warn_when_it_was_never_running(cfg: Config, hermes_home
     assert "not running" in gateway.detail_en
 
 
-def test_gateway_down_after_update_is_a_failure_when_it_ran_before(cfg: Config, hermes_home: Path, state_root: Path, monkeypatch) -> None:  # noqa: ANN001
+def test_gateway_down_after_update_is_a_failure_when_it_ran_before(
+    cfg: Config, hermes_home: Path, state_root: Path, monkeypatch
+) -> None:
     _gateway_probe(monkeypatch, "Gateway is not running\n")
     report = run_health_checks(cfg, make_env(hermes_home), state_root=state_root, gateway_was_running=True)
     gateway = next(c for c in report.checks if c.key == "gateway")
@@ -169,7 +177,7 @@ def test_gateway_down_after_update_is_a_failure_when_it_ran_before(cfg: Config, 
     assert report.healthy is False
 
 
-def test_gateway_running_is_a_pass(cfg: Config, hermes_home: Path, state_root: Path, monkeypatch) -> None:  # noqa: ANN001
+def test_gateway_running_is_a_pass(cfg: Config, hermes_home: Path, state_root: Path, monkeypatch) -> None:
     _gateway_probe(monkeypatch, "Gateway status: running (pid 1234)\n")
     report = run_health_checks(cfg, make_env(hermes_home), state_root=state_root)
     gateway = next(c for c in report.checks if c.key == "gateway")

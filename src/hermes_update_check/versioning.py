@@ -187,7 +187,9 @@ _INSTALL_METHOD_RE = re.compile(r"Install method:\s*(.+)$", re.IGNORECASE | re.M
 _INSTALL_DIR_RE = re.compile(r"Install director(?:y|ies):\s*(.+)$", re.IGNORECASE | re.MULTILINE)
 _PYTHON_RE = re.compile(r"^Python:\s*(.+)$", re.IGNORECASE | re.MULTILINE)
 _SDK_RE = re.compile(r"^(?:OpenAI\s+SDK|SDK):\s*(.+)$", re.IGNORECASE | re.MULTILINE)
-_UPTODATE_RE = re.compile(r"\b(up to date|already up[- ]to[- ]date|no update|update available|new version)\b", re.IGNORECASE)
+_UPTODATE_RE = re.compile(
+    r"\b(up to date|already up[- ]to[- ]date|no update|update available|new version)\b", re.IGNORECASE
+)
 
 
 @dataclass

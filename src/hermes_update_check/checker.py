@@ -13,31 +13,38 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Optional
 
+from .advisor import Recommendation, advise
+from .clusters import (
+    DEFAULT_ENRICHMENT_LIMIT,
+    SEVERITY_CRITICAL,
+    SEVERITY_HIGH,
+    IssueEnrichment,
+    RegressionCluster,
+    build_clusters,
+)
 from .config import Config, resolve_state_dir
-from .github_api import CompareResult, GitHubClient, Issue, IssueSearchResult, Release, build_issue_query, extract_pr_count
+from .gates import EnvironmentState, GateReport, evaluate_gates, probe_environment
+from .github_api import (
+    CompareResult,
+    GitHubClient,
+    Issue,
+    IssueSearchResult,
+    Release,
+    build_issue_query,
+    extract_pr_count,
+)
 from .http import DiskCache, HttpClient
 from .local_env import LocalEnv, detect_local_env
 from .logging_setup import get_logger
-from .risk import CheckContext, IssueSignal, RiskAssessment, assess, classify_issues, level_for_score
-from .clusters import (
-    DEFAULT_ENRICHMENT_LIMIT,
-    IssueEnrichment,
-    RegressionCluster,
-    SEVERITY_CRITICAL,
-    SEVERITY_HIGH,
-    build_clusters,
-)
-from .advisor import Recommendation, advise
-from .gates import EnvironmentState, GateReport, evaluate_gates, probe_environment
 from .provenance import (
     CHANNEL_STABLE,
+    UPDATE_STATUS_UP_TO_DATE,
     CodeProvenance,
     UpdateDecision,
     decide_update,
     resolve_provenance,
-    UPDATE_STATUS_AVAILABLE,
-    UPDATE_STATUS_UP_TO_DATE,
 )
+from .risk import CheckContext, IssueSignal, RiskAssessment, assess, classify_issues, level_for_score
 from .util import hours_between, iso, utcnow
 from .versioning import compare_versions, normalise_tag
 
@@ -141,7 +148,9 @@ class UpdateCheck:
                 rows.append(
                     (
                         "Ahead of Stable",
-                        f"{prov.commits_ahead_of_tag} commits" if lang == "en" else f"{prov.commits_ahead_of_tag} 个 commit",
+                        f"{prov.commits_ahead_of_tag} commits"
+                        if lang == "en"
+                        else f"{prov.commits_ahead_of_tag} 个 commit",
                     )
                 )
             if prov.commits_behind_target:
@@ -150,7 +159,8 @@ class UpdateCheck:
                 rows.append(
                     (
                         "Working Tree",
-                        ("dirty" if prov.dirty_worktree else "clean") if lang == "en"
+                        ("dirty" if prov.dirty_worktree else "clean")
+                        if lang == "en"
                         else (f"有 {prov.dirty_files} 个未提交修改" if prov.dirty_worktree else "干净"),
                     )
                 )
@@ -158,18 +168,29 @@ class UpdateCheck:
             rows.append(("Current Version", self.env.version_label))
         if self.latest is not None:
             latest_label = f"v{self.latest.display_version}" if self.latest.display_version else self.latest.tag
-            rows.append(("Latest Version", f"{latest_label} ({self.latest.tag})" if self.latest.tag not in latest_label else latest_label))
+            rows.append(
+                (
+                    "Latest Version",
+                    f"{latest_label} ({self.latest.tag})" if self.latest.tag not in latest_label else latest_label,
+                )
+            )
             if self.latest.when:
                 age = self.latest.age_hours or 0.0
                 days = age / 24.0
-                rows.append(("Released", f"{iso(self.latest.when)} ({days:.1f} {'days' if lang == 'en' else '天'} ago)"))
+                rows.append(
+                    ("Released", f"{iso(self.latest.when)} ({days:.1f} {'days' if lang == 'en' else '天'} ago)")
+                )
             if self.latest.html_url:
                 rows.append(("Release page", self.latest.html_url))
         if self.compare is not None:
             commits = f"{self.compare.total_commits}" + ("+" if self.compare.truncated else "")
             rows.append(("Commits", commits))
             if self.pr_count is not None:
-                suffix = (" (from release notes)" if lang == "en" else "（来自 Release Notes）") if self.pr_count_from_notes else ("+" if self.compare.truncated else "")
+                suffix = (
+                    (" (from release notes)" if lang == "en" else "（来自 Release Notes）")
+                    if self.pr_count_from_notes
+                    else ("+" if self.compare.truncated else "")
+                )
                 rows.append(("PRs", f"{self.pr_count}{suffix}"))
         if self.versions_behind is not None:
             rows.append(("Releases behind", str(self.versions_behind)))
@@ -262,7 +283,9 @@ class UpdateCheck:
 # --------------------------------------------------------------------------- #
 
 
-def build_http_client(cfg: Config, state_root: Path, *, logger: Optional[logging.Logger] = None, no_cache: bool = False) -> tuple[HttpClient, bool]:
+def build_http_client(
+    cfg: Config, state_root: Path, *, logger: Optional[logging.Logger] = None, no_cache: bool = False
+) -> tuple[HttpClient, bool]:
     """Create the HTTP client with token and disk cache. Returns (client, token_used)."""
     token, token_used = resolve_github_token(cfg)
     cache = None if no_cache else DiskCache(state_root / "cache", cfg.github.cache_ttl_minutes, logger=logger)
@@ -439,9 +462,7 @@ def run_check(
         commit_subjects=(check.compare.commit_subjects if check.compare else []),
         issues=check.issues,
         issues_enabled=issues_enabled,
-        provenance_ok=bool(local.version or provenance.git_commit) and not (
-            provenance.channel == "UNKNOWN"
-        ),
+        provenance_ok=bool(local.version or provenance.git_commit) and provenance.channel != "UNKNOWN",
         provenance_channel=provenance.channel,
         weights=cfg.risk,
         risk_threshold=cfg.risk_threshold,
@@ -528,9 +549,7 @@ def _releases_behind(releases: list[Release], current_version: Optional[str]) ->
     return count if seen_current else None
 
 
-def _is_update_available(
-    current_version: Optional[str], current_tag: Optional[str], latest: Release
-) -> Optional[bool]:
+def _is_update_available(current_version: Optional[str], current_tag: Optional[str], latest: Release) -> Optional[bool]:
     if current_version and latest.display_version:
         return compare_versions(latest.display_version, current_version) > 0
     if current_tag and latest.tag:
@@ -706,7 +725,9 @@ _CONFIRM_RE = re.compile(
     r"\b(confirm(ed|ing)?|reproduce[ds]?|repro\b|will fix|fixing|fixed in|on it|tracking|thanks for the report)\b",
     re.IGNORECASE,
 )
-_DENY_RE = re.compile(r"\b(cannot reproduce|can'?t reproduce|not reproducible|works for me|duplicate of)\b", re.IGNORECASE)
+_DENY_RE = re.compile(
+    r"\b(cannot reproduce|can'?t reproduce|not reproducible|works for me|duplicate of)\b", re.IGNORECASE
+)
 
 
 def _confirmation_language(text: str) -> bool:
@@ -759,6 +780,7 @@ def level_of(score: Optional[int]) -> str:
 
 def iso_now() -> str:
     return iso(utcnow()) or ""
+
 
 def normalise_release_tag(tag: Optional[str]) -> Optional[str]:
     return normalise_tag(tag)

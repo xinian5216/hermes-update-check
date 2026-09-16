@@ -20,7 +20,6 @@ import logging
 import sqlite3
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from pathlib import Path
 from typing import Optional
 
 from .clusters import (
@@ -31,19 +30,19 @@ from .clusters import (
     RegressionCluster,
 )
 from .config import Config
+from .github_api import Release
 from .local_env import LocalEnv
 from .logging_setup import get_logger
 from .provenance import (
     CHANNEL_MAIN,
     CHANNEL_PRERELEASE,
+    UPDATE_STATUS_AHEAD,
     CodeProvenance,
     UpdateDecision,
-    UPDATE_STATUS_AHEAD,
     channel_mismatch,
 )
 from .risk import RiskAssessment
 from .util import iso, utcnow
-from .github_api import Release
 
 GATE_BLOCK = "BLOCK"
 GATE_WARN = "WARN"
@@ -250,7 +249,7 @@ def evaluate_gates(
 
 def _gate_insufficient_data(
     cfg: Config,
-    gates_cfg,  # noqa: ANN001
+    gates_cfg,
     release: Optional[Release],
     assessment: Optional[RiskAssessment],
     decision: UpdateDecision,
@@ -305,7 +304,7 @@ def _gate_environment(environment: Optional[EnvironmentState], decision: UpdateD
 
 
 def _gate_release_age(
-    gates_cfg,  # noqa: ANN001
+    gates_cfg,
     release: Optional[Release],
     decision: UpdateDecision,
     now: datetime,
@@ -337,9 +336,7 @@ def _gate_release_age(
     if age_hours < minimum_hours:
         deadline = release.when + timedelta(hours=minimum_hours)
         result.status = GATE_BLOCK
-        result.reason_zh = (
-            f"Release 仅发布 {age_hours:.1f} 小时，低于最小观察期 {minimum_hours:g} 小时"
-        )
+        result.reason_zh = f"Release 仅发布 {age_hours:.1f} 小时，低于最小观察期 {minimum_hours:g} 小时"
         result.reason_en = (
             f"release is only {age_hours:.1f} hours old; the minimum observation period is {minimum_hours:g} h"
         )
@@ -349,9 +346,8 @@ def _gate_release_age(
     return result
 
 
-def _gate_main_branch(gates_cfg, provenance: CodeProvenance, decision: UpdateDecision) -> GateResult:  # noqa: ANN001
+def _gate_main_branch(gates_cfg, provenance: CodeProvenance, decision: UpdateDecision) -> GateResult:
     blocking = bool(getattr(gates_cfg, "block_main_branch_update", True))
-    on_main = provenance.channel == CHANNEL_MAIN
     result = GateResult(
         key="main_branch",
         name_zh="禁止在 main 开发分支上执行更新",
@@ -364,7 +360,9 @@ def _gate_main_branch(gates_cfg, provenance: CodeProvenance, decision: UpdateDec
         if blocking:
             result.status = GATE_BLOCK
             result.reason_zh = "当前安装跟踪 main 开发分支（代码可能领先正式 Release）"
-            result.reason_en = "the installation tracks the main development branch (code may be ahead of the latest release)"
+            result.reason_en = (
+                "the installation tracks the main development branch (code may be ahead of the latest release)"
+            )
         else:
             result.status = GATE_WARN
             result.reason_zh = "当前安装跟踪 main 开发分支"
@@ -377,7 +375,7 @@ def _gate_main_branch(gates_cfg, provenance: CodeProvenance, decision: UpdateDec
     return result
 
 
-def _gate_dirty_worktree(gates_cfg, provenance: CodeProvenance, decision: UpdateDecision) -> GateResult:  # noqa: ANN001
+def _gate_dirty_worktree(gates_cfg, provenance: CodeProvenance, decision: UpdateDecision) -> GateResult:
     blocking = bool(getattr(gates_cfg, "block_dirty_worktree", True))
     result = GateResult(
         key="dirty_worktree",
@@ -399,7 +397,9 @@ def _gate_dirty_worktree(gates_cfg, provenance: CodeProvenance, decision: Update
         result.reason_zh = f"工作区有 {provenance.dirty_files} 个未提交修改"
         result.reason_en = f"worktree has {provenance.dirty_files} uncommitted change(s)"
         result.remediation_zh = "先提交或 stash 本地修改（更新会 stash，但可能与新版冲突）"
-        result.remediation_en = "commit or stash local changes first (the update stashes them, but conflicts are possible)"
+        result.remediation_en = (
+            "commit or stash local changes first (the update stashes them, but conflicts are possible)"
+        )
     else:
         result.status = GATE_WARN
         result.reason_zh = f"工作区有 {provenance.dirty_files} 个未提交修改"
@@ -407,7 +407,7 @@ def _gate_dirty_worktree(gates_cfg, provenance: CodeProvenance, decision: Update
     return result
 
 
-def _gate_prerelease(gates_cfg, provenance: CodeProvenance, decision: UpdateDecision) -> GateResult:  # noqa: ANN001
+def _gate_prerelease(gates_cfg, provenance: CodeProvenance, decision: UpdateDecision) -> GateResult:
     blocking = bool(getattr(gates_cfg, "block_prerelease", True))
     result = GateResult(
         key="prerelease",
@@ -432,7 +432,7 @@ def _gate_regression(
     cluster_key: str,
     label_zh: str,
     label_en: str,
-    clusters,  # noqa: ANN001
+    clusters,
 ) -> GateResult:
     result = GateResult(
         key=f"active_{cluster_key.lower()}_regression",
@@ -480,12 +480,12 @@ def describe_gate_lines(report: GateReport, *, lang: str = "zh") -> list[str]:
     return lines
 
 
-def severe_cluster_keys(clusters, *, threshold: str = SEVERITY_HIGH) -> list[str]:  # noqa: ANN001
+def severe_cluster_keys(clusters, *, threshold: str = SEVERITY_HIGH) -> list[str]:
     from .clusters import SEVERITY_RANK
 
     minimum = SEVERITY_RANK.get(threshold, 2)
     return [c.key for c in clusters if SEVERITY_RANK.get(c.severity, 0) >= minimum]
 
 
-def critical_cluster_keys(clusters) -> list[str]:  # noqa: ANN001
+def critical_cluster_keys(clusters) -> list[str]:
     return [c.key for c in clusters if c.severity == SEVERITY_CRITICAL]

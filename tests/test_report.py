@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from conftest import FakeGitHubClient, make_compare, make_issue, make_release
 
 from hermes_update_check.checker import run_check
@@ -11,7 +9,15 @@ from hermes_update_check.console import Console
 from hermes_update_check.report import Reporter
 
 
-def build_check(cfg, hermes_home, state_root, *, risk_body: str = "fix(state): state.db maintenance", issues_ok: bool = True, at_tag: bool = True):  # noqa: ANN001, ANN202
+def build_check(
+    cfg,
+    hermes_home,
+    state_root,
+    *,
+    risk_body: str = "fix(state): state.db maintenance",
+    issues_ok: bool = True,
+    at_tag: bool = True,
+):
     """A realistic STABLE install by default (tags_at_head = the release tag)."""
     from test_checker import make_env
 
@@ -97,9 +103,7 @@ def test_up_to_date_report(cfg, hermes_home, state_root, capsys) -> None:
 
     releases = [make_release(tag="v2026.9.11", version="0.21.2", age_hours=100)]
     client = FakeGitHubClient(releases=releases, compare=make_compare())
-    check = run_check(
-        cfg, env=make_env(hermes_home, tags_at_head=["v2026.9.11"]), client=client, state_root=state_root
-    )
+    check = run_check(cfg, env=make_env(hermes_home, tags_at_head=["v2026.9.11"]), client=client, state_root=state_root)
     Reporter(Console(plain=True), lang="zh").render(check, detailed=True)
     out = capsys.readouterr().out
     assert "已是最新正式版本" in out

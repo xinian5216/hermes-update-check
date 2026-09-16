@@ -37,7 +37,7 @@ from datetime import datetime
 from typing import Callable, Optional, Sequence
 
 from .github_api import CompareResult, Release
-from .local_env import LocalEnv, GitState
+from .local_env import GitState, LocalEnv
 from .versioning import compare_versions, normalise_tag, parse_version
 
 CHANNEL_STABLE = "STABLE"

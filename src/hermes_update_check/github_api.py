@@ -14,7 +14,7 @@ from datetime import datetime
 from typing import Any, Optional, Sequence
 from urllib.parse import quote_plus
 
-from .http import HttpClient, HttpResult
+from .http import HttpClient
 from .logging_setup import get_logger
 from .util import parse_iso8601
 
@@ -301,9 +301,7 @@ class GitHubClient:
             html_url=str(data.get("html_url", "")),
         )
         if compare.truncated:
-            self.log.debug(
-                "compare truncated: %d of %d commits in payload", len(commits), compare.total_commits
-            )
+            self.log.debug("compare truncated: %d of %d commits in payload", len(commits), compare.total_commits)
         return compare
 
     def search_issues(

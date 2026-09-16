@@ -32,15 +32,19 @@ import re
 from dataclasses import dataclass, field
 from typing import Iterable, Optional, Sequence
 
-from .config import RiskWeights
-from .github_api import Issue
-from .util import clamp
+from .clusters import (
+    UNKNOWN_REGRESSION_FLOOR as UNKNOWN_REGRESSION_FLOOR,  # re-exported: part of risk's public surface
+)
 from .clusters import (
     RegressionCluster,
     RegressionSignal,
-    regression_signal as compute_regression_signal,
-    UNKNOWN_REGRESSION_FLOOR,
 )
+from .clusters import (
+    regression_signal as compute_regression_signal,
+)
+from .config import RiskWeights
+from .github_api import Issue
+from .util import clamp
 
 # --------------------------------------------------------------------------- #
 # levels
@@ -422,12 +426,24 @@ SEVERITY_CLUSTERS: dict[str, dict[str, object]] = {
     "data_loss": {
         "zh": "数据损坏 / Session 丢失",
         "en": "data corruption / session loss",
-        "patterns": (r"state\.db", r"\bcorrupt", r"session.{0,20}(?:lost|lost|missing|gone)", r"data loss", r"\bdatabase\b"),
+        "patterns": (
+            r"state\.db",
+            r"\bcorrupt",
+            r"session.{0,20}(?:lost|lost|missing|gone)",
+            r"data loss",
+            r"\bdatabase\b",
+        ),
     },
     "upgrade_failure": {
         "zh": "升级失败 / 回滚问题",
         "en": "update or upgrade failure",
-        "patterns": (r"\bupgrad", r"update fail", r"can'?t update", r"fail(?:s|ed)? to (?:update|install)", r"\brollback\b"),
+        "patterns": (
+            r"\bupgrad",
+            r"update fail",
+            r"can'?t update",
+            r"fail(?:s|ed)? to (?:update|install)",
+            r"\brollback\b",
+        ),
     },
     "gateway_down": {
         "zh": "Gateway 无法启动 / 异常",
@@ -489,16 +505,16 @@ class IssueSignal:
             "signal_confidence": self.signal_confidence,
             "enriched_issues": self.enriched_issues,
             "clusters": [c.to_dict() for c in self.clusters],
-            "samples": {
-                key: [i.to_dict() for i in issues[:3]] for key, issues in self.category_samples.items()
-            },
+            "samples": {key: [i.to_dict() for i in issues[:3]] for key, issues in self.category_samples.items()},
         }
 
 
 def classify_issues(issues: Iterable[Issue]) -> dict[str, list[Issue]]:
     """Group issues into severe regression clusters by title/label text."""
     clusters: dict[str, list[Issue]] = {key: [] for key in SEVERITY_CLUSTERS}
-    compiled = {key: [re.compile(p, re.IGNORECASE) for p in spec["patterns"]] for key, spec in SEVERITY_CLUSTERS.items()}
+    compiled = {
+        key: [re.compile(p, re.IGNORECASE) for p in spec["patterns"]] for key, spec in SEVERITY_CLUSTERS.items()
+    }
     for issue in issues:
         haystack = f"{issue.title} {issue.label_text}"
         for key, patterns in compiled.items():
@@ -861,7 +877,7 @@ def _clip_reasons(reasons: list[str], limit: int) -> list[str]:
     """Keep the factor table readable: at most ``limit`` items plus a count."""
     if len(reasons) <= limit:
         return reasons
-    return reasons[:limit] + [f"… (+{len(reasons) - limit})"]
+    return [*reasons[:limit], f"… (+{len(reasons) - limit})"]
 
 
 def assess(ctx: CheckContext) -> RiskAssessment:
@@ -875,8 +891,12 @@ def assess(ctx: CheckContext) -> RiskAssessment:
     # 1. keywords ---------------------------------------------------------- #
     scan = scan_keywords(ctx.release_body, extra=ctx.commit_subjects)
     kw_points = keyword_points(scan, weights.keyword_cap)
-    kw_detail_zh = ", ".join(f"{hit.label_zh}({hit.hits})" for hit in sorted(scan.hits, key=lambda h: -h.weight)) or "无"
-    kw_detail_en = ", ".join(f"{hit.label_en}({hit.hits})" for hit in sorted(scan.hits, key=lambda h: -h.weight)) or "none"
+    kw_detail_zh = (
+        ", ".join(f"{hit.label_zh}({hit.hits})" for hit in sorted(scan.hits, key=lambda h: -h.weight)) or "无"
+    )
+    kw_detail_en = (
+        ", ".join(f"{hit.label_en}({hit.hits})" for hit in sorted(scan.hits, key=lambda h: -h.weight)) or "none"
+    )
     factors.append(
         RiskFactor(
             key="keywords",
@@ -1043,9 +1063,7 @@ def assess(ctx: CheckContext) -> RiskAssessment:
         summary_zh.append(cluster.headline_zh())
         summary_en.append(cluster.headline_en())
     if regression.value is None:
-        summary_zh.append(
-            f"回归信号无法评估（按 >= {regression.floor} 处理，缺失证据不等于零风险）"
-        )
+        summary_zh.append(f"回归信号无法评估（按 >= {regression.floor} 处理，缺失证据不等于零风险）")
         summary_en.append(
             f"regression signal cannot be measured (assumed >= {regression.floor}; missing evidence is not zero risk)"
         )
@@ -1053,18 +1071,16 @@ def assess(ctx: CheckContext) -> RiskAssessment:
     # ---- combine ---------------------------------------------------------- #
     change_denominator = max(1.0, weights.keyword_cap + weights.age_cap + weights.volume_cap)
     change_points_total = kw_points + age_points_value + volume_total
-    change_risk = int(round(100.0 * clamp(change_points_total / change_denominator, 0.0, 1.0)))
-    environment_risk = int(round(100.0 * clamp(ctx_points / max(1.0, weights.context_cap), 0.0, 1.0)))
+    change_risk = round(100.0 * clamp(change_points_total / change_denominator, 0.0, 1.0))
+    environment_risk = round(100.0 * clamp(ctx_points / max(1.0, weights.context_cap), 0.0, 1.0))
     regression_ratio = clamp(regression_value / 100.0, 0.0, 1.0)
 
     # Risk components combine like independent failure classes (probabilistic OR),
     # so a bad release cannot hide behind a quiet one, then the stability bonus
     # subtracts directly.
-    combined = 1.0 - (
-        (1.0 - change_risk / 100.0) * (1.0 - regression_ratio) * (1.0 - environment_risk / 100.0)
-    )
+    combined = 1.0 - ((1.0 - change_risk / 100.0) * (1.0 - regression_ratio) * (1.0 - environment_risk / 100.0))
     combined -= abs(bonus) / 100.0
-    score = int(round(100.0 * clamp(combined, 0.0, 1.0)))
+    score = round(100.0 * clamp(combined, 0.0, 1.0))
 
     data_confidence = _data_confidence(ctx, scan)
     confidence = round(data_confidence / 100.0, 3)
@@ -1155,9 +1171,7 @@ def _insufficient(ctx: CheckContext, confidence: float) -> bool:
         return True
     if ctx.release_age_hours is None:
         return True
-    if confidence < 0.45:
-        return True
-    return False
+    return confidence < 0.45
 
 
 def _recommendation(
@@ -1176,6 +1190,6 @@ def _recommendation(
     if score > threshold:
         return RECOMMEND_WAIT, 3
     if age_days is not None and age_days < min_age_days:
-        remaining = max(1, int(math.ceil(min_age_days - age_days)))
+        remaining = max(1, math.ceil(min_age_days - age_days))
         return RECOMMEND_WAIT, remaining
     return RECOMMEND_UPDATE, None

@@ -38,8 +38,8 @@ from hermes_update_check.risk import (
 WEIGHTS = RiskWeights()
 
 
-def make_issue_signal(**kwargs) -> IssueSignal:  # noqa: ANN003
-    defaults = dict(window_days=3.0, post_release_total=0, baseline_total=0, baseline_window_days=3.0)
+def make_issue_signal(**kwargs) -> IssueSignal:
+    defaults = {"window_days": 3.0, "post_release_total": 0, "baseline_total": 0, "baseline_window_days": 3.0}
     defaults.update(kwargs)
     return IssueSignal(**defaults)  # type: ignore[arg-type]
 
@@ -80,14 +80,25 @@ def test_keyword_scan_low_risk_markers() -> None:
 
 
 def test_keyword_points_are_capped() -> None:
-    corpus = " ".join(
-        [
-            "breaking change", "database migration", "state.db", "sqlite schema",
-            "session store", "gateway", "authentication token credential oauth",
-            "config migration", "rewrite refactor overhaul", "storage serialization backend",
-            "memory", "provider sdk api mcp tool system",
-        ]
-    ) * 20
+    corpus = (
+        " ".join(
+            [
+                "breaking change",
+                "database migration",
+                "state.db",
+                "sqlite schema",
+                "session store",
+                "gateway",
+                "authentication token credential oauth",
+                "config migration",
+                "rewrite refactor overhaul",
+                "storage serialization backend",
+                "memory",
+                "provider sdk api mcp tool system",
+            ]
+        )
+        * 20
+    )
     scan = scan_keywords(corpus)
     points = keyword_points(scan, WEIGHTS.keyword_cap)
     assert points <= WEIGHTS.keyword_cap
@@ -437,7 +448,7 @@ def test_threshold_and_minimum_age_gate() -> None:
 # --------------------------------------------------------------------------- #
 
 
-def _ctx_with_issues(signal) -> CheckContext:  # noqa: ANN001
+def _ctx_with_issues(signal) -> CheckContext:
     return CheckContext(
         local_version="0.21.2",
         latest_version="0.21.3",
@@ -494,7 +505,12 @@ def test_ignore_hard_gates_config_is_not_needed_but_flags_exist() -> None:
 def test_lower_bound_display_at_the_ceiling() -> None:
     """`>= 100` is nonsense; at the ceiling show '100 (lower bound)'."""
     assessment = RiskAssessment(
-        score=100, level="VERY HIGH", stability=0, recommendation=RECOMMEND_AVOID, confidence=0.8, score_is_lower_bound=True
+        score=100,
+        level="VERY HIGH",
+        stability=0,
+        recommendation=RECOMMEND_AVOID,
+        confidence=0.8,
+        score_is_lower_bound=True,
     )
     assert assessment.score_or_unknown == "100 (lower bound)"
     assessment.score_is_lower_bound = False

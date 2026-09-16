@@ -348,8 +348,29 @@ def _title_signature(title: str) -> str:
     """Crude failure signature: the meaningful words of the title."""
     words = re.findall(r"[a-z0-9_]+", title.lower())
     stop = {
-        "bug", "error", "issue", "the", "a", "an", "in", "on", "of", "to", "and", "with", "for",
-        "after", "when", "is", "not", "no", "fails", "failed", "failure", "problem", "broken",
+        "bug",
+        "error",
+        "issue",
+        "the",
+        "a",
+        "an",
+        "in",
+        "on",
+        "of",
+        "to",
+        "and",
+        "with",
+        "for",
+        "after",
+        "when",
+        "is",
+        "not",
+        "no",
+        "fails",
+        "failed",
+        "failure",
+        "problem",
+        "broken",
     }
     return " ".join(w for w in words if w not in stop)[:120]
 
@@ -426,13 +447,9 @@ def _grade_cluster(
             with_reproduction += 1
         if _PR_REFERENCE_RE.search(text):
             linked_pr += 1
-        if release_version and release_version in text:
+        if (release_version and release_version in text) or (release_tag and release_tag.lstrip("v") in text):
             mentions_version += 1
-        elif release_tag and release_tag.lstrip("v") in text:
-            mentions_version += 1
-        if issue.state.lower() == "open" and any(
-            label.lower() in _MAINTAINER_LABELS for label in issue.labels
-        ):
+        if issue.state.lower() == "open" and any(label.lower() in _MAINTAINER_LABELS for label in issue.labels):
             maintainer_confirmed += 1
         signatures.add(_title_signature(issue.title))
 
@@ -586,7 +603,9 @@ def regression_signal(
             value=None,
             floor=UNKNOWN_REGRESSION_FLOOR,
             unknown=True,
-            reasons_zh=[f"Issue 数据不可用，无法评估回归信号（按 >= {UNKNOWN_REGRESSION_FLOOR} 处理）: {unavailable_reason}"],
+            reasons_zh=[
+                f"Issue 数据不可用，无法评估回归信号（按 >= {UNKNOWN_REGRESSION_FLOOR} 处理）: {unavailable_reason}"
+            ],
             reasons_en=[
                 f"issue data unavailable, regression signal cannot be measured "
                 f"(assumed >= {UNKNOWN_REGRESSION_FLOOR}): {unavailable_reason}"
@@ -613,12 +632,10 @@ def regression_signal(
         evidence = EVIDENCE_FLOOR + (1.0 - EVIDENCE_FLOOR) * max(0.0, min(100, signal_confidence)) / 100.0
         if evidence < 1.0:
             reasons_zh.append(f"按 Issue 数据可信度折算（{signal_confidence}/100 → ×{evidence:.2f}）")
-            reasons_en.append(
-                f"graded by issue-signal confidence ({signal_confidence}/100 -> x{evidence:.2f})"
-            )
+            reasons_en.append(f"graded by issue-signal confidence ({signal_confidence}/100 -> x{evidence:.2f})")
         cluster_ratio *= evidence
     ratio = 1.0 - (1.0 - cluster_ratio) * (1.0 - 0.5 * max(0.0, min(1.0, volume_ratio)))
-    value = int(round(100 * max(0.0, min(1.0, ratio))))
+    value = round(100 * max(0.0, min(1.0, ratio)))
     if volume_ratio > 0:
         reasons_zh.append(f"Issue 命中量组件按半权重计入（{volume_ratio:.2f}）")
         reasons_en.append(f"raw issue-volume component folded in at half weight ({volume_ratio:.2f})")

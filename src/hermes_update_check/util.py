@@ -65,13 +65,13 @@ def humanize_hours(hours: float, *, lang: str = "zh") -> str:
     if hours < 0:
         hours = 0.0
     if hours < 1:
-        return ("不足 1 小时" if lang == "zh" else "less than an hour")
+        return "不足 1 小时" if lang == "zh" else "less than an hour"
     if hours < 48:
-        return (f"{hours:.1f} 小时" if lang == "zh" else f"{hours:.1f} hours")
+        return f"{hours:.1f} 小时" if lang == "zh" else f"{hours:.1f} hours"
     days = hours / 24.0
     if days < 60:
-        return (f"{days:.1f} 天" if lang == "zh" else f"{days:.1f} days")
-    return (f"{days / 30.0:.1f} 个月" if lang == "zh" else f"{days / 30.0:.1f} months")
+        return f"{days:.1f} 天" if lang == "zh" else f"{days:.1f} days"
+    return f"{days / 30.0:.1f} 个月" if lang == "zh" else f"{days / 30.0:.1f} months"
 
 
 def iso(dt: datetime | None) -> str | None:
@@ -147,13 +147,13 @@ def write_text(path: Path, text: str) -> Path:
     return path
 
 
-class suppress_oserror:  # noqa: N801 - context manager reads better lowercase
+class suppress_oserror:
     """``contextlib.suppress(OSError)`` without the import ceremony."""
 
     def __enter__(self) -> None:
         return None
 
-    def __exit__(self, exc_type, exc, tb) -> bool:  # noqa: ANN001 - protocol signature
+    def __exit__(self, exc_type, exc, tb) -> bool:
         return exc_type is not None and issubclass(exc_type, OSError)
 
 
@@ -308,7 +308,7 @@ def run_process(
 
     started = time.monotonic()
     try:
-        completed = subprocess.run(  # noqa: S603 - argv list, no shell
+        completed = subprocess.run(
             argv,
             capture_output=True,
             text=True,
@@ -376,7 +376,7 @@ def run_streaming(
     timeout: float = 1800.0,
     cwd: Path | None = None,
     env: Mapping[str, str] | None = None,
-    on_line: Optional["Callable[[str], None]"] = None,
+    on_line: Optional[Callable[[str], None]] = None,
     max_buffer_chars: int = 400_000,
 ) -> ProcResult:
     """Run a long command, streaming its output line by line to ``on_line``.
@@ -398,7 +398,7 @@ def run_streaming(
     lines: list[str] = []
     buffered = 0
     try:
-        process = subprocess.Popen(  # noqa: S603 - argv list, no shell
+        process = subprocess.Popen(
             argv,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -452,7 +452,7 @@ def run_streaming(
     )
 
 
-def _terminate(process: "subprocess.Popen[str]") -> None:
+def _terminate(process: subprocess.Popen[str]) -> None:
     try:
         process.terminate()
         process.wait(timeout=15)

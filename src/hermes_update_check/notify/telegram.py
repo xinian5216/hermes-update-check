@@ -67,7 +67,7 @@ class TelegramNotifier(Notifier):
             method="POST",
         )
         try:
-            with urlopen(request, timeout=self.timeout) as response:  # noqa: S310 - fixed https host
+            with urlopen(request, timeout=self.timeout) as response:
                 raw = response.read().decode("utf-8", errors="replace")
         except HTTPError as exc:
             body = ""
@@ -92,7 +92,7 @@ def discover_chat_id(token: str, *, timeout: float = 15.0) -> list[dict[str, obj
     """Helper for setup: list chats that recently messaged the bot."""
     url = f"{API_ROOT}/bot{token}/getUpdates"
     try:
-        with urlopen(url, timeout=timeout) as response:  # noqa: S310 - fixed https host
+        with urlopen(url, timeout=timeout) as response:
             data = json.loads(response.read().decode("utf-8", errors="replace"))
     except Exception as exc:
         return [{"error": str(exc)}]

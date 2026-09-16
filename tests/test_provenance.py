@@ -5,10 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 from conftest import make_compare, make_release
 
-from hermes_update_check.github_api import CompareResult, CommitInfo
+from hermes_update_check.github_api import CommitInfo, CompareResult
 from hermes_update_check.local_env import GitState, LocalEnv
 from hermes_update_check.provenance import (
     CHANNEL_CUSTOM,
@@ -61,7 +60,9 @@ def env_with(
     )
 
 
-def comparison(status: str, *, ahead: int = 0, behind: int = 0, base: str = "v2026.9.14", head: str = "HEAD") -> CompareResult:
+def comparison(
+    status: str, *, ahead: int = 0, behind: int = 0, base: str = "v2026.9.14", head: str = "HEAD"
+) -> CompareResult:
     return CompareResult(
         base_tag=base,
         head_tag=head,
@@ -101,7 +102,9 @@ def test_main_behind_release_is_an_update_candidate(hermes_home: Path) -> None:
     """
     older = make_release(tag="v2026.9.11", version="0.21.2", age_hours=100)
     env = env_with(hermes_home, branch="main")
-    prov = resolve_provenance(env, [LATEST, older], latest=LATEST, compare=lambda b, h: comparison("behind", behind=125))
+    prov = resolve_provenance(
+        env, [LATEST, older], latest=LATEST, compare=lambda b, h: comparison("behind", behind=125)
+    )
     assert prov.channel == CHANNEL_MAIN
     assert prov.commits_behind_target == 125
     assert prov.ahead_of_stable is False
@@ -114,7 +117,9 @@ def test_main_behind_release_is_an_update_candidate(hermes_home: Path) -> None:
 
 def test_main_diverged_from_release_needs_manual_review(hermes_home: Path) -> None:
     env = env_with(hermes_home, branch="main")
-    prov = resolve_provenance(env, [LATEST], latest=LATEST, compare=lambda b, h: comparison("diverged", ahead=5, behind=9))
+    prov = resolve_provenance(
+        env, [LATEST], latest=LATEST, compare=lambda b, h: comparison("diverged", ahead=5, behind=9)
+    )
     assert prov.ahead_of_stable is True and prov.commits_behind_target == 9
     decision = decide_update(prov, LATEST)
     assert decision.status == UPDATE_STATUS_MANUAL_REVIEW  # ahead *and* behind: not a plain upgrade
@@ -164,7 +169,9 @@ def test_case3_stable_up_to_date(hermes_home: Path) -> None:
 
 def test_case4_detached_head_requires_manual_review(hermes_home: Path) -> None:
     env = env_with(hermes_home, branch="HEAD", tags_at_head=[], version="0.21.3")
-    prov = resolve_provenance(env, [LATEST], latest=LATEST, compare=lambda b, h: comparison("diverged", ahead=5, behind=5))
+    prov = resolve_provenance(
+        env, [LATEST], latest=LATEST, compare=lambda b, h: comparison("diverged", ahead=5, behind=5)
+    )
     assert prov.channel == CHANNEL_DETACHED
     assert prov.detached is True
     decision = decide_update(prov, LATEST)
@@ -180,7 +187,9 @@ def test_case4_detached_but_on_a_release_tag_is_stable(hermes_home: Path) -> Non
 
 def test_case5_custom_branch_maps_to_no_release(hermes_home: Path) -> None:
     env = env_with(hermes_home, branch="feature/xyz", tags_at_head=[])
-    prov = resolve_provenance(env, [LATEST], latest=LATEST, compare=lambda b, h: comparison("diverged", ahead=2, behind=30))
+    prov = resolve_provenance(
+        env, [LATEST], latest=LATEST, compare=lambda b, h: comparison("diverged", ahead=2, behind=30)
+    )
     assert prov.channel == CHANNEL_CUSTOM
     decision = decide_update(prov, LATEST)
     assert decision.status == UPDATE_STATUS_MANUAL_REVIEW
@@ -207,7 +216,9 @@ def test_unknown_channel_without_any_information(hermes_home: Path) -> None:
 
 def test_non_git_install_with_known_release_is_stable(hermes_home: Path) -> None:
     env = env_with(hermes_home, version="0.21.2", tag="v2026.9.11", git=False, install_kind="docker")
-    prov = resolve_provenance(env, [LATEST, make_release(tag="v2026.9.11", version="0.21.2")], latest=LATEST, compare=None)
+    prov = resolve_provenance(
+        env, [LATEST, make_release(tag="v2026.9.11", version="0.21.2")], latest=LATEST, compare=None
+    )
     assert prov.channel == CHANNEL_STABLE
     assert prov.is_git_install is False
     assert prov.evidence  # explains that provenance came from the reported version

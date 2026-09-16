@@ -21,18 +21,16 @@ from typing import Optional
 from .checker import UpdateCheck
 from .clusters import RegressionCluster
 from .console import Console
-from .gates import GATE_BLOCK, GATE_PASS, GATE_SKIP, GATE_WARN, GateReport
-from .advisor import Recommendation
-from .provenance import UPDATE_STATUS_AHEAD, UPDATE_STATUS_UP_TO_DATE
+from .gates import GATE_PASS, GATE_SKIP, GateReport
+from .provenance import UPDATE_STATUS_AHEAD
 from .risk import (
     RECOMMEND_AVOID,
     RECOMMEND_UNKNOWN,
     RECOMMEND_UPDATE,
-    RECOMMEND_UP_TO_DATE,
     RECOMMEND_WAIT,
     RiskAssessment,
 )
-from .util import human_bytes, humanize_hours, iso
+from .util import humanize_hours, iso
 
 REPORT_TITLE = "Hermes Update Advisor"
 
@@ -97,14 +95,22 @@ class Reporter:
             return
         rows: list[tuple[str, str]] = [
             ("Reported Version", f"v{prov.reported_version}" if prov.reported_version else "unknown"),
-            ("Channel", f"{prov.channel}   ({prov.channel_note_zh() if self.lang == 'zh' else prov.channel_note_en()})"),
+            (
+                "Channel",
+                f"{prov.channel}   ({prov.channel_note_zh() if self.lang == 'zh' else prov.channel_note_en()})",
+            ),
         ]
         if prov.git_branch:
             rows.append(("Git Branch", prov.git_branch))
         if prov.git_commit:
             rows.append(("Git Commit", prov.git_commit))
         if prov.nearest_tag:
-            rows.append(("Nearest Release", prov.nearest_tag + (f" (v{prov.nearest_tag_version})" if prov.nearest_tag_version else "")))
+            rows.append(
+                (
+                    "Nearest Release",
+                    prov.nearest_tag + (f" (v{prov.nearest_tag_version})" if prov.nearest_tag_version else ""),
+                )
+            )
         if prov.commits_ahead_of_tag is not None:
             rows.append(("Ahead of Release", f"{prov.commits_ahead_of_tag} commits"))
         if prov.commits_behind_target is not None:
@@ -126,7 +132,12 @@ class Reporter:
         console = self.console
         console.heading(self._section(SECTION_RELEASE))
         if check.latest is None:
-            console.print(self._t("拿不到 Release 信息（GitHub 不可达且无可用缓存）", "no release information (GitHub unreachable, no usable cache)"))
+            console.print(
+                self._t(
+                    "拿不到 Release 信息（GitHub 不可达且无可用缓存）",
+                    "no release information (GitHub unreachable, no usable cache)",
+                )
+            )
             console.blank()
             return
         latest = check.latest
@@ -145,7 +156,13 @@ class Reporter:
         if check.compare is not None:
             rows.append(("Commits", f"{check.compare.total_commits}" + ("+" if check.compare.truncated else "")))
         if check.pr_count is not None:
-            rows.append(("Merged PRs", f"{check.pr_count}" + (self._t("（来自 Release Notes）", " (from release notes)") if check.pr_count_from_notes else "")))
+            rows.append(
+                (
+                    "Merged PRs",
+                    f"{check.pr_count}"
+                    + (self._t("（来自 Release Notes）", " (from release notes)") if check.pr_count_from_notes else ""),
+                )
+            )
         if latest.prerelease:
             rows.append(("Prerelease", "yes"))
         if latest.html_url:
@@ -177,8 +194,7 @@ class Reporter:
             console.blank()
             console.print(
                 self._t(
-                    "  → 开发分支模式：请勿把“切到 v%s”当作升级；它可能是一次降级。"
-                    % (decision.target_version or "?"),
+                    "  → 开发分支模式：请勿把“切到 v%s”当作升级；它可能是一次降级。" % (decision.target_version or "?"),
                     "  -> development channel mode: moving to %s is not an upgrade, it may be a downgrade."
                     % (decision.target_version or "?"),
                 )
@@ -217,7 +233,11 @@ class Reporter:
             console.blank()
             return
         if not gates.enabled:
-            console.print(self._t("硬门禁已禁用（hard_gates.enabled = false）", "hard gates disabled (hard_gates.enabled = false)"))
+            console.print(
+                self._t(
+                    "硬门禁已禁用（hard_gates.enabled = false）", "hard gates disabled (hard_gates.enabled = false)"
+                )
+            )
             console.blank()
             return
         visible = [g for g in gates.gates if g.status != GATE_SKIP]
@@ -263,7 +283,7 @@ class Reporter:
                     )
                 )
             )
-            for note in (cluster.notes_zh if self.lang == "zh" else cluster.notes_en):
+            for note in cluster.notes_zh if self.lang == "zh" else cluster.notes_en:
                 console.print(f"      - {note}")
             if detailed:
                 for issue in cluster.samples[:2]:
@@ -339,7 +359,10 @@ class Reporter:
         if rec.action == RECOMMEND_UPDATE:
             console.blank()
             console.print("  hermes-update-check update --dry-run   " + self._t("# 先看计划", "# show the plan"))
-            console.print("  hermes-update-check update             " + self._t("# 备份 + 更新 + 健康检查", "# backup + update + health check"))
+            console.print(
+                "  hermes-update-check update             "
+                + self._t("# 备份 + 更新 + 健康检查", "# backup + update + health check")
+            )
         if rec.action in {RECOMMEND_WAIT, RECOMMEND_AVOID}:
             console.blank()
             console.print("  hermes-update-check check              " + self._t("# 稍后再看", "# look again later"))
@@ -465,7 +488,9 @@ class Reporter:
             return [self._t("无评估数据", "no assessment data")]
 
         if check.update_available is False:
-            return [self._t("当前版本已是最新正式版本，无需任何操作。", "Already on the newest release - nothing to do.")]
+            return [
+                self._t("当前版本已是最新正式版本，无需任何操作。", "Already on the newest release - nothing to do.")
+            ]
 
         rec_action = assessment.recommendation
         lines: list[str] = []
@@ -479,7 +504,9 @@ class Reporter:
             return lines
         if rec_action == RECOMMEND_UPDATE:
             lines.append(self._t("风险可接受，可以更新。", "Risk is acceptable - you may update."))
-            lines.append(self._t("但请先做完整备份（不要跳过备份步骤）。", "Take a full backup first (do not skip it)."))
+            lines.append(
+                self._t("但请先做完整备份（不要跳过备份步骤）。", "Take a full backup first (do not skip it).")
+            )
             return lines
         if rec_action == RECOMMEND_AVOID:
             lines.append(self._t("强烈不建议更新：风险评分进入最高区间。", "Strongly not recommended: top risk band."))
@@ -513,7 +540,11 @@ class Reporter:
         lines.append(f"## {self._section(SECTION_LOCAL)}")
         lines.append("")
         if prov is not None:
-            lines.append(f"- **Reported Version**: v{prov.reported_version}" if prov.reported_version else "- **Reported Version**: unknown")
+            lines.append(
+                f"- **Reported Version**: v{prov.reported_version}"
+                if prov.reported_version
+                else "- **Reported Version**: unknown"
+            )
             lines.append(f"- **Channel**: {prov.channel}")
             if prov.git_branch:
                 lines.append(f"- **Branch**: {prov.git_branch}")

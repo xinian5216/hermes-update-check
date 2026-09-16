@@ -99,6 +99,7 @@ ALLOWLIST: list[str] = [
     "10.0.0.1",
     "C:" + chr(92) + "hermes",  # placeholder install path used in test fixtures
     "C:" + chr(92) + "Users" + chr(92) + "...",  # the literal in the README's rule description
+    "C:" + chr(92) + "Windows",  # standard system directory, not personal data
 ]
 
 #: prefixes that are fine too (RFC 5737 documentation ranges, example hosts)
@@ -119,8 +120,23 @@ SKIP_SUFFIXES = {
     ".exe", ".dll", ".so", ".dylib", ".pyc", ".woff", ".woff2", ".ttf", ".mp3", ".mp4",
 }
 
-#: paths we never scan (vendored deps, caches, VCS internals)
-SKIP_DIRS = {".git", ".venv", "venv", "__pycache__", ".pytest_cache", "node_modules", ".mypy_cache"}
+#: paths we never scan (vendored deps, caches, build output, VCS internals)
+SKIP_DIRS = {
+    ".git",
+    ".venv",
+    "venv",
+    "__pycache__",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".mypy_cache",
+    "htmlcov",
+    "node_modules",
+    "build",
+    "dist",
+}
+
+#: generated files that hold machine paths by nature (coverage databases, logs)
+SKIP_NAMES = {".coverage", "coverage.xml", "uv.lock"}
 
 
 def redact(text: str) -> str:
@@ -137,7 +153,7 @@ def iter_files(root: Path) -> list[Path]:
             continue
         if any(part in SKIP_DIRS for part in path.parts):
             continue
-        if path.suffix.lower() in SKIP_SUFFIXES:
+        if path.suffix.lower() in SKIP_SUFFIXES or path.name in SKIP_NAMES:
             continue
         files.append(path)
     return files

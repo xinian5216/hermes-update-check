@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
 
-from .config import Config, resolve_state_dir
+from .config import Config
 from .local_env import LocalEnv, gateway_status, parse_gateway_status
 from .logging_setup import get_logger
 from .preflight import STATUS_FAIL, STATUS_PASS, STATUS_SKIP, STATUS_WARN, CheckResult
@@ -181,7 +181,7 @@ def _check_import(env: LocalEnv, *, timeout: float) -> CheckResult:
         status=STATUS_FAIL,
         detail_zh=f"import 失败: {(result.stderr or result.stdout).strip()[:300]}",
         detail_en=f"import failed: {(result.stderr or result.stdout).strip()[:300]}",
-        remediation_zh="重装依赖后重试：uv pip install -e \".[all]\"",
+        remediation_zh='重装依赖后重试：uv pip install -e ".[all]"',
         remediation_en='reinstall dependencies: uv pip install -e ".[all]"',
     )
 
@@ -290,7 +290,7 @@ def _check_state_db(env: LocalEnv) -> CheckResult:
 def _count_sessions(conn: sqlite3.Connection) -> Optional[int]:
     for table in ("sessions", "session", "conversations"):
         try:
-            row = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()  # noqa: S608 - fixed table names
+            row = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()
             if row:
                 return int(row[0])
         except sqlite3.Error:

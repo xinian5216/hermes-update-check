@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass
-from typing import Optional
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -39,7 +38,7 @@ class WebhookNotifier(Notifier):
             method="POST",
         )
         try:
-            with urlopen(request, timeout=self.timeout) as response:  # noqa: S310 - user-supplied URL by design
+            with urlopen(request, timeout=self.timeout) as response:
                 status = getattr(response, "status", 200)
                 response.read()
         except HTTPError as exc:

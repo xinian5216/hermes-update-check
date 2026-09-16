@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 from conftest import FakeGitHubClient, make_compare, make_issue, make_release
 
 from hermes_update_check.checker import (
@@ -131,7 +130,9 @@ def test_run_check_tracks_main_ahead(cfg, hermes_home, state_root) -> None:
         compare=make_compare(commits=120),
         head_compare=make_compare(base="v2026.9.14", head="main", commits=120),
     )
-    check = run_check(cfg, env=make_env(hermes_home, version="0.21.2", tag="v2026.9.11"), client=client, state_root=state_root)
+    check = run_check(
+        cfg, env=make_env(hermes_home, version="0.21.2", tag="v2026.9.11"), client=client, state_root=state_root
+    )
     assert check.main_ahead_commits == 120
     assert check.channel == "MAIN"
     assert check.update_status == "ahead_of_stable"
@@ -174,10 +175,10 @@ def test_fresh_cache_hit_does_not_degrade_the_issue_signal(cfg, state_root) -> N
     class FreshCacheClient:
         degradations: list[str] = []
 
-        def search_issues(self, query, **kwargs):  # noqa: ANN001, ANN003
+        def search_issues(self, query, **kwargs):
             return IssueSearchResult(query=query, total_count=3, items=[], ok=True, degraded=False, from_cache=True)
 
-        def get_issue_comments(self, number, **kwargs):  # noqa: ANN001, ANN003
+        def get_issue_comments(self, number, **kwargs):
             return []
 
     signal = collect_issue_signal(cfg, FreshCacheClient(), make_release(age_hours=10))
@@ -192,10 +193,10 @@ def test_stale_cache_marks_the_issue_signal_degraded(cfg) -> None:
     class StaleCacheClient:
         degradations: list[str] = []
 
-        def search_issues(self, query, **kwargs):  # noqa: ANN001, ANN003
+        def search_issues(self, query, **kwargs):
             return IssueSearchResult(query=query, total_count=3, items=[], ok=True, degraded=True, from_cache=True)
 
-        def get_issue_comments(self, number, **kwargs):  # noqa: ANN001, ANN003
+        def get_issue_comments(self, number, **kwargs):
             return []
 
     signal = collect_issue_signal(cfg, StaleCacheClient(), make_release(age_hours=10))
@@ -213,7 +214,11 @@ def test_comment_enrichment_marks_maintainer_confirmation(cfg, state_root) -> No
     client = FakeGitHubClient(
         search={"created:<": (2, []), 'label:"bug"': (2, clusters_issues), "in:title": (2, clusters_issues)},
         comments={
-            101: [IssueComment(author="teknium1", body="Confirmed, reproducing locally - will fix.", author_association="OWNER")]
+            101: [
+                IssueComment(
+                    author="teknium1", body="Confirmed, reproducing locally - will fix.", author_association="OWNER"
+                )
+            ]
         },
     )
     signal = collect_issue_signal(cfg, client, make_release(age_hours=30))
@@ -261,7 +266,7 @@ def test_collect_issue_signal_marks_failure(cfg) -> None:
     class Failing:
         degradations: list[str] = []
 
-        def search_issues(self, query, **kwargs):  # noqa: ANN001, ANN003
+        def search_issues(self, query, **kwargs):
             return IssueSearchResult(query=query, ok=False, degraded=True, error="HTTP 403 rate limit")
 
     signal = collect_issue_signal(cfg, Failing(), make_release(age_hours=10))

@@ -7,10 +7,6 @@ and never sent to disk or into the report.
 
 from __future__ import annotations
 
-import json
-from dataclasses import dataclass, field
-from typing import Any, Optional
-
 from .base import NotificationMessage, Notifier, NotifyResult
 from .telegram import TelegramNotifier
 from .webhook import WebhookNotifier
@@ -22,12 +18,12 @@ __all__ = [
     "TelegramNotifier",
     "WebhookNotifier",
     "build_notifiers",
-    "notify_all",
     "describe_notifiers",
+    "notify_all",
 ]
 
 
-def build_notifiers(cfg) -> list[Notifier]:  # noqa: ANN001 - Config, imported lazily to avoid a cycle
+def build_notifiers(cfg) -> list[Notifier]:
     """Instantiate every configured notification channel."""
     notifiers: list[Notifier] = []
     telegram = cfg.notify.telegram

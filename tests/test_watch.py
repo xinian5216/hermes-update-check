@@ -5,19 +5,17 @@ from __future__ import annotations
 from pathlib import Path
 
 from conftest import make_release
-from test_checker import make_env
 
 from hermes_update_check.advisor import Recommendation
 from hermes_update_check.checker import UpdateCheck
 from hermes_update_check.cli import _watch_signal
 from hermes_update_check.clusters import build_clusters
 from hermes_update_check.config import Config
-from hermes_update_check.gates import GateReport, GateResult, GATE_BLOCK, GATE_PASS
+from hermes_update_check.gates import GATE_BLOCK, GATE_PASS, GateReport, GateResult
 from hermes_update_check.local_env import LocalEnv
 from hermes_update_check.provenance import CHANNEL_MAIN, CHANNEL_STABLE, CodeProvenance, UpdateDecision
 from hermes_update_check.risk import RiskAssessment
 from hermes_update_check.state import WatchState, confidence_bucket
-from hermes_update_check.util import iso, utcnow
 
 
 def build_check(
@@ -29,7 +27,7 @@ def build_check(
     channel: str = CHANNEL_STABLE,
     status: str = "update_available",
     gates: list[tuple[str, str]] | None = None,
-    clusters=None,  # noqa: ANN001
+    clusters=None,
     confidence: int = 96,
 ) -> UpdateCheck:
     env = LocalEnv(hermes_home=Path("/tmp/hermes"), install_kind="git", version="0.21.2")
@@ -59,7 +57,7 @@ def signal(cfg: Config, previous: WatchState, check: UpdateCheck) -> tuple[str, 
     return _watch_signal(cfg, previous, check)
 
 
-def seeded(**kwargs) -> WatchState:  # noqa: ANN003
+def seeded(**kwargs) -> WatchState:
     state = WatchState()
     state.record(
         tag=kwargs.pop("tag", "v2026.9.14"),

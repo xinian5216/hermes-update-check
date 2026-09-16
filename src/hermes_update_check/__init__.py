@@ -6,7 +6,7 @@ It checks, it assesses, it explains, it asks, and only then it acts.
 
 from __future__ import annotations
 
-__all__ = ["__version__", "TOOL_NAME"]
+__all__ = ["TOOL_NAME", "__version__"]
 
 TOOL_NAME = "hermes-update-check"
 __version__ = "1.1.0"

@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import json
 import time
 from pathlib import Path
 
-from hermes_update_check.http import DiskCache, HttpClient, rate_limit_message, require_ok
 from hermes_update_check.errors import NetworkError, RateLimitError
+from hermes_update_check.http import DiskCache, HttpClient, rate_limit_message, require_ok
 
 
 def test_disk_cache_roundtrip(tmp_path: Path) -> None:
@@ -31,7 +30,6 @@ def test_disk_cache_expiry_and_stale(tmp_path: Path) -> None:
 
 def test_disk_cache_ignores_garbage(tmp_path: Path) -> None:
     cache = DiskCache(tmp_path, ttl_minutes=60)
-    path = next(iter(tmp_path.glob("*"))) if any(tmp_path.iterdir()) else None
     cache.set("k", 1)
     files = list(tmp_path.glob("*.json"))
     assert files

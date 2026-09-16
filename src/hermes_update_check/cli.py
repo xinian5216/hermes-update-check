@@ -18,15 +18,20 @@ from pathlib import Path
 from typing import Any, Optional, Sequence
 
 from . import TOOL_NAME, __version__
-from .checker import UpdateCheck, build_github_client, run_check
-from .clusters import SEVERITY_CRITICAL
 from .advisor import (
     RECOMMEND_AHEAD_OF_STABLE,
     RECOMMEND_MANUAL_REVIEW,
-    Recommendation,
 )
-from .provenance import UPDATE_STATUS_AHEAD, UPDATE_STATUS_MANUAL_REVIEW, UPDATE_STATUS_UP_TO_DATE
-from .config import Config, default_config_path, load_config, resolve_hermes_home, resolve_state_dir, write_default_config
+from .checker import UpdateCheck, run_check
+from .clusters import SEVERITY_CRITICAL
+from .config import (
+    Config,
+    default_config_path,
+    load_config,
+    resolve_hermes_home,
+    resolve_state_dir,
+    write_default_config,
+)
 from .console import Console
 from .errors import (
     EXIT_ABORTED,
@@ -38,28 +43,25 @@ from .errors import (
     EXIT_PREFLIGHT_FAILED,
     EXIT_USAGE,
     EXIT_WAIT,
-    AbortedError,
     ConfigError,
     HermesUpdateCheckError,
 )
 from .health import HealthReport, run_health_checks
-from .logging_setup import get_logger, setup_logging
 from .local_env import LocalEnv, detect_local_env
+from .logging_setup import setup_logging
 from .notify import NotificationMessage, build_notifiers, describe_notifiers, notify_all
-from .preflight import STATUS_FAIL, STATUS_PASS, STATUS_SKIP, STATUS_WARN, PreflightReport, run_preflight
+from .preflight import STATUS_FAIL, PreflightReport, run_preflight
 from .report import Reporter
 from .risk import (
     RECOMMEND_AVOID,
     RECOMMEND_UNKNOWN,
-    RECOMMEND_UPDATE,
     RECOMMEND_UP_TO_DATE,
+    RECOMMEND_UPDATE,
     RECOMMEND_WAIT,
-    is_severe_level,
 )
 from .state import StateStore
 from .updater import RollbackOutcome, UpdateOutcome, run_rollback, run_update
-from .util import humanize_hours, iso, utcnow
-
+from .util import humanize_hours
 
 # --------------------------------------------------------------------------- #
 # parser
@@ -80,7 +82,9 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument("--version", action="version", version=f"{TOOL_NAME} {__version__}")
-    parser.add_argument("--config", metavar="PATH", help="path to config.yaml (default: ~/.config/hermes-update-check/config.yaml)")
+    parser.add_argument(
+        "--config", metavar="PATH", help="path to config.yaml (default: ~/.config/hermes-update-check/config.yaml)"
+    )
     parser.add_argument("--lang", choices=["zh", "en"], help="report language override")
     parser.add_argument("--plain", action="store_true", help="plain text output (no rich formatting)")
     parser.add_argument("--no-color", action="store_true", help="disable colour")
@@ -108,12 +112,20 @@ def build_parser() -> argparse.ArgumentParser:
 
     upd = sub.add_parser("update", help="update Hermes after risk gate + preflight + confirmation")
     upd.add_argument("--yes", "-y", action="store_true", help="skip the interactive confirmation")
-    upd.add_argument("--dry-run", "--plan", dest="dry_run", action="store_true", help="show the update plan, change nothing")
-    upd.add_argument("--backup", dest="backup", action="store_true", default=None, help="force a full pre-update backup")
-    upd.add_argument("--no-backup", dest="backup", action="store_false", help="skip the pre-update backup (not recommended)")
+    upd.add_argument(
+        "--dry-run", "--plan", dest="dry_run", action="store_true", help="show the update plan, change nothing"
+    )
+    upd.add_argument(
+        "--backup", dest="backup", action="store_true", default=None, help="force a full pre-update backup"
+    )
+    upd.add_argument(
+        "--no-backup", dest="backup", action="store_false", help="skip the pre-update backup (not recommended)"
+    )
     upd.add_argument("--branch", metavar="NAME", help="update against this branch (git installs)")
     upd.add_argument("--force", action="store_true", help="proceed even when the risk gate says WAIT/AVOID")
-    upd.add_argument("--skip-check", action="store_true", help="skip the online risk check (preflight + confirmation only)")
+    upd.add_argument(
+        "--skip-check", action="store_true", help="skip the online risk check (preflight + confirmation only)"
+    )
     upd.add_argument("--skip-health-check", action="store_true", help="do not run the post-update health check")
     upd.add_argument("--auto-rollback", action="store_true", help="roll back automatically when the health check fails")
     upd.add_argument("--restart-gateway", action="store_true", help="restart the gateway after a successful update")
@@ -123,7 +135,9 @@ def build_parser() -> argparse.ArgumentParser:
     roll.add_argument("--to", metavar="REF", help="git ref to restore (default: recorded commit)")
     roll.add_argument("--no-deps", action="store_true", help="do not reinstall Python dependencies")
     roll.add_argument("--restore-backup", metavar="PATH", help="also restore a HERMES_HOME backup (zip or directory)")
-    roll.add_argument("--in-place", action="store_true", help="overwrite HERMES_HOME from the backup (moves the old one aside)")
+    roll.add_argument(
+        "--in-place", action="store_true", help="overwrite HERMES_HOME from the backup (moves the old one aside)"
+    )
     roll.add_argument("--dry-run", action="store_true", help="show the rollback plan, change nothing")
 
     health = sub.add_parser("health", help="run the post-update health checks")
@@ -131,7 +145,9 @@ def build_parser() -> argparse.ArgumentParser:
     health.add_argument("--timeout", type=float, default=90.0, metavar="SECONDS")
 
     pre = sub.add_parser("preflight", help="run the pre-update checks only")
-    pre.add_argument("--no-processes", action="store_true", help="skip the process/gateway scan (faster, e.g. in restricted shells)")
+    pre.add_argument(
+        "--no-processes", action="store_true", help="skip the process/gateway scan (faster, e.g. in restricted shells)"
+    )
 
     cfg_cmd = sub.add_parser("config", help="show / locate / create the configuration")
     cfg_cmd.add_argument("action", choices=["show", "path", "init"], nargs="?", default="show")
@@ -299,7 +315,7 @@ def cmd_report(args: argparse.Namespace, cfg: Config, console: Console, store: S
     if args.output:
         path = Path(args.output).expanduser()
         path.write_text(reporter.to_markdown(check), encoding="utf-8")
-        console.print(f"\n[{cfg.language == 'zh' and '报告已写入' or 'report written to'}: {path}]")
+        console.print(f"\n[{(cfg.language == 'zh' and '报告已写入') or 'report written to'}: {path}]")
     return _check_exit_code(check)
 
 
@@ -361,13 +377,15 @@ def cmd_watch(args: argparse.Namespace, cfg: Config, console: Console, store: St
             console.print(state_line)
             if args.dry_run:
                 console.print(
-                    cfg.language == "zh" and "（dry-run：没有发送通知）" or "(dry-run: no notification sent)"
+                    (cfg.language == "zh" and "（dry-run：没有发送通知）") or "(dry-run: no notification sent)"
                 )
 
     if should_notify and not getattr(args, "dry_run", False):
         message = NotificationMessage(
             title=f"Hermes Update {current_level or 'UNKNOWN'}: {current_tag or 'no release'}",
-            body=(reason_zh if cfg.language == "zh" else reason_en) + "\n\n" + "\n".join(
+            body=(reason_zh if cfg.language == "zh" else reason_en)
+            + "\n\n"
+            + "\n".join(
                 (assessment.summary_zh if cfg.language == "zh" else assessment.summary_en) if assessment else []
             ),
             level=current_level or "UNKNOWN",
@@ -383,7 +401,6 @@ def cmd_watch(args: argparse.Namespace, cfg: Config, console: Console, store: St
         results = notify_all(build_notifiers(cfg), message)
         if results:
             for result in results:
-                status = "OK" if result.ok else "WARN"
                 console.status_line(f"notify/{result.notifier}", "PASS" if result.ok else "WARN", result.detail)
             watch_state.mark_notified(current_tag, reason_zh if cfg.language == "zh" else reason_en)
         else:
@@ -440,11 +457,7 @@ def cmd_update(args: argparse.Namespace, cfg: Config, console: Console, store: S
             )
             return EXIT_OK
         if (rec is None or not rec.is_blocking) and args.force:
-            console.warn(
-                "已使用 --force 跳过风险门禁"
-                if cfg.language == "zh"
-                else "--force given: risk gate skipped"
-            )
+            console.warn("已使用 --force 跳过风险门禁" if cfg.language == "zh" else "--force given: risk gate skipped")
 
     # 2. preflight ----------------------------------------------------------- #
     console.heading("Preflight" if cfg.language != "zh" else "更新前检查")
@@ -467,11 +480,7 @@ def cmd_update(args: argparse.Namespace, cfg: Config, console: Console, store: S
     else:
         risk_label = "not checked (--skip-check)"
     if not _confirm_update(args, cfg, console, env, target, backup, risk_label):
-        console.print(
-            "已取消，未做任何修改。"
-            if cfg.language == "zh"
-            else "Cancelled - nothing was changed."
-        )
+        console.print("已取消，未做任何修改。" if cfg.language == "zh" else "Cancelled - nothing was changed.")
         return EXIT_ABORTED
 
     # 4. update -------------------------------------------------------------- #
@@ -650,7 +659,7 @@ def cmd_notify_test(args: argparse.Namespace, cfg: Config, console: Console, log
         level="INFO",
         fields={"channels": describe_notifiers(notifiers)},
     )
-    results = [r for r in notify_all(notifiers, message)]
+    results = list(notify_all(notifiers, message))
     for result in results:
         console.status_line(f"notify/{result.notifier}", "PASS" if result.ok else "FAIL", result.detail)
     return EXIT_OK if all(r.ok for r in results) else EXIT_ERROR
@@ -682,7 +691,11 @@ def _one_line_status(check: UpdateCheck, cfg: Config) -> str:
     score = check.assessment.score_or_unknown if check.assessment else "UNKNOWN"
     level = check.assessment.level if check.assessment else "UNKNOWN"
     rec = check.action
-    age = f"{humanize_hours(check.latest.age_hours, lang=cfg.language)}" if check.latest and check.latest.age_hours else "?"
+    age = (
+        f"{humanize_hours(check.latest.age_hours, lang=cfg.language)}"
+        if check.latest and check.latest.age_hours
+        else "?"
+    )
     channel = prov.channel if prov else "UNKNOWN"
     gates = ""
     if check.gates is not None and check.gates.blocking:
@@ -698,7 +711,7 @@ def _one_line_status(check: UpdateCheck, cfg: Config) -> str:
     )
 
 
-def _watch_signal(cfg: Config, watch_state, check: UpdateCheck) -> tuple[str, str, bool]:  # noqa: ANN001
+def _watch_signal(cfg: Config, watch_state, check: UpdateCheck) -> tuple[str, str, bool]:
     """Decide whether this run deserves a notification, and why.
 
     Only *meaningful* transitions notify: a new release, a risk-band change, a
@@ -710,7 +723,6 @@ def _watch_signal(cfg: Config, watch_state, check: UpdateCheck) -> tuple[str, st
     from .util import hours_between, parse_iso8601
 
     assessment = check.assessment
-    rec = check.recommendation
     current_tag = check.latest.tag if check.latest else None
     current_level = assessment.level if assessment else None
     current_action = check.action
@@ -731,13 +743,16 @@ def _watch_signal(cfg: Config, watch_state, check: UpdateCheck) -> tuple[str, st
 
     # throttle
     last_notified = parse_iso8601(watch_state.last_notified_at)
-    if last_notified is not None and cfg.watch.min_interval_hours:
-        if hours_between(last_notified) < cfg.watch.min_interval_hours:
-            return (
-                "距上次通知不足 {} 小时".format(int(cfg.watch.min_interval_hours)),
-                "less than {} h since the last notification".format(int(cfg.watch.min_interval_hours)),
-                False,
-            )
+    if (
+        last_notified is not None
+        and cfg.watch.min_interval_hours
+        and hours_between(last_notified) < cfg.watch.min_interval_hours
+    ):
+        return (
+            f"距上次通知不足 {int(cfg.watch.min_interval_hours)} 小时",
+            f"less than {int(cfg.watch.min_interval_hours)} h since the last notification",
+            False,
+        )
 
     if previous_tag is None:
         if cfg.watch.notify_on_first_run:
@@ -997,4 +1012,4 @@ def _confirm(console: Console, lang: str, *, zh: str, en: str, assume_yes: bool)
     return answer in {"y", "yes", "是", "确认"}
 
 
-__all__ = ["main", "build_parser"]
+__all__ = ["build_parser", "main"]

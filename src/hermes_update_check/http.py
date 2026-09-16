@@ -88,7 +88,9 @@ class DiskCache:
         digest = hashlib.sha1(key.encode("utf-8")).hexdigest()[:20]
         return self.directory / f"{digest}.json"
 
-    def get(self, key: str, *, allow_stale: bool = False, max_stale_seconds: float = 7 * 86400) -> Optional[tuple[Any, float]]:
+    def get(
+        self, key: str, *, allow_stale: bool = False, max_stale_seconds: float = 7 * 86400
+    ) -> Optional[tuple[Any, float]]:
         """Return ``(payload, age_seconds)`` or None.
 
         ``allow_stale`` is the offline fallback: keep using old data, but the
@@ -240,7 +242,7 @@ class HttpClient:
 
         request = Request(url, headers=headers, method="GET")
         try:
-            with urlopen(request, timeout=self.timeout) as response:  # noqa: S310 - https only, caller-controlled
+            with urlopen(request, timeout=self.timeout) as response:
                 raw = response.read()
                 parsed = _decode_json(raw)
                 return HttpResult(

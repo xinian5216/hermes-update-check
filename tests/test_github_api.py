@@ -8,8 +8,8 @@ import pytest
 
 from hermes_update_check.github_api import (
     MAX_QUERY_LENGTH,
-    CompareResult,
     CommitInfo,
+    CompareResult,
     GitHubClient,
     build_issue_query,
     extract_display_version,
@@ -83,12 +83,12 @@ ISSUE_SEARCH_FIXTURE = {
 class StubHttp(HttpClient):
     """HttpClient that answers from a fixture map instead of the network."""
 
-    def __init__(self, routes):  # noqa: ANN001
+    def __init__(self, routes):
         super().__init__(timeout=1, retries=0, cache=None)
         self.routes = routes
         self.calls: list[str] = []
 
-    def get_json(self, url, *, params=None, extra_headers=None, use_cache=True, cache_key=None):  # noqa: ANN001, ARG002
+    def get_json(self, url, *, params=None, extra_headers=None, use_cache=True, cache_key=None):
         from hermes_update_check.http import HttpResult
 
         self.calls.append(url)
@@ -98,7 +98,7 @@ class StubHttp(HttpClient):
         return HttpResult(url=url, status=404, error="HTTP 404: not found")
 
 
-def make_client(routes) -> GitHubClient:  # noqa: ANN001
+def make_client(routes) -> GitHubClient:
     return GitHubClient(repo="NousResearch/hermes-agent", http=StubHttp(routes), max_issue_searches=5)
 
 

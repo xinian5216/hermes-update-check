@@ -10,8 +10,8 @@ import pytest
 from hermes_update_check.config import (
     DEFAULTS,
     Config,
-    default_config_path,
     deep_merge,
+    default_config_path,
     load_config,
     resolve_hermes_home,
     resolve_state_dir,
@@ -89,7 +89,9 @@ def test_unknown_keys_warn(tmp_path: Path) -> None:
 
 def test_validation_clamps_and_warns(tmp_path: Path) -> None:
     path = tmp_path / "config.yaml"
-    path.write_text("risk_threshold: 250\nlanguage: klingon\npreferred_channel: nightly\nauto_update: true\n", encoding="utf-8")
+    path.write_text(
+        "risk_threshold: 250\nlanguage: klingon\npreferred_channel: nightly\nauto_update: true\n", encoding="utf-8"
+    )
     cfg = load_config(path, env={})
     assert cfg.risk_threshold == 100
     assert cfg.language == "zh"

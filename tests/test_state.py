@@ -63,7 +63,9 @@ def test_update_state_roundtrip(tmp_path: Path) -> None:
 def test_update_state_matches_documented_json_shape(tmp_path: Path) -> None:
     """The README documents these keys - keep them stable."""
     store = StateStore(tmp_path)
-    store.save_update_state(UpdateState(previous_version="0.21.1", previous_commit="abc", previous_tag="v2026.9.7", backup_path="/b.zip"))
+    store.save_update_state(
+        UpdateState(previous_version="0.21.1", previous_commit="abc", previous_tag="v2026.9.7", backup_path="/b.zip")
+    )
     raw = json.loads((tmp_path / "update_state.json").read_text(encoding="utf-8"))
     for key in (
         "previous_version",
@@ -79,7 +81,9 @@ def test_update_state_matches_documented_json_shape(tmp_path: Path) -> None:
 
 
 def test_update_state_unknown_keys_are_ignored(tmp_path: Path) -> None:
-    (tmp_path / "update_state.json").write_text(json.dumps({"previous_version": "1.2.3", "future_key": 1}), encoding="utf-8")
+    (tmp_path / "update_state.json").write_text(
+        json.dumps({"previous_version": "1.2.3", "future_key": 1}), encoding="utf-8"
+    )
     state = StateStore(tmp_path).load_update_state()
     assert state is not None and state.previous_version == "1.2.3"
 

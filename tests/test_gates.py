@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-import pytest
-
 from conftest import make_release
 
 from hermes_update_check.config import Config
@@ -24,13 +22,11 @@ from hermes_update_check.provenance import (
     CHANNEL_PRERELEASE,
     CHANNEL_STABLE,
     UPDATE_STATUS_AVAILABLE,
-    UPDATE_STATUS_MANUAL_REVIEW,
     UPDATE_STATUS_UP_TO_DATE,
     CodeProvenance,
     UpdateDecision,
 )
 from hermes_update_check.risk import RiskAssessment
-from hermes_update_check.util import utcnow
 
 
 def make_assessment(*, score: int = 12, confidence: float = 1.0, insufficient: bool = False) -> RiskAssessment:
@@ -46,8 +42,8 @@ def make_assessment(*, score: int = 12, confidence: float = 1.0, insufficient: b
     )
 
 
-def stable_prov(**kwargs) -> CodeProvenance:  # noqa: ANN003
-    defaults = dict(channel=CHANNEL_STABLE, tag_matched=True, nearest_tag="v2026.9.11", is_git_install=True)
+def stable_prov(**kwargs) -> CodeProvenance:
+    defaults = {"channel": CHANNEL_STABLE, "tag_matched": True, "nearest_tag": "v2026.9.11", "is_git_install": True}
     defaults.update(kwargs)
     return CodeProvenance(**defaults)  # type: ignore[arg-type]
 
@@ -168,8 +164,9 @@ def test_prerelease_blocks_by_default(cfg: Config) -> None:
 
 
 def test_active_database_regression_blocks(cfg: Config) -> None:
-    from hermes_update_check.clusters import build_clusters
     from test_clusters import issue
+
+    from hermes_update_check.clusters import build_clusters
 
     clusters = build_clusters(
         [
@@ -193,8 +190,9 @@ def test_active_database_regression_blocks(cfg: Config) -> None:
 
 
 def test_gateway_regression_gate_is_off_by_default_but_available(cfg: Config) -> None:
-    from hermes_update_check.clusters import build_clusters
     from test_clusters import issue
+
+    from hermes_update_check.clusters import build_clusters
 
     clusters = build_clusters(
         [
@@ -227,8 +225,9 @@ def test_gateway_regression_gate_is_off_by_default_but_available(cfg: Config) ->
 
 
 def test_single_reporter_cluster_does_not_trigger_the_regression_gate(cfg: Config) -> None:
-    from hermes_update_check.clusters import build_clusters
     from test_clusters import issue
+
+    from hermes_update_check.clusters import build_clusters
 
     clusters = build_clusters([issue(1, "[Bug] session lost after update", author="alice")])
     report = evaluate_gates(
@@ -346,7 +345,7 @@ def test_gate_report_serialises() -> None:
     assert data["gates"][0]["label_en"]
 
 
-def test_probe_environment_detects_problems(hermes_home) -> None:  # noqa: ANN001
+def test_probe_environment_detects_problems(hermes_home) -> None:
     ok = probe_environment(LocalEnv(hermes_home=hermes_home, install_kind="git"))
     assert ok.abnormal is False
 

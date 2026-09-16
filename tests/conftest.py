@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from hermes_update_check.config import Config
-from hermes_update_check.github_api import CompareResult, CommitInfo, Issue, Release
+from hermes_update_check.github_api import CommitInfo, CompareResult, Issue, Release
 from hermes_update_check.util import utcnow
 
 
@@ -135,17 +135,17 @@ class FakeGitHubClient:
         self.comment_calls: list[int] = []
         self.http = type("FakeHttp", (), {"token": token})()
 
-    def list_releases(self, *, per_page: int = 20, use_cache: bool = True):  # noqa: ARG002
+    def list_releases(self, *, per_page: int = 20, use_cache: bool = True):
         return list(self.releases)
 
-    def latest_release(self, *, include_prereleases: bool = False, per_page: int = 20):  # noqa: ARG002
+    def latest_release(self, *, include_prereleases: bool = False, per_page: int = 20):
         for release in self.releases:
             if release.prerelease and not include_prereleases:
                 continue
             return release
         return None
 
-    def compare(self, base_tag: str, head_tag: str, *, use_cache: bool = True):  # noqa: ARG002
+    def compare(self, base_tag: str, head_tag: str, *, use_cache: bool = True):
         # tag...tag -> release diff; tag...sha/branch -> provenance probe
         if base_tag.startswith("v2") and head_tag and not head_tag.startswith("v2"):
             return self.head_compare_result
@@ -153,7 +153,9 @@ class FakeGitHubClient:
             return self.head_compare_result
         return self.compare_result
 
-    def search_issues(self, query: str, *, per_page: int = 50, sort: str = "created", order: str = "desc", use_cache: bool = True):  # noqa: ARG002
+    def search_issues(
+        self, query: str, *, per_page: int = 50, sort: str = "created", order: str = "desc", use_cache: bool = True
+    ):
         from hermes_update_check.github_api import IssueSearchResult
 
         self.searches_used += 1
@@ -162,8 +164,7 @@ class FakeGitHubClient:
                 return IssueSearchResult(query=query, total_count=total, items=list(items)[:per_page], ok=True)
         return IssueSearchResult(query=query, total_count=0, items=[], ok=True)
 
-    def get_issue_comments(self, number: int, *, per_page: int = 20, use_cache: bool = True):  # noqa: ARG002
-        from hermes_update_check.github_api import IssueComment
+    def get_issue_comments(self, number: int, *, per_page: int = 20, use_cache: bool = True):
 
         self.comment_calls.append(number)
         return list(self.comment_results.get(number, []))
@@ -177,6 +178,6 @@ def fake_client() -> FakeGitHubClient:
     return FakeGitHubClient()
 
 
-def dump_json(path: Path, data) -> Path:  # noqa: ANN001
+def dump_json(path: Path, data) -> Path:
     path.write_text(json.dumps(data), encoding="utf-8")
     return path

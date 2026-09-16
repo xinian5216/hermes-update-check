@@ -64,8 +64,8 @@ class UpdateState:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "UpdateState":
-        known = {f for f in cls.__dataclass_fields__}  # type: ignore[attr-defined]
+    def from_dict(cls, data: dict[str, Any]) -> UpdateState:
+        known = set(cls.__dataclass_fields__)  # type: ignore[attr-defined]
         return cls(**{k: v for k, v in data.items() if k in known})  # type: ignore[arg-type]
 
     def mark(self, status: str, *, note: Optional[str] = None) -> None:
@@ -169,8 +169,8 @@ class WatchState:
         return data
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "WatchState":
-        known = {f for f in cls.__dataclass_fields__}  # type: ignore[attr-defined]
+    def from_dict(cls, data: dict[str, Any]) -> WatchState:
+        known = set(cls.__dataclass_fields__)  # type: ignore[attr-defined]
         return cls(**{k: v for k, v in data.items() if k in known})  # type: ignore[arg-type]
 
 

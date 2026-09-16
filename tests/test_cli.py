@@ -6,8 +6,7 @@ import json
 from pathlib import Path
 
 import pytest
-
-from conftest import FakeGitHubClient, make_compare, make_issue, make_release
+from conftest import FakeGitHubClient, make_compare, make_release
 
 from hermes_update_check.checker import UpdateCheck, run_check
 from hermes_update_check.cli import _check_exit_code, build_parser, main
@@ -25,7 +24,18 @@ from hermes_update_check.risk import RiskAssessment
 
 def test_parser_has_all_documented_commands() -> None:
     parser = build_parser()
-    for command in ("check", "report", "watch", "update", "rollback", "health", "preflight", "config", "notify-test", "version"):
+    for command in (
+        "check",
+        "report",
+        "watch",
+        "update",
+        "rollback",
+        "health",
+        "preflight",
+        "config",
+        "notify-test",
+        "version",
+    ):
         assert parser.parse_args([command]) is not None or True
     # unknown commands must fail loudly
     with pytest.raises(SystemExit):
@@ -117,7 +127,7 @@ def _assessment(recommendation: str, score: int | None = 10, level: str = "LOW")
         ("INSUFFICIENT_DATA", None, "UNKNOWN", EXIT_INSUFFICIENT_DATA),
     ],
 )
-def test_check_exit_codes(recommendation: str, score, level: str, expected: int) -> None:  # noqa: ANN001
+def test_check_exit_codes(recommendation: str, score, level: str, expected: int) -> None:
     assert _check_exit_code(_check_with(_assessment(recommendation, score, level))) == expected
 
 
@@ -135,8 +145,8 @@ def _check_with_recommendation(action: str):
         ("UPDATE", EXIT_OK),
         ("WAIT", EXIT_WAIT),
         ("AVOID", EXIT_WAIT),
-        ("AHEAD_OF_STABLE", EXIT_OK),       # nothing to do: code is ahead of the release
-        ("MANUAL_REVIEW", EXIT_WAIT),       # needs a human
+        ("AHEAD_OF_STABLE", EXIT_OK),  # nothing to do: code is ahead of the release
+        ("MANUAL_REVIEW", EXIT_WAIT),  # needs a human
         ("INSUFFICIENT_DATA", EXIT_INSUFFICIENT_DATA),
         ("UP_TO_DATE", EXIT_OK),
     ],
@@ -149,7 +159,9 @@ def test_up_to_date_exit_code_is_zero() -> None:
     assert _check_exit_code(_check_with(_assessment("UPDATE"), update_available=False)) == EXIT_OK
 
 
-def test_rollback_without_state_is_a_config_error_not_a_crash(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys) -> None:
+def test_rollback_without_state_is_a_config_error_not_a_crash(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys
+) -> None:
     """Regression (found in the real E2E): `rollback` with no state exited 1.
 
     A missing precondition is not an internal error - cron/CI must be able to
@@ -164,7 +176,9 @@ def test_rollback_without_state_is_a_config_error_not_a_crash(tmp_path: Path, mo
     assert "update_state.json" in (captured.out + captured.err)
 
 
-def test_update_refused_without_yes_on_non_tty(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, hermes_home: Path) -> None:
+def test_update_refused_without_yes_on_non_tty(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, hermes_home: Path
+) -> None:
     """The safety property that matters most: no confirmation -> no update."""
     monkeypatch.setenv("HERMES_UPDATE_CHECK_STATE_DIR", str(tmp_path / "state"))
     monkeypatch.setenv("HERMES_HOME", str(hermes_home))
@@ -183,7 +197,9 @@ def test_update_refused_without_yes_on_non_tty(tmp_path: Path, monkeypatch: pyte
     monkeypatch.setattr("hermes_update_check.cli.run_update", lambda *a, **kw: pytest.fail("update must not run"))
     monkeypatch.setattr(
         "hermes_update_check.cli.detect_local_env",
-        lambda *a, **kw: LocalEnv(hermes_home=hermes_home, install_kind="git", version="0.21.2", release_tag="v2026.9.11"),
+        lambda *a, **kw: LocalEnv(
+            hermes_home=hermes_home, install_kind="git", version="0.21.2", release_tag="v2026.9.11"
+        ),
     )
     monkeypatch.setattr(
         "hermes_update_check.cli.run_preflight",

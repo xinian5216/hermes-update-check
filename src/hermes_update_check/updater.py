@@ -21,17 +21,25 @@ from .errors import AbortedError, CommandError
 from .health import HealthReport, run_health_checks
 from .local_env import LocalEnv, detect_local_env
 from .logging_setup import get_logger
-from .state import STATUS_FAILED, STATUS_HEALTH_FAILED, STATUS_IN_PROGRESS, STATUS_ROLLED_BACK, STATUS_SUCCEEDED, StateStore, UpdateState
+from .state import (
+    STATUS_FAILED,
+    STATUS_HEALTH_FAILED,
+    STATUS_IN_PROGRESS,
+    STATUS_ROLLED_BACK,
+    STATUS_SUCCEEDED,
+    StateStore,
+    UpdateState,
+)
 from .util import ProcResult, run_process, run_streaming, sha256_file, utcnow, write_json
 
 LineCallback = Optional[Callable[[str], None]]
 
 #: Fingerprinted before every update (copied only when it is safe to copy).
 SNAPSHOT_TARGETS: tuple[tuple[str, str, bool], ...] = (
-    ("config.yaml", "config.yaml", True),      # settings - copied
-    (".env", ".env", False),                   # secrets - hash only, never copied
-    ("auth.json", "auth.json", False),         # credentials - hash only
-    ("state.db", "state.db", False),           # session store - hash/metadata only (can be huge)
+    ("config.yaml", "config.yaml", True),  # settings - copied
+    (".env", ".env", False),  # secrets - hash only, never copied
+    ("auth.json", "auth.json", False),  # credentials - hash only
+    ("state.db", "state.db", False),  # session store - hash/metadata only (can be huge)
     ("cron", "cron", False),
     ("skills", "skills", False),
     ("memories", "memories", False),
@@ -358,7 +366,9 @@ def run_update(
             )
             outcome.rolled_back = rollback.ok
             outcome.message_zh += "；已自动回滚" if rollback.ok else "；自动回滚失败，请手动处理"
-            outcome.message_en += "; auto-rollback done" if rollback.ok else "; auto-rollback FAILED - manual action needed"
+            outcome.message_en += (
+                "; auto-rollback done" if rollback.ok else "; auto-rollback FAILED - manual action needed"
+            )
         return outcome
 
     state.status = STATUS_SUCCEEDED
@@ -516,11 +526,19 @@ def run_rollback(
 
     # -- optional backup restore ------------------------------------------- #
     if restore_backup:
-        steps.extend(_restore_hermes_home(Path(restore_backup), Path(state.hermes_home or env.hermes_home), in_place=in_place_restore, logger=log))
+        steps.extend(
+            _restore_hermes_home(
+                Path(restore_backup), Path(state.hermes_home or env.hermes_home), in_place=in_place_restore, logger=log
+            )
+        )
 
     # -- verify ------------------------------------------------------------- #
     env_after = detect_local_env(cfg, logger=log, run_upstream_check=False)
-    health = run_health_checks(cfg, env_after, state_root=store.root, logger=log) if cfg.update.health_check_after_update else None
+    health = (
+        run_health_checks(cfg, env_after, state_root=store.root, logger=log)
+        if cfg.update.health_check_after_update
+        else None
+    )
 
     state.status = STATUS_ROLLED_BACK
     state.rollback_time = utcnow().isoformat()
@@ -579,6 +597,8 @@ def _restore_hermes_home(backup: Path, hermes_home: Path, *, in_place: bool, log
         shutil.copytree(staging, hermes_home, dirs_exist_ok=True)
         steps.append(f"restored HERMES_HOME from {backup}")
     except OSError as exc:
-        raise CommandError(f"restore failed: {exc}", hint=f"previous home is at {broken}; staging at {staging}") from exc
+        raise CommandError(
+            f"restore failed: {exc}", hint=f"previous home is at {broken}; staging at {staging}"
+        ) from exc
     logger.info("HERMES_HOME restored from %s", backup)
     return steps

@@ -20,7 +20,16 @@ from hermes_update_check.clusters import (
 from hermes_update_check.github_api import Issue
 
 
-def issue(number: int, title: str, *, author: str = "alice", state: str = "open", body: str = "", labels=None, comments: int = 0) -> Issue:  # noqa: ANN001
+def issue(
+    number: int,
+    title: str,
+    *,
+    author: str = "alice",
+    state: str = "open",
+    body: str = "",
+    labels=None,
+    comments: int = 0,
+) -> Issue:
     return Issue(
         number=number,
         title=title,
@@ -129,7 +138,12 @@ def test_maintainer_confirmation_and_linked_pr_raise_confidence() -> None:
 
 def test_version_mention_and_reproduction_count_towards_confidence() -> None:
     issues = [
-        issue(1, "[Bug] config migration broke my config after 0.21.3", author="alice", body="Steps to reproduce:\n1. run hermes update"),
+        issue(
+            1,
+            "[Bug] config migration broke my config after 0.21.3",
+            author="alice",
+            body="Steps to reproduce:\n1. run hermes update",
+        ),
         issue(2, "[Bug] config.yaml invalid after updating to v0.21.3", author="bob", body="error: KeyError 'mcp'"),
     ]
     clusters = build_clusters(issues, release_version="0.21.3", release_tag="v2026.9.14")

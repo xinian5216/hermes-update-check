@@ -234,7 +234,9 @@ def detect_local_env(
     env.uv_path = resolve_executable("uv", extra_dirs=[home / "bin", home / "uv"])
 
     if run_upstream_check and env.hermes_cli:
-        env.update_check_output, env.update_check_says_available = _run_update_check(env.hermes_cli, timeout=UPDATE_CHECK_TIMEOUT, log=log)
+        env.update_check_output, env.update_check_says_available = _run_update_check(
+            env.hermes_cli, timeout=UPDATE_CHECK_TIMEOUT, log=log
+        )
 
     return env
 
@@ -373,7 +375,12 @@ def _find_venv_python(home: Path, install_dir: Optional[Path]) -> Optional[Path]
     for root in roots:
         if root is None:
             continue
-        for rel in (Path("venv") / "bin" / "python", Path("venv") / "Scripts" / "python.exe", Path(".venv") / "bin" / "python", Path(".venv") / "Scripts" / "python.exe"):
+        for rel in (
+            Path("venv") / "bin" / "python",
+            Path("venv") / "Scripts" / "python.exe",
+            Path(".venv") / "bin" / "python",
+            Path(".venv") / "Scripts" / "python.exe",
+        ):
             candidate = root / rel
             if candidate.exists():
                 return candidate
@@ -451,7 +458,7 @@ def _list_windows_processes_via_cim(*, timeout: float) -> Optional[list[ProcessI
     script = (
         "Get-CimInstance Win32_Process | "
         "Where-Object { $_.CommandLine -match 'hermes' } | "
-        "ForEach-Object { \"$($_.ProcessId)`t$($_.CommandLine)\" }"
+        'ForEach-Object { "$($_.ProcessId)`t$($_.CommandLine)" }'
     )
     result = run_process(["powershell", "-NoProfile", "-NonInteractive", "-Command", script], timeout=timeout)
     if not result.ok:

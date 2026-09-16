@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-import pytest
-
 from conftest import make_release
 from test_clusters import issue
 from test_gates import make_assessment, ready_decision, stable_prov
@@ -19,7 +17,7 @@ from hermes_update_check.advisor import (
 )
 from hermes_update_check.clusters import build_clusters
 from hermes_update_check.config import Config
-from hermes_update_check.gates import EnvironmentState, GateReport, evaluate_gates
+from hermes_update_check.gates import EnvironmentState, evaluate_gates
 from hermes_update_check.provenance import (
     CHANNEL_MAIN,
     UPDATE_STATUS_AHEAD,
@@ -35,12 +33,12 @@ from hermes_update_check.util import utcnow
 def run_advisor(
     cfg: Config,
     *,
-    provenance=None,  # noqa: ANN001
-    decision=None,  # noqa: ANN001
-    assessment=None,  # noqa: ANN001
-    clusters=None,  # noqa: ANN001
-    release=None,  # noqa: ANN001
-    environment=None,  # noqa: ANN001
+    provenance=None,
+    decision=None,
+    assessment=None,
+    clusters=None,
+    release=None,
+    environment=None,
 ):
     provenance = provenance or stable_prov()
     decision = decision or ready_decision()
@@ -107,7 +105,9 @@ def test_insufficient_data_beats_gates_and_score(cfg: Config) -> None:
 
 
 def test_environment_problem_beats_hard_gates(cfg: Config) -> None:
-    env_state = EnvironmentState(problems_en=["HERMES_HOME missing"], problems_zh=["HERMES_HOME 不存在"], hermes_home_exists=False)
+    env_state = EnvironmentState(
+        problems_en=["HERMES_HOME missing"], problems_zh=["HERMES_HOME 不存在"], hermes_home_exists=False
+    )
     rec = run_advisor(cfg, release=make_release(age_hours=1), environment=env_state)
     assert rec.action == RECOMMEND_MANUAL_REVIEW
     assert rec.decided_by == "environment"

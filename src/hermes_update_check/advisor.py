@@ -19,21 +19,21 @@ from typing import Optional
 
 from .clusters import CONFIDENCE_HIGH, SEVERITY_CRITICAL, SEVERITY_HIGH, RegressionCluster
 from .config import Config
-from .gates import GateReport, GateResult
+from .gates import GateReport
 from .github_api import Release
-from .provenance import CodeProvenance, UpdateDecision
 from .provenance import (
     UPDATE_STATUS_AHEAD,
-    UPDATE_STATUS_AVAILABLE,
     UPDATE_STATUS_MANUAL_REVIEW,
     UPDATE_STATUS_UNKNOWN,
     UPDATE_STATUS_UP_TO_DATE,
+    CodeProvenance,
+    UpdateDecision,
 )
 from .risk import (
     RECOMMEND_AVOID,
     RECOMMEND_UNKNOWN,
-    RECOMMEND_UPDATE,
     RECOMMEND_UP_TO_DATE,
+    RECOMMEND_UPDATE,
     RECOMMEND_WAIT,
     RiskAssessment,
 )
@@ -144,10 +144,9 @@ def advise(
         rec.reasons_zh.extend(assessment.summary_zh[:6])
         rec.reasons_en.extend(assessment.summary_en[:6])
 
+    # open CRITICAL clusters are what pull the recommended recheck earlier; the
+    # per-cluster grading itself already feeds the regression signal
     active_critical = [c for c in clusters if c.severity == SEVERITY_CRITICAL and c.open_count > 0]
-    active_severe = [
-        c for c in clusters if c.severity == SEVERITY_HIGH and c.open_count > 0 and c.confidence == CONFIDENCE_HIGH
-    ]
 
     # -- 1. is there anything to do at all? --------------------------------- #
     if decision.status == UPDATE_STATUS_UP_TO_DATE:
@@ -164,9 +163,7 @@ def advise(
     if decision.status == UPDATE_STATUS_AHEAD:
         rec.reasons_zh.append(decision.message_zh)
         rec.reasons_en.append(decision.message_en)
-        rec.remediation_zh.append(
-            "如果希望回到正式 Release：先备份，再手动 checkout 对应 tag（本工具不会自动降级）"
-        )
+        rec.remediation_zh.append("如果希望回到正式 Release：先备份，再手动 checkout 对应 tag（本工具不会自动降级）")
         rec.remediation_en.append(
             "to move back to a stable release: back up first, then check out the tag manually (no automatic downgrade)"
         )
@@ -297,9 +294,7 @@ def advise(
         age_days = release.age_days
     if age_days is not None and age_days < cfg.minimum_release_age_days:
         remaining_hours = max(1.0, (cfg.minimum_release_age_days - age_days) * 24)
-        rec.reasons_zh.append(
-            f"发布仅 {age_days:.1f} 天，低于观察期 {cfg.minimum_release_age_days:g} 天"
-        )
+        rec.reasons_zh.append(f"发布仅 {age_days:.1f} 天，低于观察期 {cfg.minimum_release_age_days:g} 天")
         rec.reasons_en.append(
             f"release is only {age_days:.1f} days old (observation window {cfg.minimum_release_age_days:g} days)"
         )
@@ -409,12 +404,13 @@ def recommended_recheck(
         # The gate deadline already covers the "wait for the release to mature"
         # horizon, so the routine interval does not compete with it.
         candidates = [
+            *urgent,
             (
                 gate_hours,
                 "Hard Gate 最早可重新评估时间",
                 "earliest hard-gate re-evaluation time",
-            )
-        ] + urgent
+            ),
+        ]
     else:
         candidates = list(urgent)
         candidates.append((max(1.0, routine_hours), "常规复查间隔", "routine interval"))
