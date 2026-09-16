@@ -69,6 +69,10 @@ irm https://raw.githubusercontent.com/xinian5216/hermes-update-check/main/instal
 hermes-update-check/
 ├── pyproject.toml                 # 打包 / 依赖 / 入口点 / pytest 配置
 ├── config.example.yaml            # 带注释的完整配置示例（含所有可调参数）
+├── install.sh / install.ps1       # 一键安装（Linux/macOS/WSL 与 Windows）
+├── scripts/scan_secrets.py        # 发布前密钥/隐私扫描（pre-commit 钩子 + CI 都调它）
+├── CHANGELOG.md                   # 版本变更记录
+├── SECURITY.md                    # 安全策略：不存密钥、如何报告问题、仓库如何保持干净
 ├── README.md
 ├── LICENSE
 ├── src/hermes_update_check/
@@ -254,58 +258,96 @@ hermes-update-check rollback              # 回滚到 update_state.json 记录�
 hermes-update-check config init           # 生成带注释的配置文件
 hermes-update-check config show --json    # 查看生效配置（含环境变量覆盖后的结果）
 hermes-update-check notify-test           # 测试 Telegram/Webhook 是否配置成功
+hermes-update-check version               # 版本号
 ```
 
-常用参数：
+### 参数一览
+
+**全局**（所有命令通用）
 
 | 参数 | 说明 |
 |---|---|
+| `--config PATH` | 指定配置文件（默认 `~/.config/hermes-update-check/config.yaml`） |
 | `--lang zh\|en` | 报告语言（默认取配置） |
-| `--json` | 输出 JSON |
+| `--json` | 输出 JSON（纯机器可读，不含 ANSI/Rich 标记） |
 | `--plain` / `--no-color` | 纯文本 / 关颜色（`NO_COLOR=1` 也生效） |
 | `--no-cache` | 忽略本地缓存，强制重新请求 GitHub |
 | `--timeout 20` | 网络超时（秒） |
-| `-v` / `-vv` | 打开日志（INFO / DEBUG） |
-| `update --yes` | 跳过交互确认（脚本/自动化里才用） |
-| `update --force` | 风险门禁不通过时仍继续（明确自担风险） |
-| `update --branch main` | 指定更新分支 |
-| `update --auto-rollback` | 健康检查失败时自动回滚 |
+| `-q` / `-v` / `-vv` | 安静 / INFO / DEBUG 日志 |
 
-一次典型输出：
+**check · report**：`--no-issues`（跳过 Issue 分析，少几次请求）、`--offline`（只用缓存，不发请求）、
+`--format text|markdown|json`、`--output FILE`
+
+**watch**：`--notify`（强制发送）、`--no-notify`（只判断不发送）、`--dry-run`（只显示会通知什么）
+
+**update**：`--yes`、`--dry-run` / `--plan`、`--backup`、`--no-backup`、`--branch NAME`、
+`--force`、`--skip-check`、`--skip-health-check`、`--auto-rollback`、`--restart-gateway`
+
+**rollback**：`--yes`、`--to REF`（换成别的 git ref）、`--restore-backup PATH`、
+`--in-place`（用备份覆盖 HERMES_HOME）、`--no-deps`、`--dry-run`
+
+**health · preflight**：`--smoke`（真跑一次模型对话，会消耗一次调用）、`--timeout SECONDS`、
+`--no-processes`（跳过进程扫描）
+
+**config · notify-test**：`config init --force`（覆盖已有配置）、`notify-test --message "…"`
+
+### 实际输出（节选，真实运行结果）
 
 ```
-Hermes Update Report
+Hermes Update Advisor
 
-  Current Version   v0.21.2 (2026.9.11)
-  Latest Version    v0.21.3 (v2026.9.14)
-  Released          2026-09-14T16:04:14Z (0.6 天 ago)
-  Commits           1039+
-  PRs               338+
-  Releases behind   1
-  Risk Score        78/100
-  Risk Level        HIGH
-  Stability         22/100
-  Data confidence   100%
+本地安装状态 ────────────────────────────────────────────────────────────────
+  Reported Version    v0.21.2
+  Channel             MAIN   (跟踪开发分支（main）)
+  Git Branch          main
+  Git Commit          5eb99eb2
+  Nearest Release     v2026.9.11 (v0.21.2)
+  Behind Latest       125 commits
+  Working Tree        dirty（4 个未提交修改）
 
-结论
-  Update Risk   78/100  HIGH
-  稳定性         22/100
-  建议           建议暂缓 / 继续观察
+最新正式版本 ────────────────────────────────────────────────────────────────
+  Release         v0.21.3 (v2026.9.14)
+  Published       33.6 小时前  (2026-09-14T16:04:14Z)
+  Commits         1039+
+  Merged PRs      338（来自 Release Notes）
 
-主要风险 / 信号：
-  - 涉及 Session / 状态存储（命中 12 次）
-  - 涉及数据库 / 迁移 / schema（命中 9 次）
-  - 新版本发布不足 24 小时
-  - 本次发布包含大量 commit（1039）
-  - 当前安装跟踪 main 分支，稳定性可能低于正式 Release
+更新状态 ────────────────────────────────────────────────────────────────────
+  存在可用的正式版本更新
+  当前在 main 分支且落后最新正式版本 125 个 commit：可以同步代码，但注意更新后拿到的是
+  main 而不是该 Release。
 
-建议
-  暂时不要更新。
+风险 ────────────────────────────────────────────────────────────────────────
+  Change Risk          79 / 100
+  Regression Signal    84 / 100
+  Data Confidence      100 / 100
+  Environment Risk     67 / 100
+  Overall Risk         99/100          Risk Level  VERY HIGH
+  Stability            1/100
+  Issue Signal Confidence: 80/100（扫描 67 条，聚类 8 个）
+
+硬门禁 ──────────────────────────────────────────────────────────────────────
+  PASS  观测数据是否充分
+  BLOCK Release 年龄 >= 48h
+        Release 仅发布 33.6 小时，低于最小观察期 48 小时
+  BLOCK 禁止在 main 开发分支上执行更新
+  BLOCK 工作区必须干净
+  BLOCK 禁止存在活跃的数据库回归
+  WARN  Channel 与 preferred_channel 不一致
+
+回归信号 ────────────────────────────────────────────────────────────────────
+  Gateway          CRITICAL HIGH      7 个报告 / 6 位独立报告人 / 6 个 open
+  Provider / 模型接入  CRITICAL HIGH    7 个报告 / 7 位独立报告人 / 6 个 open
+  ...
+
+建议 ────────────────────────────────────────────────────────────────────────
+  HARD GATE TRIGGERED —— WAIT
+  （由 Hard Gate 决定；Overall Risk: 99）
+
   原因：
-    - 风险评分 78 高于阈值 40
-    - 新版本发布仅 0.6 天（低于观察期 5 天）
-  建议继续观察 3 天，如果没有新的严重 Issue，再考虑升级。
-  重新检查： hermes-update-check check   （或 watch 模式自动通知）
+    - Release 仅发布 33.6 小时，低于最小观察期 48 小时
+    - 当前安装跟踪 main 开发分支（代码可能领先正式 Release）
+    ...
+  建议复查时间：2026-09-16T13:39:38Z（约 12 小时后）
 ```
 
 ---
@@ -763,12 +805,14 @@ WantedBy=timers.target
 | 码 | 含义 |
 |---|---|
 | 0 | 成功：已是最新 / 已领先 Release（AHEAD_OF_STABLE），或风险可接受（UPDATE） |
+| 1 | 运行内部错误（未捕获异常，堆栈在 `~/.hermes-update-check/logs/`） |
+| 2 | 用法错误（参数不对） |
+| 3 | 配置 / 前置条件错误（例如没有 `update_state.json` 可回滚） |
 | 10 | 检查完成，但建议 WAIT / AVOID / MANUAL_REVIEW（含 Hard Gate 触发） |
 | 11 | 数据不足（INSUFFICIENT DATA） |
 | 12 | 更新后健康检查失败（需要 rollback） |
 | 13 | 用户取消 / 非交互环境未给 `--yes` |
 | 14 | 更新前检查失败 |
-| 1 / 2 / 3 | 运行错误 / 参数错误 / 配置错误 |
 
 例：只在“可以安全更新”时再去做别的事
 
@@ -805,7 +849,7 @@ fi
 
 ```bash
 uv venv .venv && uv pip install -e ".[dev]" --python .venv/bin/python
-.venv/bin/python -m pytest -q          # 253 个测试，全部离线：不需要网络、不碰真实 Hermes 安装
+.venv/bin/python -m pytest -q          # 301 个测试，全部离线：不需要网络、不碰真实 Hermes 安装
 .venv/bin/python -m pytest -q tests/test_provenance.py tests/test_gates.py tests/test_advisor.py
 ```
 
@@ -821,6 +865,8 @@ uv venv .venv && uv pip install -e ".[dev]" --python .venv/bin/python
 | Hard Gate 优先于低风险分 | `test_gates.py`、`test_advisor.py` |
 | Rich / plain / JSON / Markdown 四种输出 | `test_report.py` |
 | watch 只对有意义的变化通知、channel 不一致、preferred_channel、复查时间 | `test_watch.py`、`test_cli.py`、`test_advisor.py` |
+| 密钥/隐私扫描器自身的规则与误报 | `test_scan_secrets.py` |
+| `python -m` 入口与日志配置 | `test_entrypoints.py` |
 
 以及一阶段既有测试（版本号双体系解析、每一组风险因子、场景化评估、配置优先级与校验、
 GitHub 响应解析与查询长度限制、缓存过期降级、状态文件往返、更新前/后检查、更新命令构造与回滚计划、

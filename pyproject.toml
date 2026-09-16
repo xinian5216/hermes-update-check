@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "hermes-update-check"
-version = "1.0.0"
+version = "1.1.0"
 description = "Safety-first update checker and risk assessor for Hermes Agent (NousResearch/hermes-agent). Never auto-updates; assesses release risk, preflight checks, backup, rollback and post-update health checks."
 readme = "README.md"
 requires-python = ">=3.9"

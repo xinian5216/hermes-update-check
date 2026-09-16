@@ -9,4 +9,4 @@ from __future__ import annotations
 __all__ = ["__version__", "TOOL_NAME"]
 
 TOOL_NAME = "hermes-update-check"
-__version__ = "1.0.0"
+__version__ = "1.1.0"
