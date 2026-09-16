@@ -228,6 +228,11 @@ PYTHONPATH=src python -m hermes_update_check check
 echo 'export GITHUB_TOKEN=ghp_xxx' >> ~/.bashrc     # 或写进 Hermes 的 .env
 ```
 
+> 已经在用 [GitHub CLI](https://cli.github.com/) 的话不用再申请一个：凭据就在系统 keyring 里，
+> 现取现用即可 —— `GITHUB_TOKEN=$(gh auth token) hermes-update-check check`。
+> Windows 的 `.cmd` 包装同理（`for /f %%t in ('gh auth token') do set GITHUB_TOKEN=%%t`），
+> 这样密钥不会以明文出现在任何文件里。
+
 > 依赖只有两个：`PyYAML`（配置文件）、`rich`（终端美化）。
 > 网络请求、SQLite、JSON、子进程全部用标准库，`rich` 缺失时自动降级为纯文本。
 
