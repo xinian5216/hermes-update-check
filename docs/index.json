@@ -3194,6 +3194,17 @@
       ]
     },
     {
+      "path": "tests/test_repo_hygiene.py",
+      "lines": 74,
+      "summary": "Repository hygiene: nothing important may be silently ignored or stale",
+      "tests": 3,
+      "names": [
+        "test_every_source_file_is_tracked",
+        "test_the_guard_files_themselves_are_tracked",
+        "test_code_map_is_up_to_date"
+      ]
+    },
+    {
       "path": "tests/test_report.py",
       "lines": 138,
       "summary": "Report rendering tests (plain-text console, no network)",
@@ -3399,6 +3410,6 @@
   "totals": {
     "modules": 28,
     "lines": 11245,
-    "tests": 341
+    "tests": 344
   }
 }

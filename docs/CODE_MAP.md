@@ -6,7 +6,7 @@ Read this before opening files: it is regenerated from the source by
 ## Quick facts
 
 - package: `hermes_update_check` - 28 modules, 11245 lines
-- tests: 341 test functions in 22 files (offline, no network)
+- tests: 344 test functions in 23 files (offline, no network)
 - docs: `README.md` (user guide), `SECURITY.md` (privacy policy), `CHANGELOG.md`
 - invariants: never updates Hermes without an explicit `y`; unknown data is reported as
   UNKNOWN, never as safe; exit codes are a public contract (see `errors.py`)
@@ -578,6 +578,7 @@ _no public symbols_
 | [`tests/test_notify.py`](../tests/test_notify.py) | 14 | 257 | Notification-channel tests: payload shape, failure handling, no secret leakage |
 | [`tests/test_preflight_health.py`](../tests/test_preflight_health.py) | 13 | 184 | Preflight and health-check tests (local filesystem only) |
 | [`tests/test_provenance.py`](../tests/test_provenance.py) | 16 | 274 | Code provenance tests: the five cases from the design brief, plus the rest |
+| [`tests/test_repo_hygiene.py`](../tests/test_repo_hygiene.py) | 3 | 74 | Repository hygiene: nothing important may be silently ignored or stale |
 | [`tests/test_report.py`](../tests/test_report.py) | 9 | 138 | Report rendering tests (plain-text console, no network) |
 | [`tests/test_risk.py`](../tests/test_risk.py) | 33 | 564 | Risk-engine tests: the scoring rules are the product, so they are pinned here |
 | [`tests/test_scan_secrets.py`](../tests/test_scan_secrets.py) | 14 | 222 | Tests for the secret/privacy scanner - the guard needs its own guard |

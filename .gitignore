@@ -23,6 +23,8 @@ watch_state.json
 *.db
 
 # secrets and credentials (never publish)
+# NOTE: keep these patterns file-shaped. A bare `*_secret*` also matches source files
+# such as tests/test_scan_secrets.py, which silently kept them out of the repository.
 .env
 .env.*
 !.env.example
@@ -31,10 +33,19 @@ watch_state.json
 *.p12
 *.pfx
 *.kdbx
-secrets*
-credentials*
-*_token*
-*_secret*
+secrets.json
+secrets.yaml
+secrets.yml
+secrets.txt
+*.secret
+*.secrets
+*_secrets.json
+*_secrets.yaml
+*_secrets.yml
+credentials.json
+credentials.yaml
+credentials.yml
+*_token.json
 
 .DS_Store
 Thumbs.db
