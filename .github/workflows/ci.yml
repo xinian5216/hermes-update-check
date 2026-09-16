@@ -66,6 +66,8 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
+          # the tool prints UTF-8; tell this console to decode it as UTF-8
+          [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
           ./install.ps1 -Dir "$env:RUNNER_TEMP\huc" -Repo "$env:GITHUB_WORKSPACE" -Branch ci-install -NoHook
           & "$env:RUNNER_TEMP\huc\.venv\Scripts\hermes-update-check.exe" version
           & "$env:RUNNER_TEMP\huc\.venv\Scripts\hermes-update-check.exe" --help | Out-Null

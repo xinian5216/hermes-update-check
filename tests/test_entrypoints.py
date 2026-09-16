@@ -18,10 +18,13 @@ from hermes_update_check.logging_setup import LOGGER_NAME, get_logger, setup_log
 
 
 def _run(*args: str) -> subprocess.CompletedProcess[str]:
+    # the CLI emits UTF-8 regardless of the console locale, so decode explicitly
     return subprocess.run(
         [sys.executable, "-m", "hermes_update_check", *args],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
     )
 
 
@@ -45,6 +48,8 @@ def test_help_survives_a_legacy_console_encoding() -> None:
         [sys.executable, "-m", "hermes_update_check", "--help"],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         env=env,
     )
     assert result.returncode == 0, result.stderr
@@ -58,6 +63,8 @@ def test_json_output_survives_a_legacy_console_encoding(tmp_path: Path) -> None:
         [sys.executable, "-m", "hermes_update_check", "--json", "config", "show"],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         env=env,
         cwd=str(tmp_path),
     )
