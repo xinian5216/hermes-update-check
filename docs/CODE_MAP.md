@@ -578,10 +578,10 @@ _no public symbols_
 | [`tests/test_notify.py`](../tests/test_notify.py) | 14 | 257 | Notification-channel tests: payload shape, failure handling, no secret leakage |
 | [`tests/test_preflight_health.py`](../tests/test_preflight_health.py) | 13 | 184 | Preflight and health-check tests (local filesystem only) |
 | [`tests/test_provenance.py`](../tests/test_provenance.py) | 16 | 274 | Code provenance tests: the five cases from the design brief, plus the rest |
-| [`tests/test_repo_hygiene.py`](../tests/test_repo_hygiene.py) | 3 | 74 | Repository hygiene: nothing important may be silently ignored or stale |
+| [`tests/test_repo_hygiene.py`](../tests/test_repo_hygiene.py) | 3 | 76 | Repository hygiene: nothing important may be silently ignored or stale |
 | [`tests/test_report.py`](../tests/test_report.py) | 9 | 138 | Report rendering tests (plain-text console, no network) |
 | [`tests/test_risk.py`](../tests/test_risk.py) | 33 | 564 | Risk-engine tests: the scoring rules are the product, so they are pinned here |
-| [`tests/test_scan_secrets.py`](../tests/test_scan_secrets.py) | 14 | 222 | Tests for the secret/privacy scanner - the guard needs its own guard |
+| [`tests/test_scan_secrets.py`](../tests/test_scan_secrets.py) | 14 | 220 | Tests for the secret/privacy scanner - the guard needs its own guard |
 | [`tests/test_state.py`](../tests/test_state.py) | 9 | 130 | State persistence tests: update_state.json and watch_state.json |
 | [`tests/test_updater.py`](../tests/test_updater.py) | 19 | 344 | Updater mechanics: command building, snapshots, dry runs (nothing is executed) |
 | [`tests/test_util.py`](../tests/test_util.py) | 28 | 269 | Unit tests for the shared helpers - the layer every other module leans on |

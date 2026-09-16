@@ -116,8 +116,26 @@ def is_allowlisted(value: str) -> bool:
 
 #: file types we do not scan (binary or generated)
 SKIP_SUFFIXES = {
-    ".png", ".jpg", ".jpeg", ".gif", ".ico", ".pdf", ".zip", ".gz", ".tar", ".whl",
-    ".exe", ".dll", ".so", ".dylib", ".pyc", ".woff", ".woff2", ".ttf", ".mp3", ".mp4",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".ico",
+    ".pdf",
+    ".zip",
+    ".gz",
+    ".tar",
+    ".whl",
+    ".exe",
+    ".dll",
+    ".so",
+    ".dylib",
+    ".pyc",
+    ".woff",
+    ".woff2",
+    ".ttf",
+    ".mp3",
+    ".mp4",
 }
 
 #: paths we never scan (vendored deps, caches, build output, VCS internals)
@@ -191,9 +209,7 @@ def scan_file(path: Path, *, root: Path | None = None) -> list[str]:
 
 
 def git_output(*args: str) -> str:
-    return subprocess.run(
-        ["git", *args], check=True, capture_output=True, text=True, errors="ignore"
-    ).stdout
+    return subprocess.run(["git", *args], check=True, capture_output=True, text=True, errors="ignore").stdout
 
 
 def scan_git_history() -> list[str]:

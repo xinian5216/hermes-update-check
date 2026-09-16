@@ -43,7 +43,9 @@ def test_every_source_file_is_tracked() -> None:
     )
 
     missing = sorted(
-        str(path.relative_to(ROOT)).replace("\\", "/") for path in candidates if str(path.relative_to(ROOT)).replace("\\", "/") not in tracked
+        str(path.relative_to(ROOT)).replace("\\", "/")
+        for path in candidates
+        if str(path.relative_to(ROOT)).replace("\\", "/") not in tracked
     )
 
     assert not missing, "these files exist but are not tracked by git: " + ", ".join(missing)

@@ -174,9 +174,7 @@ def test_installer_documents_its_options() -> None:
     bash = shutil.which("bash")
     if bash is None:
         pytest.skip("bash not available on this runner")
-    result = subprocess.run(
-        [bash, str(REPO_ROOT / "install.sh"), "--help"], capture_output=True, text=True
-    )
+    result = subprocess.run([bash, str(REPO_ROOT / "install.sh"), "--help"], capture_output=True, text=True)
     assert result.returncode == 0
     for option in ("--dir", "--repo", "--branch", "--bin-dir", "--no-hook"):
         assert option in result.stdout, f"{option} not documented"

@@ -3195,7 +3195,7 @@
     },
     {
       "path": "tests/test_repo_hygiene.py",
-      "lines": 74,
+      "lines": 76,
       "summary": "Repository hygiene: nothing important may be silently ignored or stale",
       "tests": 3,
       "names": [
@@ -3264,7 +3264,7 @@
     },
     {
       "path": "tests/test_scan_secrets.py",
-      "lines": 222,
+      "lines": 220,
       "summary": "Tests for the secret/privacy scanner - the guard needs its own guard",
       "tests": 14,
       "names": [
