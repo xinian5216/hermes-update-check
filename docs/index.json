@@ -1,0 +1,3404 @@
+{
+  "generated_from": "scripts/build_index.py",
+  "package": "hermes_update_check",
+  "modules": [
+    {
+      "name": "__init__",
+      "path": "hermes_update_check/__init__.py",
+      "lines": 12,
+      "summary": "hermes-update-check - safety-first update checker and risk assessor for Hermes Agent",
+      "symbols": [
+        {
+          "kind": "constant",
+          "name": "TOOL_NAME",
+          "line": 11,
+          "summary": "'hermes-update-check'",
+          "signature": "",
+          "members": []
+        }
+      ]
+    },
+    {
+      "name": "__main__",
+      "path": "hermes_update_check/__main__.py",
+      "lines": 10,
+      "summary": "``python -m hermes_update_check`` entry point",
+      "symbols": []
+    },
+    {
+      "name": "advisor",
+      "path": "hermes_update_check/advisor.py",
+      "lines": 419,
+      "summary": "The advisor: turn provenance + risk + gates into one explainable verdict",
+      "symbols": [
+        {
+          "kind": "constant",
+          "name": "RECOMMEND_AHEAD_OF_STABLE",
+          "line": 43,
+          "summary": "'AHEAD_OF_STABLE'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "RECOMMEND_MANUAL_REVIEW",
+          "line": 44,
+          "summary": "'MANUAL_REVIEW'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "DECIDED_BY",
+          "line": 46,
+          "summary": "{'update_status': '更新状态', 'insufficient_data': '数据不足', 'environment': …",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "RECHECK_CRITICAL_HOURS",
+          "line": 56,
+          "summary": "12.0",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "RECHECK_SEVERE_HOURS",
+          "line": 57,
+          "summary": "24.0",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "RECHECK_ROUTINE_HOURS",
+          "line": 58,
+          "summary": "24.0",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "RECHECK_WAIT_DAYS",
+          "line": 59,
+          "summary": "3.0",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "RECHECK_AVOID_DAYS",
+          "line": 60,
+          "summary": "7.0",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "Recommendation",
+          "line": 64,
+          "summary": "The final, human-readable verdict",
+          "signature": "",
+          "members": [
+            "is_blocking",
+            "decided_by_label",
+            "to_dict"
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "advise",
+          "line": 119,
+          "summary": "Apply the priority order and produce the final recommendation",
+          "signature": "(cfg: Config, *, provenance: CodeProvenance, decision: UpdateDecision, assessment: Optional[RiskAssessment], gates: GateReport, clusters: list[RegressionCluster] = …, release: Optional[Release] = …, now: Optional[datetime] = …) -> Recommendation",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "recommended_recheck",
+          "line": 362,
+          "summary": "How soon is it worth looking again?",
+          "signature": "(*, action: str, gate_deadline: Optional[datetime], clusters: list[RegressionCluster], routine_hours: float, now: datetime) -> tuple[Optional[float], str, str]",
+          "members": []
+        }
+      ]
+    },
+    {
+      "name": "checker",
+      "path": "hermes_update_check/checker.py",
+      "lines": 786,
+      "summary": "Orchestration: gather every input, then hand it to the risk engine",
+      "symbols": [
+        {
+          "kind": "constant",
+          "name": "ISSUE_FALLBACK_QUERY",
+          "line": 64,
+          "summary": "'label:bug'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "BASELINE_MIN_DAYS",
+          "line": 66,
+          "summary": "3.0",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "BASELINE_MAX_DAYS",
+          "line": 67,
+          "summary": "14.0",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "UpdateCheck",
+          "line": 71,
+          "summary": "The complete result of one check - everything the report needs",
+          "signature": "",
+          "members": [
+            "degraded",
+            "update_status",
+            "channel",
+            "action",
+            "tracking_main",
+            "recommended_action",
+            "headline_rows",
+            "to_dict"
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "build_http_client",
+          "line": 286,
+          "summary": "Create the HTTP client with token and disk cache",
+          "signature": "(cfg: Config, state_root: Path, *, logger: Optional[logging.Logger] = …, no_cache: bool = …) -> tuple[HttpClient, bool]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "resolve_github_token",
+          "line": 302,
+          "summary": "Find a GitHub token in the environment (never in the config file)",
+          "signature": "(cfg: Config) -> tuple[Optional[str], bool]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "build_github_client",
+          "line": 316,
+          "summary": "",
+          "signature": "(cfg: Config, state_root: Path, *, logger: Optional[logging.Logger] = …, no_cache: bool = …) -> tuple[GitHubClient, bool, HttpClient]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "run_check",
+          "line": 333,
+          "summary": "Full check: local env -> releases -> compare -> issues -> risk assessment",
+          "signature": "(cfg: Config, *, env: Optional[LocalEnv] = …, client: Optional[GitHubClient] = …, state_root: Optional[Path] = …, no_cache: bool = …, include_issues: Optional[bool] = …, logger: Optional[logging.Logger] = …) -> UpdateCheck",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "collect_issue_signal",
+          "line": 562,
+          "summary": "Search GitHub issues filed after the release, plus a baseline window",
+          "signature": "(cfg: Config, client: GitHubClient, release: Release, *, provenance: Optional[CodeProvenance] = …, logger: Optional[logging.Logger] = …, use_cache: bool = …) -> IssueSignal",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "issue_signal_confidence",
+          "line": 741,
+          "summary": "Issue Signal Confidence (0-100): how much should the issue data be trusted?",
+          "signature": "(signal: IssueSignal) -> int",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "summarize_release_line",
+          "line": 769,
+          "summary": "One-line label like ``v0.21.3 (v2026.9.14) - 0.6 days old``",
+          "signature": "(release: Release) -> str",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "level_of",
+          "line": 777,
+          "summary": "",
+          "signature": "(score: Optional[int]) -> str",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "iso_now",
+          "line": 781,
+          "summary": "",
+          "signature": "() -> str",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "normalise_release_tag",
+          "line": 785,
+          "summary": "",
+          "signature": "(tag: Optional[str]) -> Optional[str]",
+          "members": []
+        }
+      ]
+    },
+    {
+      "name": "cli",
+      "path": "hermes_update_check/cli.py",
+      "lines": 1015,
+      "summary": "Command line interface",
+      "symbols": [
+        {
+          "kind": "function",
+          "name": "build_parser",
+          "line": 71,
+          "summary": "",
+          "signature": "() -> argparse.ArgumentParser",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "make_output_encoding_safe",
+          "line": 168,
+          "summary": "Never crash on a console that cannot represent the text we print",
+          "signature": "() -> None",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "main",
+          "line": 195,
+          "summary": "",
+          "signature": "(argv: Optional[Sequence[str]] = …) -> int",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "cmd_check",
+          "line": 281,
+          "summary": "",
+          "signature": "(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "cmd_report",
+          "line": 296,
+          "summary": "",
+          "signature": "(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "cmd_watch",
+          "line": 322,
+          "summary": "Cron entry point: stay silent unless something meaningful changed",
+          "signature": "(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "cmd_update",
+          "line": 413,
+          "summary": "",
+          "signature": "(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "cmd_rollback",
+          "line": 538,
+          "summary": "",
+          "signature": "(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "cmd_health",
+          "line": 598,
+          "summary": "",
+          "signature": "(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "cmd_preflight",
+          "line": 615,
+          "summary": "",
+          "signature": "(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "cmd_config",
+          "line": 625,
+          "summary": "",
+          "signature": "(args: argparse.Namespace, cfg: Config, console: Console) -> int",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "cmd_notify_test",
+          "line": 647,
+          "summary": "",
+          "signature": "(args: argparse.Namespace, cfg: Config, console: Console, logger: Any) -> int",
+          "members": []
+        }
+      ]
+    },
+    {
+      "name": "clusters",
+      "path": "hermes_update_check/clusters.py",
+      "lines": 649,
+      "summary": "Regression clustering: turn raw issue hits into *credible* regression signals",
+      "symbols": [
+        {
+          "kind": "constant",
+          "name": "SEVERITY_CRITICAL",
+          "line": 23,
+          "summary": "'CRITICAL'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "SEVERITY_HIGH",
+          "line": 24,
+          "summary": "'HIGH'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "SEVERITY_MEDIUM",
+          "line": 25,
+          "summary": "'MEDIUM'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "SEVERITY_LOW",
+          "line": 26,
+          "summary": "'LOW'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "CONFIDENCE_HIGH",
+          "line": 28,
+          "summary": "'HIGH'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "CONFIDENCE_MEDIUM",
+          "line": 29,
+          "summary": "'MEDIUM'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "CONFIDENCE_LOW",
+          "line": 30,
+          "summary": "'LOW'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "SEVERITY_WEIGHTS",
+          "line": 32,
+          "summary": "{SEVERITY_CRITICAL: 1.0, SEVERITY_HIGH: 0.75, SEVERITY_MEDIUM: 0.45, S…",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "CONFIDENCE_WEIGHTS",
+          "line": 38,
+          "summary": "{CONFIDENCE_HIGH: 1.0, CONFIDENCE_MEDIUM: 0.6, CONFIDENCE_LOW: 0.3}",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "SEVERITY_RANK",
+          "line": 40,
+          "summary": "{SEVERITY_CRITICAL: 3, SEVERITY_HIGH: 2, SEVERITY_MEDIUM: 1, SEVERITY_…",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "UNKNOWN_REGRESSION_FLOOR",
+          "line": 43,
+          "summary": "25",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "ClusterSpec",
+          "line": 47,
+          "summary": "",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "DEFAULT_ENRICHMENT_LIMIT",
+          "line": 190,
+          "summary": "3",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "IssueEnrichment",
+          "line": 194,
+          "summary": "Extra facts fetched for a single issue (comments / association)",
+          "signature": "",
+          "members": [
+            "to_dict"
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "RegressionCluster",
+          "line": 219,
+          "summary": "One graded regression cluster",
+          "signature": "",
+          "members": [
+            "contribution",
+            "is_severe",
+            "is_active",
+            "headline_zh",
+            "headline_en",
+            "detail_zh",
+            "detail_en",
+            "to_dict"
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "cluster_keys_for",
+          "line": 311,
+          "summary": "Which clusters an issue belongs to (title + labels first, then body)",
+          "signature": "(issue: Issue, *, include_body: bool = …) -> list[str]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "severity_for",
+          "line": 323,
+          "summary": "Cluster severity, promoted to CRITICAL when the text says so",
+          "signature": "(key: str, text: str) -> str",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "build_clusters",
+          "line": 382,
+          "summary": "Grade every cluster found in the scanned issues",
+          "signature": "(issues: Iterable[Issue], *, enrichment: Optional[dict[int, IssueEnrichment]] = …, release_version: Optional[str] = …, release_tag: Optional[str] = …) -> list[RegressionCluster]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "grade_confidence",
+          "line": 500,
+          "summary": "Credibility of a cluster, 0..1, mapped to LOW/MEDIUM/HIGH",
+          "signature": "(*, reports: int, unique_reporters: int, open_count: int, maintainer_confirmed: int, linked_pr: int, with_reproduction: int, mentions_version: int, signature_groups: int) -> str",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "RegressionSignal",
+          "line": 545,
+          "summary": "The Regression Signal (0-100) plus the floor used when data is missing",
+          "signature": "",
+          "members": [
+            "display",
+            "to_dict"
+          ]
+        },
+        {
+          "kind": "constant",
+          "name": "CLUSTER_WEIGHT",
+          "line": 579,
+          "summary": "0.6",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "EVIDENCE_FLOOR",
+          "line": 583,
+          "summary": "0.55",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "regression_signal",
+          "line": 586,
+          "summary": "Combine cluster evidence into the Regression Signal",
+          "signature": "(clusters: Iterable[RegressionCluster], *, volume_ratio: float = …, signal_confidence: Optional[int] = …, unavailable: bool = …, unavailable_reason: str = …) -> RegressionSignal",
+          "members": []
+        }
+      ]
+    },
+    {
+      "name": "config",
+      "path": "hermes_update_check/config.py",
+      "lines": 616,
+      "summary": "Configuration loading, validation and path resolution",
+      "symbols": [
+        {
+          "kind": "constant",
+          "name": "ENV_PREFIX",
+          "line": 31,
+          "summary": "'HERMES_UPDATE_CHECK_'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "GitHubConfig",
+          "line": 105,
+          "summary": "",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "HardGateConfig",
+          "line": 115,
+          "summary": "Rules that override the numeric risk score",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "NetworkConfig",
+          "line": 131,
+          "summary": "",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "PathsConfig",
+          "line": 137,
+          "summary": "",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "UpdateConfig",
+          "line": 143,
+          "summary": "",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "WatchConfig",
+          "line": 153,
+          "summary": "",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "TelegramConfig",
+          "line": 162,
+          "summary": "",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "WebhookConfig",
+          "line": 169,
+          "summary": "",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "NotifyConfig",
+          "line": 176,
+          "summary": "",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "LoggingConfig",
+          "line": 182,
+          "summary": "",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "RiskWeights",
+          "line": 189,
+          "summary": "",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "Config",
+          "line": 199,
+          "summary": "",
+          "signature": "",
+          "members": [
+            "repo",
+            "to_dict"
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "default_config_path",
+          "line": 254,
+          "summary": "`~/.config/hermes-update-check/config.yaml` (Windows: `%APPDATA%\\...`)",
+          "signature": "() -> Path",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "default_state_dir",
+          "line": 269,
+          "summary": "`~/.hermes-update-check` - state, cache, snapshots, logs, update_state.json",
+          "signature": "() -> Path",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "resolve_hermes_home",
+          "line": 277,
+          "summary": "Resolve $HERMES_HOME the way Hermes does, falling back to ~/.hermes",
+          "signature": "(cfg: Config | None = …) -> Path",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "resolve_state_dir",
+          "line": 290,
+          "summary": "",
+          "signature": "(cfg: Config | None = …) -> Path",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "load_config",
+          "line": 301,
+          "summary": "Load, merge and validate configuration",
+          "signature": "(path: Path | str | None = …, *, env: Mapping[str, str] | None = …) -> Config",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "deep_merge",
+          "line": 366,
+          "summary": "Recursive merge; `override` wins",
+          "signature": "(base: Mapping[str, Any], override: Mapping[str, Any]) -> dict[str, Any]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "write_default_config",
+          "line": 602,
+          "summary": "Write a commented example config (used by `config init`)",
+          "signature": "(path: Path | None = …, *, force: bool = …) -> Path",
+          "members": []
+        }
+      ]
+    },
+    {
+      "name": "console",
+      "path": "hermes_update_check/console.py",
+      "lines": 228,
+      "summary": "Terminal rendering: pretty with `rich`, correct with plain text",
+      "symbols": [
+        {
+          "kind": "function",
+          "name": "rich_available",
+          "line": 70,
+          "summary": "",
+          "signature": "() -> bool",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "Console",
+          "line": 75,
+          "summary": "Minimal rendering facade used by every command",
+          "signature": "",
+          "members": [
+            "print",
+            "print_markup",
+            "heading",
+            "blank",
+            "badge",
+            "kv_table",
+            "panel",
+            "bullets",
+            "numbered",
+            "warn",
+            "error",
+            "info",
+            "success",
+            "status_line"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "errors",
+      "path": "hermes_update_check/errors.py",
+      "lines": 120,
+      "summary": "Exceptions and process exit codes",
+      "symbols": [
+        {
+          "kind": "constant",
+          "name": "EXIT_OK",
+          "line": 22,
+          "summary": "0",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "EXIT_ERROR",
+          "line": 23,
+          "summary": "1",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "EXIT_USAGE",
+          "line": 24,
+          "summary": "2",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "EXIT_CONFIG",
+          "line": 25,
+          "summary": "3",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "EXIT_WAIT",
+          "line": 26,
+          "summary": "10",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "EXIT_INSUFFICIENT_DATA",
+          "line": 27,
+          "summary": "11",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "EXIT_HEALTH_FAILED",
+          "line": 28,
+          "summary": "12",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "EXIT_ABORTED",
+          "line": 29,
+          "summary": "13",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "EXIT_PREFLIGHT_FAILED",
+          "line": 30,
+          "summary": "14",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "HermesUpdateCheckError",
+          "line": 33,
+          "summary": "Base class for every error raised by this tool",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "ConfigError",
+          "line": 53,
+          "summary": "Invalid or unreadable configuration",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "NetworkError",
+          "line": 59,
+          "summary": "A network operation failed (timeout, DNS, TLS, HTTP 5xx...)",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "GitHubError",
+          "line": 63,
+          "summary": "GitHub API returned an unexpected response",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "RateLimitError",
+          "line": 79,
+          "summary": "GitHub rate limit exhausted (HTTP 403/429 with rate-limit headers)",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "CommandError",
+          "line": 95,
+          "summary": "An external command (hermes, git, uv, ...) failed",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "PreflightError",
+          "line": 99,
+          "summary": "A blocking pre-update check failed",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "HealthCheckFailed",
+          "line": 105,
+          "summary": "The post-update health check failed",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "AbortedError",
+          "line": 111,
+          "summary": "The user (or a non-interactive stdin) refused to continue",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "InsufficientDataError",
+          "line": 117,
+          "summary": "Not enough information to produce a trustworthy risk assessment",
+          "signature": "",
+          "members": []
+        }
+      ]
+    },
+    {
+      "name": "gates",
+      "path": "hermes_update_check/gates.py",
+      "lines": 491,
+      "summary": "Hard gates: rules that override the risk score",
+      "symbols": [
+        {
+          "kind": "constant",
+          "name": "GATE_BLOCK",
+          "line": 47,
+          "summary": "'BLOCK'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "GATE_WARN",
+          "line": 48,
+          "summary": "'WARN'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "GATE_PASS",
+          "line": 49,
+          "summary": "'PASS'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "GATE_SKIP",
+          "line": 50,
+          "summary": "'SKIP'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "EnvironmentState",
+          "line": 62,
+          "summary": "Cheap, file-level sanity of the local install (no subprocesses)",
+          "signature": "",
+          "members": [
+            "abnormal",
+            "to_dict"
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "probe_environment",
+          "line": 88,
+          "summary": "Check the local environment without touching the network or spawning work",
+          "signature": "(env: LocalEnv, *, logger: Optional[logging.Logger] = …) -> EnvironmentState",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "GateResult",
+          "line": 127,
+          "summary": "",
+          "signature": "",
+          "members": [
+            "blocking",
+            "to_dict"
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "GateReport",
+          "line": 159,
+          "summary": "",
+          "signature": "",
+          "members": [
+            "blocking",
+            "warnings",
+            "blocked",
+            "environment_abnormal",
+            "blocked_by",
+            "earliest_recheck",
+            "to_dict"
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "evaluate_gates",
+          "line": 201,
+          "summary": "Evaluate every configured gate",
+          "signature": "(cfg: Config, *, provenance: CodeProvenance, decision: UpdateDecision, release: Optional[Release], assessment: Optional[RiskAssessment], clusters: list[RegressionCluster] = …, environment: Optional[EnvironmentState] = …, now: Optional[datetime] = …) -> GateReport",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "describe_gate_lines",
+          "line": 471,
+          "summary": "Compact one-line-per-gate rendering used by the report and the CLI",
+          "signature": "(report: GateReport, *, lang: str = …) -> list[str]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "severe_cluster_keys",
+          "line": 483,
+          "summary": "",
+          "signature": "(clusters, *, threshold: str = …) -> list[str]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "critical_cluster_keys",
+          "line": 490,
+          "summary": "",
+          "signature": "(clusters) -> list[str]",
+          "members": []
+        }
+      ]
+    },
+    {
+      "name": "github_api",
+      "path": "hermes_update_check/github_api.py",
+      "lines": 546,
+      "summary": "GitHub API access for the Hermes repository: releases, compares, issue searches",
+      "symbols": [
+        {
+          "kind": "constant",
+          "name": "API_ROOT",
+          "line": 21,
+          "summary": "'https://api.github.com'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "COMPARE_COMMIT_LIMIT",
+          "line": 24,
+          "summary": "250",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "MAX_QUERY_LENGTH",
+          "line": 27,
+          "summary": "250",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "MAX_OR_TERMS",
+          "line": 31,
+          "summary": "6",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "Release",
+          "line": 35,
+          "summary": "One GitHub release",
+          "signature": "",
+          "members": [
+            "when",
+            "age_hours",
+            "age_days",
+            "to_dict"
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "CommitInfo",
+          "line": 82,
+          "summary": "",
+          "signature": "",
+          "members": [
+            "subject",
+            "pr_number"
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "CompareResult",
+          "line": 101,
+          "summary": "",
+          "signature": "",
+          "members": [
+            "truncated",
+            "pr_numbers",
+            "commit_subjects",
+            "commit_corpus",
+            "to_dict"
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "Issue",
+          "line": 148,
+          "summary": "",
+          "signature": "",
+          "members": [
+            "label_text",
+            "to_dict"
+          ]
+        },
+        {
+          "kind": "constant",
+          "name": "MAINTAINER_ASSOCIATIONS",
+          "line": 181,
+          "summary": "{'OWNER', 'MEMBER', 'COLLABORATOR'}",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "is_maintainer_association",
+          "line": 184,
+          "summary": "",
+          "signature": "(value: str | None) -> bool",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "IssueComment",
+          "line": 189,
+          "summary": "",
+          "signature": "",
+          "members": [
+            "from_maintainer",
+            "to_dict"
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "IssueSearchResult",
+          "line": 209,
+          "summary": "",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "GitHubClient",
+          "line": 219,
+          "summary": "Thin, typed wrapper over the three endpoints this tool needs",
+          "signature": "",
+          "members": [
+            "list_releases",
+            "latest_release",
+            "compare",
+            "search_issues",
+            "get_rate_limit",
+            "get_issue_comments"
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "extract_display_version",
+          "line": 443,
+          "summary": "Find the SemVer-ish display version behind a date tag",
+          "signature": "(name: str, body: str, tag: str) -> Optional[str]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "extract_pr_count",
+          "line": 482,
+          "summary": "Estimate the number of PRs a release bundles, from its own release notes",
+          "signature": "(text: str | None) -> Optional[int]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "build_issue_query",
+          "line": 506,
+          "summary": "Compose a GitHub issue-search query string",
+          "signature": "(repo: str, *, created_after: Optional[datetime] = …, created_before: Optional[datetime] = …, keywords: Sequence[str] = …, label: Optional[str] = …, state: Optional[str] = …) -> str",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "parse_repo_slug",
+          "line": 542,
+          "summary": "",
+          "signature": "(slug: str) -> tuple[str, str]",
+          "members": []
+        }
+      ]
+    },
+    {
+      "name": "health",
+      "path": "hermes_update_check/health.py",
+      "lines": 511,
+      "summary": "Post-update health checks: did the update actually leave a working install?",
+      "symbols": [
+        {
+          "kind": "class",
+          "name": "HealthReport",
+          "line": 41,
+          "summary": "",
+          "signature": "",
+          "members": [
+            "failures",
+            "warnings",
+            "healthy",
+            "to_dict",
+            "summary_line"
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "run_health_checks",
+          "line": 75,
+          "summary": "Run the full health suite",
+          "signature": "(cfg: Config, env: LocalEnv, *, state_root: Optional[Path] = …, logger: Optional[logging.Logger] = …, smoke_test: bool = …, timeout: float = …, gateway_timeout: float = …, gateway_was_running: Optional[bool] = …) -> HealthReport",
+          "members": []
+        }
+      ]
+    },
+    {
+      "name": "http",
+      "path": "hermes_update_check/http.py",
+      "lines": 309,
+      "summary": "HTTP layer: stdlib-only client with timeouts, retries, on-disk cache and rate-limit awareness",
+      "symbols": [
+        {
+          "kind": "constant",
+          "name": "MAX_CONSECUTIVE_FAILURES",
+          "line": 34,
+          "summary": "4",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "HttpResult",
+          "line": 38,
+          "summary": "Outcome of one HTTP GET, including cache provenance",
+          "signature": "",
+          "members": [
+            "ok",
+            "degraded",
+            "header",
+            "to_dict"
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "DiskCache",
+          "line": 79,
+          "summary": "Tiny JSON cache: one file per cache key, TTL checked on read",
+          "signature": "",
+          "members": [
+            "get",
+            "set",
+            "clear"
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "HttpClient",
+          "line": 136,
+          "summary": "Blocking JSON GET client with retry, cache and rate-limit handling",
+          "signature": "",
+          "members": [
+            "get_json",
+            "probe_rate_limit"
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "rate_limit_message",
+          "line": 282,
+          "summary": "",
+          "signature": "(reset_header: Optional[str]) -> str",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "require_ok",
+          "line": 303,
+          "summary": "Turn an HttpResult into data or raise the right typed error",
+          "signature": "(result: HttpResult, *, what: str) -> Any",
+          "members": []
+        }
+      ]
+    },
+    {
+      "name": "i18n",
+      "path": "hermes_update_check/i18n.py",
+      "lines": 36,
+      "summary": "Tiny two-language (zh/en) translation helper",
+      "symbols": [
+        {
+          "kind": "class",
+          "name": "Translator",
+          "line": 13,
+          "summary": "Pick one of the two strings based on the configured language",
+          "signature": "",
+          "members": [
+            "is_zh",
+            "t",
+            "set_lang"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "local_env",
+      "path": "hermes_update_check/local_env.py",
+      "lines": 533,
+      "summary": "Local environment detection: what Hermes is installed here, how, and in what state",
+      "symbols": [
+        {
+          "kind": "constant",
+          "name": "DEFAULT_TIMEOUT",
+          "line": 26,
+          "summary": "30.0",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "UPDATE_CHECK_TIMEOUT",
+          "line": 27,
+          "summary": "90.0",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "GitState",
+          "line": 33,
+          "summary": "git facts about the install directory (all optional / best-effort)",
+          "signature": "",
+          "members": [
+            "on_main",
+            "at_release_tag",
+            "clean",
+            "to_dict"
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "LocalEnv",
+          "line": 81,
+          "summary": "Everything we know about the local Hermes installation",
+          "signature": "",
+          "members": [
+            "config_path",
+            "env_file",
+            "state_db",
+            "logs_dir",
+            "sessions_dir",
+            "backups_dir",
+            "is_git_install",
+            "tracking_main",
+            "version_label",
+            "to_dict"
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "detect_local_env",
+          "line": 175,
+          "summary": "Inspect the local Hermes installation",
+          "signature": "(cfg: Config, *, logger: Optional[logging.Logger] = …, run_upstream_check: bool = …, timeout: float = …) -> LocalEnv",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "detect_git_state",
+          "line": 274,
+          "summary": "Collect git facts (no network: never fetches)",
+          "signature": "(install_dir: Optional[Path], *, log: Optional[logging.Logger] = …) -> GitState",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "ProcessInfo",
+          "line": 396,
+          "summary": "",
+          "signature": "",
+          "members": [
+            "short"
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "list_hermes_processes",
+          "line": 407,
+          "summary": "Running processes that look like Hermes (best-effort, never fatal)",
+          "signature": "(*, timeout: float = …) -> tuple[list[ProcessInfo], Optional[str]]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "gateway_status",
+          "line": 504,
+          "summary": "Run ``hermes gateway status`` (empty ProcResult when the CLI is missing)",
+          "signature": "(hermes_cli: Optional[str], *, timeout: float = …) -> ProcResult",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "parse_gateway_status",
+          "line": 511,
+          "summary": "Classify gateway status output into PASS / WARN / FAIL + a short detail",
+          "signature": "(result: ProcResult) -> tuple[str, str]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "require_hermes_home",
+          "line": 525,
+          "summary": "Hard requirement for commands that touch the installation",
+          "signature": "(cfg: Config) -> Path",
+          "members": []
+        }
+      ]
+    },
+    {
+      "name": "logging_setup",
+      "path": "hermes_update_check/logging_setup.py",
+      "lines": 73,
+      "summary": "Logging setup: file + optional console, quiet by default on stdout",
+      "symbols": [
+        {
+          "kind": "constant",
+          "name": "LOGGER_NAME",
+          "line": 14,
+          "summary": "'hermes_update_check'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "_FORMAT",
+          "line": 15,
+          "summary": "'%(asctime)s %(levelname)-7s %(name)s: %(message)s'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "_DATEFMT",
+          "line": 16,
+          "summary": "'%Y-%m-%d %H:%M:%S'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "_BACKUPS",
+          "line": 18,
+          "summary": "3",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "setup_logging",
+          "line": 21,
+          "summary": "Configure the package logger exactly once and return it",
+          "signature": "(*, level: str = …, log_file: Path | None = …, console: bool = …) -> logging.Logger",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "get_logger",
+          "line": 64,
+          "summary": "Child logger; works even before setup_logging() was called",
+          "signature": "(name: str | None = …) -> logging.Logger",
+          "members": []
+        }
+      ]
+    },
+    {
+      "name": "notify",
+      "path": "hermes_update_check/notify/__init__.py",
+      "lines": 52,
+      "summary": "Notification backends: one small interface, pluggable channels",
+      "symbols": [
+        {
+          "kind": "function",
+          "name": "build_notifiers",
+          "line": 26,
+          "summary": "Instantiate every configured notification channel",
+          "signature": "(cfg) -> list[Notifier]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "notify_all",
+          "line": 38,
+          "summary": "Send to every channel; a failing channel never breaks the others",
+          "signature": "(notifiers: list[Notifier], message: NotificationMessage) -> list[NotifyResult]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "describe_notifiers",
+          "line": 49,
+          "summary": "",
+          "signature": "(notifiers: list[Notifier]) -> str",
+          "members": []
+        }
+      ]
+    },
+    {
+      "name": "notify.base",
+      "path": "hermes_update_check/notify/base.py",
+      "lines": 68,
+      "summary": "Notifier interface and the message object every channel receives",
+      "symbols": [
+        {
+          "kind": "class",
+          "name": "NotificationMessage",
+          "line": 10,
+          "summary": "Channel-neutral notification payload",
+          "signature": "",
+          "members": [
+            "to_text",
+            "to_dict"
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "NotifyResult",
+          "line": 49,
+          "summary": "",
+          "signature": "",
+          "members": [
+            "to_dict"
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "Notifier",
+          "line": 58,
+          "summary": "Base class: implement ``name``, ``ready`` and ``send``",
+          "signature": "",
+          "members": [
+            "ready",
+            "send"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "notify.telegram",
+      "path": "hermes_update_check/notify/telegram.py",
+      "lines": 111,
+      "summary": "Telegram channel (first-class notifier - `my chat` is where alerts are read)",
+      "symbols": [
+        {
+          "kind": "constant",
+          "name": "API_ROOT",
+          "line": 27,
+          "summary": "'https://api.telegram.org'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "MAX_LENGTH",
+          "line": 28,
+          "summary": "4096",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "TelegramNotifier",
+          "line": 32,
+          "summary": "",
+          "signature": "",
+          "members": [
+            "token",
+            "ready",
+            "send"
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "discover_chat_id",
+          "line": 91,
+          "summary": "Helper for setup: list chats that recently messaged the bot",
+          "signature": "(token: str, *, timeout: float = …) -> list[dict[str, object]]",
+          "members": []
+        }
+      ]
+    },
+    {
+      "name": "notify.webhook",
+      "path": "hermes_update_check/notify/webhook.py",
+      "lines": 50,
+      "summary": "Generic JSON webhook channel (Slack/Discord/n8n/your own endpoint)",
+      "symbols": [
+        {
+          "kind": "class",
+          "name": "WebhookNotifier",
+          "line": 15,
+          "summary": "",
+          "signature": "",
+          "members": [
+            "ready",
+            "send"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "preflight",
+      "path": "hermes_update_check/preflight.py",
+      "lines": 485,
+      "summary": "Pre-update checks: is this machine actually in a state where an update is safe to start?",
+      "symbols": [
+        {
+          "kind": "constant",
+          "name": "STATUS_PASS",
+          "line": 20,
+          "summary": "'PASS'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "STATUS_WARN",
+          "line": 21,
+          "summary": "'WARN'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "STATUS_FAIL",
+          "line": 22,
+          "summary": "'FAIL'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "STATUS_SKIP",
+          "line": 23,
+          "summary": "'SKIP'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "CheckResult",
+          "line": 29,
+          "summary": "",
+          "signature": "",
+          "members": [
+            "blocking",
+            "ok",
+            "name",
+            "detail",
+            "remediation",
+            "to_dict"
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "PreflightReport",
+          "line": 66,
+          "summary": "",
+          "signature": "",
+          "members": [
+            "failures",
+            "warnings",
+            "passed",
+            "blocking_failures",
+            "ok_to_proceed",
+            "to_dict"
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "run_preflight",
+          "line": 98,
+          "summary": "Run every pre-update check",
+          "signature": "(cfg: Config, env: LocalEnv, *, state_root: Optional[Path] = …, logger: Optional[logging.Logger] = …, check_processes: bool = …, update_help_text: Optional[str] = …) -> PreflightReport",
+          "members": []
+        }
+      ]
+    },
+    {
+      "name": "provenance",
+      "path": "hermes_update_check/provenance.py",
+      "lines": 564,
+      "summary": "Code provenance: *what code is actually running*, not just what it calls itself",
+      "symbols": [
+        {
+          "kind": "constant",
+          "name": "CHANNEL_STABLE",
+          "line": 43,
+          "summary": "'STABLE'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "CHANNEL_MAIN",
+          "line": 44,
+          "summary": "'MAIN'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "CHANNEL_PRERELEASE",
+          "line": 45,
+          "summary": "'PRERELEASE'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "CHANNEL_DETACHED",
+          "line": 46,
+          "summary": "'DETACHED'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "CHANNEL_CUSTOM",
+          "line": 47,
+          "summary": "'CUSTOM'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "CHANNEL_UNKNOWN",
+          "line": 48,
+          "summary": "'UNKNOWN'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "DEV_BRANCHES",
+          "line": 59,
+          "summary": "{'main', 'master', 'develop', 'development', 'dev'}",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "UPDATE_STATUS_UP_TO_DATE",
+          "line": 62,
+          "summary": "'up_to_date'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "UPDATE_STATUS_AVAILABLE",
+          "line": 63,
+          "summary": "'update_available'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "UPDATE_STATUS_AHEAD",
+          "line": 64,
+          "summary": "'ahead_of_stable'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "UPDATE_STATUS_MANUAL_REVIEW",
+          "line": 65,
+          "summary": "'manual_review'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "UPDATE_STATUS_UNKNOWN",
+          "line": 66,
+          "summary": "'unknown'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "CodeProvenance",
+          "line": 72,
+          "summary": "Where the running code actually sits relative to the release tags",
+          "signature": "",
+          "members": [
+            "ahead_of_stable",
+            "exact_release_tag",
+            "is_development_channel",
+            "channel_note_zh",
+            "channel_note_en",
+            "to_dict"
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "UpdateDecision",
+          "line": 152,
+          "summary": "Is an update even the right question to ask?",
+          "signature": "",
+          "members": [
+            "headline_zh",
+            "headline_en",
+            "to_dict"
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "resolve_provenance",
+          "line": 198,
+          "summary": "Build the provenance model from the local environment plus GitHub data",
+          "signature": "(env: LocalEnv, releases: Sequence[Release] = …, *, latest: Optional[Release] = …, compare: Optional[CompareFn] = …) -> CodeProvenance",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "decide_update",
+          "line": 405,
+          "summary": "Decide *whether* a newer release is the right thing to move to",
+          "signature": "(prov: CodeProvenance, latest: Optional[Release], *, preferred_channel: str = …, allow_prerelease: bool = …) -> UpdateDecision",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "channel_mismatch",
+          "line": 535,
+          "summary": "Warning text when the install does not track the preferred channel",
+          "signature": "(prov: CodeProvenance, preferred_channel: str) -> Optional[tuple[str, str]]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "now_version_age_days",
+          "line": 559,
+          "summary": "",
+          "signature": "(published: Optional[datetime], *, now: Optional[datetime] = …) -> Optional[float]",
+          "members": []
+        }
+      ]
+    },
+    {
+      "name": "report",
+      "path": "hermes_update_check/report.py",
+      "lines": 685,
+      "summary": "Report rendering: the human-readable answer, in Chinese or English",
+      "symbols": [
+        {
+          "kind": "constant",
+          "name": "REPORT_TITLE",
+          "line": 35,
+          "summary": "'Hermes Update Advisor'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "Reporter",
+          "line": 49,
+          "summary": "Renders an UpdateCheck for humans (rich) or machines (markdown/json)",
+          "signature": "",
+          "members": [
+            "render",
+            "recommendation_lines",
+            "to_markdown"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "risk",
+      "path": "hermes_update_check/risk.py",
+      "lines": 1195,
+      "summary": "The risk engine: everything that turns observations into an Update Risk Score",
+      "symbols": [
+        {
+          "kind": "constant",
+          "name": "LEVEL_LOW",
+          "line": 53,
+          "summary": "'LOW'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "LEVEL_LOW_MEDIUM",
+          "line": 54,
+          "summary": "'LOW-MEDIUM'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "LEVEL_MEDIUM",
+          "line": 55,
+          "summary": "'MEDIUM'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "LEVEL_HIGH",
+          "line": 56,
+          "summary": "'HIGH'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "LEVEL_VERY_HIGH",
+          "line": 57,
+          "summary": "'VERY HIGH'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "LEVEL_UNKNOWN",
+          "line": 58,
+          "summary": "'UNKNOWN'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "BAND_LOW_MAX",
+          "line": 60,
+          "summary": "20",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "BAND_LOW_MEDIUM_MAX",
+          "line": 61,
+          "summary": "40",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "BAND_MEDIUM_MAX",
+          "line": 62,
+          "summary": "60",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "BAND_HIGH_MAX",
+          "line": 63,
+          "summary": "80",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "RECOMMEND_UPDATE",
+          "line": 65,
+          "summary": "'UPDATE'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "RECOMMEND_WAIT",
+          "line": 66,
+          "summary": "'WAIT'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "RECOMMEND_AVOID",
+          "line": 67,
+          "summary": "'AVOID'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "RECOMMEND_UNKNOWN",
+          "line": 68,
+          "summary": "'INSUFFICIENT_DATA'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "RECOMMEND_UP_TO_DATE",
+          "line": 69,
+          "summary": "'UP_TO_DATE'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "level_for_score",
+          "line": 74,
+          "summary": "Map a 0-100 score onto the documented bands",
+          "signature": "(score: int | None) -> str",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "is_severe_level",
+          "line": 89,
+          "summary": "",
+          "signature": "(level: str) -> bool",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "KeywordCategory",
+          "line": 99,
+          "summary": "",
+          "signature": "",
+          "members": [
+            "compiled"
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "KeywordHit",
+          "line": 255,
+          "summary": "",
+          "signature": "",
+          "members": [
+            "intensity"
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "KeywordScan",
+          "line": 272,
+          "summary": "",
+          "signature": "",
+          "members": [
+            "raw_points",
+            "matched_categories",
+            "total_hits"
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "scan_keywords",
+          "line": 292,
+          "summary": "Scan release notes / commit subjects for risk and low-risk language",
+          "signature": "(text: str | None, *, extra: Sequence[str] = …) -> KeywordScan",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "keyword_points",
+          "line": 344,
+          "summary": "Scale the weighted keyword hits into the keyword group cap",
+          "signature": "(scan: KeywordScan, cap: float) -> float",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "age_points",
+          "line": 351,
+          "summary": "Release-age contribution; very matured releases earn a small bonus",
+          "signature": "(age_hours: Optional[float], cap: float) -> tuple[float, Optional[str]]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "commit_volume_points",
+          "line": 370,
+          "summary": "Diff-size contribution from the commit count",
+          "signature": "(total_commits: Optional[int], cap: float) -> tuple[float, Optional[str]]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "pr_volume_points",
+          "line": 387,
+          "summary": "",
+          "signature": "(pr_count: Optional[int], cap: float) -> float",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "release_type_points",
+          "line": 401,
+          "summary": "X.Y.0 feature releases and major bumps are treated more carefully than patches",
+          "signature": "(*, latest_version: Optional[str], current_version: Optional[str], cap: float) -> tuple[float, Optional[str]]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "rollup_points",
+          "line": 415,
+          "summary": "A 'patch' that rolls up hundreds of PRs is a feature release in disguise",
+          "signature": "(release_body: str | None, total_commits: Optional[int], cap: float) -> tuple[float, Optional[str]]",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "UNRELIABLE_ISSUE_COUNT",
+          "line": 466,
+          "summary": "1000",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "IssueSignal",
+          "line": 470,
+          "summary": "Aggregated post-release issue evidence (see ``checker.collect_issue_signal``)",
+          "signature": "",
+          "members": [
+            "available",
+            "to_dict"
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "classify_issues",
+          "line": 512,
+          "summary": "Group issues into severe regression clusters by title/label text",
+          "signature": "(issues: Iterable[Issue]) -> dict[str, list[Issue]]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "issue_volume_points",
+          "line": 526,
+          "summary": "The *quantitative* half of the issue analysis: how much noise is there?",
+          "signature": "(signal: Optional[IssueSignal], cap: float) -> tuple[float, list[tuple[str, str]]]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "issue_points",
+          "line": 619,
+          "summary": "Post-release issue contribution (legacy additive view)",
+          "signature": "(signal: Optional[IssueSignal], cap: float) -> tuple[float, list[tuple[str, str]], Optional[str]]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "context_points",
+          "line": 664,
+          "summary": "",
+          "signature": "(*, tracking_main: bool, dirty_tree: bool, install_kind: str, target_prerelease: bool, cap: float) -> tuple[float, list[str]]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "bonus_points",
+          "line": 692,
+          "summary": "Stability bonuses (negative points), capped",
+          "signature": "(*, age_hours: Optional[float], scan: KeywordScan, signal: Optional[IssueSignal], total_commits: Optional[int], cap: float) -> tuple[float, list[str]]",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "RiskFactor",
+          "line": 724,
+          "summary": "",
+          "signature": "",
+          "members": [
+            "label",
+            "to_dict"
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "CheckContext",
+          "line": 750,
+          "summary": "Everything the risk engine is allowed to look at (fully mockable)",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "RiskAssessment",
+          "line": 788,
+          "summary": "The graded result",
+          "signature": "",
+          "members": [
+            "score_or_unknown",
+            "stability_or_unknown",
+            "component_rows",
+            "to_dict"
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "assess",
+          "line": 883,
+          "summary": "Run every factor and combine them into the final assessment",
+          "signature": "(ctx: CheckContext) -> RiskAssessment",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "risk_threshold_check",
+          "line": 1127,
+          "summary": "Applied risk used for the recommendation (currently identical to the score)",
+          "signature": "(score: int, ctx: CheckContext) -> int",
+          "members": []
+        }
+      ]
+    },
+    {
+      "name": "state",
+      "path": "hermes_update_check/state.py",
+      "lines": 266,
+      "summary": "State files: `update_state.json`, watch state, cache/snapshot directories",
+      "symbols": [
+        {
+          "kind": "constant",
+          "name": "UPDATE_STATE_NAME",
+          "line": 20,
+          "summary": "'update_state.json'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "WATCH_STATE_NAME",
+          "line": 21,
+          "summary": "'watch_state.json'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "STATUS_IN_PROGRESS",
+          "line": 23,
+          "summary": "'in_progress'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "STATUS_SUCCEEDED",
+          "line": 24,
+          "summary": "'succeeded'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "STATUS_HEALTH_FAILED",
+          "line": 25,
+          "summary": "'health_check_failed'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "STATUS_ROLLED_BACK",
+          "line": 26,
+          "summary": "'rolled_back'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "STATUS_FAILED",
+          "line": 27,
+          "summary": "'failed'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "UpdateState",
+          "line": 31,
+          "summary": "Pre-update facts needed to undo an update, plus the outcome",
+          "signature": "",
+          "members": [
+            "to_dict",
+            "from_dict",
+            "mark",
+            "created_at",
+            "human_summary"
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "WatchState",
+          "line": 96,
+          "summary": "What watch mode remembers between runs, so it can stay silent when nothing changed",
+          "signature": "",
+          "members": [
+            "record",
+            "mark_notified",
+            "to_dict",
+            "from_dict"
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "confidence_bucket",
+          "line": 177,
+          "summary": "Coarse confidence bands - small numeric wobbles must not trigger notifications",
+          "signature": "(confidence: int) -> str",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "StateStore",
+          "line": 186,
+          "summary": "Filesystem layout + read/write helpers for all persisted state",
+          "signature": "",
+          "members": [
+            "cache_dir",
+            "logs_dir",
+            "snapshots_dir",
+            "reports_dir",
+            "log_file",
+            "update_state_path",
+            "watch_state_path",
+            "ensure",
+            "load_update_state",
+            "save_update_state",
+            "clear_update_state",
+            "load_watch_state",
+            "save_watch_state",
+            "snapshot_dir_for"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "updater",
+      "path": "hermes_update_check/updater.py",
+      "lines": 604,
+      "summary": "Update execution: snapshot -> update -> health check -> (rollback)",
+      "symbols": [
+        {
+          "kind": "class",
+          "name": "SnapshotEntry",
+          "line": 53,
+          "summary": "",
+          "signature": "",
+          "members": [
+            "to_dict"
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "Snapshot",
+          "line": 75,
+          "summary": "",
+          "signature": "",
+          "members": [
+            "to_dict"
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "UpdateOutcome",
+          "line": 91,
+          "summary": "",
+          "signature": "",
+          "members": [
+            "to_dict"
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "RollbackOutcome",
+          "line": 121,
+          "summary": "",
+          "signature": "",
+          "members": [
+            "to_dict"
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "create_snapshot",
+          "line": 147,
+          "summary": "Fingerprint (and partially copy) the Hermes home before an update",
+          "signature": "(env: LocalEnv, state_root: Path, *, logger: Optional[logging.Logger] = …) -> Snapshot",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "build_update_command",
+          "line": 223,
+          "summary": "Compose the ``hermes update`` invocation (nothing is executed here)",
+          "signature": "(cfg: Config, env: LocalEnv, *, backup: bool, yes: bool, branch: Optional[str] = …, extra_args: Sequence[str] = …) -> list[str]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "run_update",
+          "line": 245,
+          "summary": "Execute the update",
+          "signature": "(cfg: Config, env: LocalEnv, *, state_root: Optional[Path] = …, backup: bool = …, yes: bool = …, branch: Optional[str] = …, extra_args: Sequence[str] = …, dry_run: bool = …, skip_health_check: bool = …, auto_rollback: bool = …, on_line: LineCallback = …, logger: Optional[logging.Logger] = …, timeout: float = …) -> UpdateOutcome",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "pre_update_gateway_running",
+          "line": 401,
+          "summary": "Was the gateway running *before* we touched anything?",
+          "signature": "(env: LocalEnv, *, logger: Optional[logging.Logger] = …) -> Optional[bool]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "dependency_install_command",
+          "line": 420,
+          "summary": "How to reinstall Hermes' Python dependencies after a git checkout",
+          "signature": "(env: LocalEnv) -> list[str]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "run_rollback",
+          "line": 434,
+          "summary": "Restore the pre-update version: git ref + dependencies (+ optional backup)",
+          "signature": "(cfg: Config, env: LocalEnv, *, store: Optional[StateStore] = …, state: Optional[UpdateState] = …, yes: bool = …, to_ref: Optional[str] = …, reinstall_deps: bool = …, restore_backup: Optional[str] = …, in_place_restore: bool = …, dry_run: bool = …, on_line: LineCallback = …, logger: Optional[logging.Logger] = …, timeout: float = …) -> RollbackOutcome",
+          "members": []
+        }
+      ]
+    },
+    {
+      "name": "util",
+      "path": "hermes_update_check/util.py",
+      "lines": 512,
+      "summary": "Small, dependency-free helpers: subprocess runner, JSON IO, time parsing, hashing",
+      "symbols": [
+        {
+          "kind": "function",
+          "name": "utcnow",
+          "line": 29,
+          "summary": "Timezone-aware UTC now (naive datetimes are a bug factory)",
+          "signature": "() -> datetime",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "parse_iso8601",
+          "line": 34,
+          "summary": "Parse the ISO-8601 timestamps the GitHub API returns (``...Z`` included)",
+          "signature": "(value: str | None) -> datetime | None",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "hours_between",
+          "line": 57,
+          "summary": "Hours from ``older`` to ``newer`` (default: now)",
+          "signature": "(older: datetime, newer: datetime | None = …) -> float",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "humanize_hours",
+          "line": 63,
+          "summary": "'3.2 days', '5.4 hours', '2.1 months' style age string",
+          "signature": "(hours: float, *, lang: str = …) -> str",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "iso",
+          "line": 77,
+          "summary": "Serialise a datetime in UTC ISO-8601 with a trailing Z",
+          "signature": "(dt: datetime | None) -> str | None",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "format_local",
+          "line": 84,
+          "summary": "",
+          "signature": "(dt: datetime | None) -> str",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "later_of",
+          "line": 90,
+          "summary": "",
+          "signature": "(*dts) -> datetime | None",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "days_ago",
+          "line": 95,
+          "summary": "",
+          "signature": "(days: float, *, now: datetime | None = …) -> datetime",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "ensure_dir",
+          "line": 104,
+          "summary": "",
+          "signature": "(path: Path) -> Path",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "read_json",
+          "line": 109,
+          "summary": "Read JSON; return None when the file is missing or corrupt",
+          "signature": "(path: Path) -> Any | None",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "write_json",
+          "line": 118,
+          "summary": "Atomically write JSON (tmp file + os.replace) so a crashed run cannot corrupt state",
+          "signature": "(path: Path, data: Any) -> Path",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "write_text",
+          "line": 135,
+          "summary": "",
+          "signature": "(path: Path, text: str) -> Path",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "suppress_oserror",
+          "line": 150,
+          "summary": "``contextlib.suppress(OSError)`` without the import ceremony",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "sha256_file",
+          "line": 160,
+          "summary": "Hash a file (None when unreadable); used to record config fingerprints",
+          "signature": "(path: Path, *, chunk: int = …) -> str | None",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "dir_size_bytes",
+          "line": 175,
+          "summary": "Best-effort recursive size; never raises",
+          "signature": "(path: Path, *, limit_files: int = …) -> int",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "human_bytes",
+          "line": 194,
+          "summary": "",
+          "signature": "(num: float) -> str",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "disk_free_bytes",
+          "line": 202,
+          "summary": "",
+          "signature": "(path: Path | str) -> int | None",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "ProcResult",
+          "line": 215,
+          "summary": "Outcome of an external command",
+          "signature": "",
+          "members": [
+            "ok",
+            "output",
+            "first_lines",
+            "to_dict"
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "resolve_executable",
+          "line": 258,
+          "summary": "Find an executable cross-platform",
+          "signature": "(name: str | os.PathLike[str], *, extra_dirs: Sequence[Path] = …) -> str | None",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "run_process",
+          "line": 285,
+          "summary": "Run a command with a hard timeout; capture output; never raise",
+          "signature": "(cmd: Sequence[str], *, timeout: float = …, cwd: Path | None = …, env: Mapping[str, str] | None = …, stdin_text: str | None = …) -> ProcResult",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "wrap_command",
+          "line": 368,
+          "summary": "Public wrapper: make an argv list executable on this platform (Windows .cmd/.bat/.ps1)",
+          "signature": "(argv: Sequence[str]) -> list[str]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "run_streaming",
+          "line": 373,
+          "summary": "Run a long command, streaming its output line by line to ``on_line``",
+          "signature": "(cmd: Sequence[str], *, timeout: float = …, cwd: Path | None = …, env: Mapping[str, str] | None = …, on_line: Optional[Callable[[str], None]] = …, max_buffer_chars: int = …) -> ProcResult",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "platform_summary",
+          "line": 479,
+          "summary": "",
+          "signature": "() -> dict[str, str]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "unique_preserve_order",
+          "line": 491,
+          "summary": "",
+          "signature": "(items: Iterable[str]) -> list[str]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "clamp",
+          "line": 501,
+          "summary": "",
+          "signature": "(value: float, low: float, high: float) -> float",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "Degradation",
+          "line": 506,
+          "summary": "A note about data we could not obtain (rendered as UNKNOWN, never as 'safe')",
+          "signature": "",
+          "members": []
+        }
+      ]
+    },
+    {
+      "name": "versioning",
+      "path": "hermes_update_check/versioning.py",
+      "lines": 299,
+      "summary": "Version parsing and comparison",
+      "symbols": [
+        {
+          "kind": "constant",
+          "name": "_PRE_RANK",
+          "line": 42,
+          "summary": "{'dev': 0, 'alpha': 1, 'beta': 2, 'pre': 2, 'rc': 3}",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "Version",
+          "line": 46,
+          "summary": "A comparable semantic version",
+          "signature": "",
+          "members": [
+            "is_prerelease",
+            "key"
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "parse_version",
+          "line": 68,
+          "summary": "Parse ``v0.21.3`` / ``0.21`` / ``0.21.3-rc1`` into a Version (None when hopeless)",
+          "signature": "(text: str | None) -> Optional[Version]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "semver_key",
+          "line": 88,
+          "summary": "Sort key for a version string; unparseable versions sort lowest",
+          "signature": "(text: str | None) -> Tuple[int, int, int, int, int]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "compare_versions",
+          "line": 94,
+          "summary": "-1 if left < right, 0 if equal, 1 if left > right (unparseable sorts last)",
+          "signature": "(left: str | None, right: str | None) -> int",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "parse_calver",
+          "line": 102,
+          "summary": "Parse date tags such as ``v2026.9.14`` / ``2026.8.16.2``",
+          "signature": "(text: str | None) -> Optional[Tuple[int, int, int, int]]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "compare_tags",
+          "line": 117,
+          "summary": "Compare two release tags: prefer calver, fall back to semver, then string order",
+          "signature": "(left: str | None, right: str | None) -> int",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "classify_bump",
+          "line": 134,
+          "summary": "'major' | 'minor' | 'patch' | 'none' | 'unknown'",
+          "signature": "(current: str | None, target: str | None) -> str",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "is_feature_release",
+          "line": 148,
+          "summary": "X.Y.0 releases carry new features and deserve extra caution",
+          "signature": "(version_text: str | None) -> bool",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "extract_versions",
+          "line": 154,
+          "summary": "Every version-looking token in a blob of text (release notes, changelogs)",
+          "signature": "(text: str | None) -> list[str]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "is_prerelease_text",
+          "line": 161,
+          "summary": "True for prerelease/beta/rc markers inside a version or a release title",
+          "signature": "(text: str | None) -> bool",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "VersionOutput",
+          "line": 196,
+          "summary": "Structured form of `hermes --version`",
+          "signature": "",
+          "members": [
+            "version_or_unknown"
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "parse_version_output",
+          "line": 216,
+          "summary": "Parse the output of ``hermes --version`` across known layouts",
+          "signature": "(text: str | None) -> VersionOutput",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "normalise_tag",
+          "line": 268,
+          "summary": "Public alias: ``2026.9.14`` -> ``v2026.9.14``",
+          "signature": "(tag: str | None) -> Optional[str]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "latest_by_version",
+          "line": 273,
+          "summary": "Highest version in a list of version strings (None for an empty list)",
+          "signature": "(items: Iterable[str]) -> Optional[str]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "versions_between",
+          "line": 282,
+          "summary": "How many releases sit between ``current`` and the newest entry of a descending list",
+          "signature": "(current: str | None, ordered_desc: Sequence[str]) -> Optional[int]",
+          "members": []
+        }
+      ]
+    }
+  ],
+  "cli": [
+    {
+      "command": "check",
+      "help": "check for updates and print the short risk verdict"
+    },
+    {
+      "command": "report",
+      "help": "full report (factors, issues, recommendation)"
+    },
+    {
+      "command": "watch",
+      "help": "cron-friendly check: notify only when something changed"
+    },
+    {
+      "command": "update",
+      "help": "update Hermes after risk gate + preflight + confirmation"
+    },
+    {
+      "command": "rollback",
+      "help": "restore the version recorded in update_state.json"
+    },
+    {
+      "command": "health",
+      "help": "run the post-update health checks"
+    },
+    {
+      "command": "preflight",
+      "help": "run the pre-update checks only"
+    },
+    {
+      "command": "config",
+      "help": "show / locate / create the configuration"
+    },
+    {
+      "command": "notify-test",
+      "help": "send a test notification to every configured channel"
+    },
+    {
+      "command": "version",
+      "help": "print the tool version"
+    }
+  ],
+  "tests": [
+    {
+      "path": "tests/test_advisor.py",
+      "lines": 234,
+      "summary": "Advisor tests: priority order, recheck computation, and 'unknown is not safe'",
+      "tests": 15,
+      "names": [
+        "test_up_to_date_wins_over_everything",
+        "test_ahead_of_stable_is_reported_as_development_channel_mode",
+        "test_insufficient_data_beats_gates_and_score",
+        "test_environment_problem_beats_hard_gates",
+        "test_hard_gate_beats_a_low_score",
+        "test_risk_score_decides_when_gates_pass",
+        "test_cooling_period_after_gates",
+        "test_update_when_everything_is_clean",
+        "test_manual_review_for_non_standard_state",
+        "test_recheck_uses_the_gate_deadline",
+        "test_recheck_shrinks_with_open_critical_regression",
+        "test_recheck_helper_prefers_the_soonest_meaningful_moment",
+        "test_insufficient_data_never_becomes_update",
+        "test_lower_bound_score_is_carried_into_the_recommendation",
+        "test_recommendation_serialises"
+      ]
+    },
+    {
+      "path": "tests/test_checker.py",
+      "lines": 274,
+      "summary": "Orchestration tests: run_check with an injected (fake) GitHub client",
+      "tests": 13,
+      "names": [
+        "test_run_check_full_picture",
+        "test_run_check_up_to_date",
+        "test_run_check_without_release_data_is_insufficient",
+        "test_run_check_skips_prereleases_by_default",
+        "test_run_check_tracks_main_ahead",
+        "test_run_check_uses_release_notes_pr_count_when_compare_is_truncated",
+        "test_run_check_respects_issue_opt_out",
+        "test_fresh_cache_hit_does_not_degrade_the_issue_signal",
+        "test_stale_cache_marks_the_issue_signal_degraded",
+        "test_comment_enrichment_marks_maintainer_confirmation",
+        "test_collect_issue_signal_clusters",
+        "test_collect_issue_signal_without_timestamp",
+        "test_collect_issue_signal_marks_failure"
+      ]
+    },
+    {
+      "path": "tests/test_cli.py",
+      "lines": 210,
+      "summary": "CLI-level tests: exit codes, JSON output, commands that never touch the network",
+      "tests": 13,
+      "names": [
+        "test_parser_has_all_documented_commands",
+        "test_version_command",
+        "test_config_path_command",
+        "test_config_show_json",
+        "test_config_init_writes_example",
+        "test_invalid_config_returns_config_exit_code",
+        "test_notify_test_without_channels",
+        "test_unknown_command_via_parser",
+        "test_check_exit_codes",
+        "test_advisor_action_exit_codes",
+        "test_up_to_date_exit_code_is_zero",
+        "test_rollback_without_state_is_a_config_error_not_a_crash",
+        "test_update_refused_without_yes_on_non_tty"
+      ]
+    },
+    {
+      "path": "tests/test_cli_commands.py",
+      "lines": 298,
+      "summary": "End-to-end-ish command tests: every CLI handler, with the outside world stubbed",
+      "tests": 13,
+      "names": [
+        "test_check_json_is_machine_readable",
+        "test_check_renders_a_report",
+        "test_report_writes_markdown_to_a_file",
+        "test_report_json_to_a_file",
+        "test_health_reports_ok",
+        "test_health_failure_returns_its_exit_code",
+        "test_preflight_ok_and_failed",
+        "test_watch_is_quiet_when_nothing_changed",
+        "test_watch_records_state",
+        "test_update_dry_run_never_executes",
+        "test_update_refuses_without_confirmation_on_a_tty_less_shell",
+        "test_rollback_dry_run_shows_the_plan",
+        "test_rollback_plan_includes_the_recorded_version"
+      ]
+    },
+    {
+      "path": "tests/test_clusters.py",
+      "lines": 274,
+      "summary": "Regression-cluster tests: grading, independence and credibility",
+      "tests": 16,
+      "names": [
+        "test_cluster_classification_covers_the_nine_classes",
+        "test_benign_titles_do_not_cluster",
+        "test_severity_promotion_to_critical",
+        "test_same_author_three_issues_is_one_reporter",
+        "test_multiple_independent_reporters_raise_confidence",
+        "test_duplicate_reports_are_not_independent",
+        "test_maintainer_confirmation_and_linked_pr_raise_confidence",
+        "test_version_mention_and_reproduction_count_towards_confidence",
+        "test_grade_confidence_weights",
+        "test_clusters_are_sorted_by_severity_then_contribution",
+        "test_regression_signal_grows_with_severity_and_reporters",
+        "test_regression_signal_unavailable_is_a_floor_not_zero",
+        "test_regression_signal_volume_component_is_half_weight",
+        "test_regression_signal_does_not_saturate_with_many_clusters",
+        "test_regression_signal_is_graded_by_issue_confidence",
+        "test_cluster_to_dict_is_json_safe"
+      ]
+    },
+    {
+      "path": "tests/test_config.py",
+      "lines": 218,
+      "summary": "Config loading/validation tests",
+      "tests": 19,
+      "names": [
+        "test_defaults_are_safe",
+        "test_load_config_missing_file_uses_defaults",
+        "test_yaml_config_overrides",
+        "test_json_config_is_supported",
+        "test_env_overrides_beats_file",
+        "test_unknown_keys_warn",
+        "test_validation_clamps_and_warns",
+        "test_invalid_yaml_raises_config_error",
+        "test_non_mapping_config_raises",
+        "test_deep_merge_keeps_nested_defaults",
+        "test_path_resolution_uses_env",
+        "test_default_config_path_env_override",
+        "test_write_default_config_roundtrip",
+        "test_config_to_dict_serialises_paths",
+        "test_hard_gate_defaults",
+        "test_hard_gates_from_yaml",
+        "test_hard_gates_enabled_via_env",
+        "test_unknown_hard_gate_key_warns",
+        "test_issue_enrichment_limit_config"
+      ]
+    },
+    {
+      "path": "tests/test_entrypoints.py",
+      "lines": 122,
+      "summary": "Smoke tests for the two entry points that had no direct coverage",
+      "tests": 10,
+      "names": [
+        "test_module_entrypoint_prints_the_version",
+        "test_module_entrypoint_shows_help",
+        "test_help_survives_a_legacy_console_encoding",
+        "test_json_output_survives_a_legacy_console_encoding",
+        "test_module_entrypoint_rejects_unknown_command",
+        "test_setup_logging_writes_a_log_file",
+        "test_setup_logging_is_idempotent",
+        "test_setup_logging_never_breaks_on_an_unwritable_path",
+        "test_unknown_level_falls_back_to_info",
+        "test_get_logger_works_before_setup"
+      ]
+    },
+    {
+      "path": "tests/test_gates.py",
+      "lines": 370,
+      "summary": "Hard-gate tests: gates must override a low score and never be bypassed silently",
+      "tests": 20,
+      "names": [
+        "test_gate_blocks_a_young_release",
+        "test_gate_passes_an_old_release",
+        "test_gate_age_threshold_is_configurable",
+        "test_dirty_worktree_blocks_even_at_low_risk",
+        "test_dirty_worktree_can_be_downgraded_to_warning",
+        "test_main_branch_blocks",
+        "test_main_branch_can_be_warned_instead",
+        "test_prerelease_blocks_by_default",
+        "test_active_database_regression_blocks",
+        "test_gateway_regression_gate_is_off_by_default_but_available",
+        "test_single_reporter_cluster_does_not_trigger_the_regression_gate",
+        "test_insufficient_data_gate_blocks",
+        "test_missing_release_blocks",
+        "test_environment_gate",
+        "test_gates_disabled_entirely",
+        "test_up_to_date_decision_skips_applicable_gates",
+        "test_channel_mismatch_is_a_warning_gate",
+        "test_gate_report_serialises",
+        "test_probe_environment_detects_problems",
+        "test_earliest_recheck_is_the_soonest_blocking_deadline"
+      ]
+    },
+    {
+      "path": "tests/test_github_api.py",
+      "lines": 215,
+      "summary": "GitHub payload parsing tests (fixtures only - no network)",
+      "tests": 12,
+      "names": [
+        "test_extract_display_version_skips_the_date_tag",
+        "test_list_and_pick_latest_release",
+        "test_prereleases_are_skipped_unless_requested",
+        "test_compare_parsing_and_truncation",
+        "test_compare_failure_degrades_gracefully",
+        "test_issue_search_parsing",
+        "test_issue_search_budget_is_enforced",
+        "test_build_issue_query_is_date_only_and_bounded",
+        "test_build_issue_query_refuses_more_than_five_operators",
+        "test_extract_pr_count_from_release_notes",
+        "test_parse_repo_slug",
+        "test_commit_pr_number_variants"
+      ]
+    },
+    {
+      "path": "tests/test_http_cache.py",
+      "lines": 118,
+      "summary": "HTTP layer tests: cache TTL, stale fallback, failure handling (no external network)",
+      "tests": 10,
+      "names": [
+        "test_disk_cache_roundtrip",
+        "test_disk_cache_expiry_and_stale",
+        "test_disk_cache_ignores_garbage",
+        "test_cache_clear",
+        "test_zero_ttl_cache_is_never_fresh",
+        "test_http_client_reports_connection_failure",
+        "test_http_client_falls_back_to_stale_cache",
+        "test_fresh_cache_hit_is_not_degraded",
+        "test_rate_limit_message_shapes_epoch",
+        "test_require_ok_raises_typed_errors"
+      ]
+    },
+    {
+      "path": "tests/test_local_env.py",
+      "lines": 271,
+      "summary": "Environment-detection tests: the layer that reads the *real* machine",
+      "tests": 19,
+      "names": [
+        "test_normalise_install_kind",
+        "test_infer_install_kind_prefers_git_checkout",
+        "test_infer_install_kind_detects_nix",
+        "test_infer_install_kind_probes_a_venv_python",
+        "test_infer_install_kind_gives_up_cleanly",
+        "test_version_from_source_reads_the_package_file",
+        "test_find_venv_python_layouts",
+        "test_detect_local_env_parses_a_fake_installation",
+        "test_detect_local_env_without_a_cli",
+        "test_detect_git_state_on_a_real_repository",
+        "test_detect_git_state_sees_uncommitted_changes",
+        "test_detect_git_state_outside_a_repository",
+        "test_tasklist_parsing_keeps_only_hermes_processes",
+        "test_tasklist_failure_is_reported",
+        "test_list_hermes_processes_dispatches_by_platform",
+        "test_gateway_status_without_a_cli",
+        "test_parse_gateway_status_classification",
+        "test_parse_gateway_status_empty_output",
+        "test_require_hermes_home_raises_when_missing"
+      ]
+    },
+    {
+      "path": "tests/test_notify.py",
+      "lines": 257,
+      "summary": "Notification-channel tests: payload shape, failure handling, no secret leakage",
+      "tests": 14,
+      "names": [
+        "test_message_to_dict_and_text",
+        "test_webhook_not_ready_without_url",
+        "test_webhook_sends_json_and_attaches_bearer",
+        "test_webhook_without_token_sends_no_authorization_header",
+        "test_webhook_reports_transport_failures",
+        "test_webhook_flags_an_unexpected_status",
+        "test_telegram_reports_missing_credentials",
+        "test_telegram_ready_property",
+        "test_telegram_posts_to_the_bot_api_without_leaking_the_token",
+        "test_telegram_truncates_an_overlong_message",
+        "test_telegram_reports_http_and_transport_failures",
+        "test_build_notifiers_respects_the_config",
+        "test_describe_notifiers_marks_missing_credentials",
+        "test_notify_all_isolates_a_failing_channel"
+      ]
+    },
+    {
+      "path": "tests/test_preflight_health.py",
+      "lines": 184,
+      "summary": "Preflight and health-check tests (local filesystem only)",
+      "tests": 13,
+      "names": [
+        "test_preflight_happy_path",
+        "test_preflight_dirty_tree_warns_but_does_not_block",
+        "test_preflight_missing_hermes_home_blocks",
+        "test_preflight_detects_broken_state_db",
+        "test_preflight_unreadable_config_fails",
+        "test_health_checks_on_healthy_home",
+        "test_health_state_db_corruption_is_detected",
+        "test_health_detects_broken_config_yaml",
+        "test_health_missing_state_db_is_a_warning",
+        "test_health_mcp_section_detected",
+        "test_gateway_down_is_warn_when_it_was_never_running",
+        "test_gateway_down_after_update_is_a_failure_when_it_ran_before",
+        "test_gateway_running_is_a_pass"
+      ]
+    },
+    {
+      "path": "tests/test_provenance.py",
+      "lines": 274,
+      "summary": "Code provenance tests: the five cases from the design brief, plus the rest",
+      "tests": 16,
+      "names": [
+        "test_case1_main_ahead_of_latest_release",
+        "test_main_behind_release_is_an_update_candidate",
+        "test_main_diverged_from_release_needs_manual_review",
+        "test_case1_when_compare_is_unavailable_main_is_not_a_candidate",
+        "test_case2_stable_update_available",
+        "test_case3_stable_up_to_date",
+        "test_case4_detached_head_requires_manual_review",
+        "test_case4_detached_but_on_a_release_tag_is_stable",
+        "test_case5_custom_branch_maps_to_no_release",
+        "test_prerelease_channel",
+        "test_unknown_channel_without_any_information",
+        "test_non_git_install_with_known_release_is_stable",
+        "test_reported_version_conflict_is_surfaced",
+        "test_json_contract_keys",
+        "test_channel_mismatch_warnings",
+        "test_make_compare_fixture_has_both_directions"
+      ]
+    },
+    {
+      "path": "tests/test_report.py",
+      "lines": 138,
+      "summary": "Report rendering tests (plain-text console, no network)",
+      "tests": 9,
+      "names": [
+        "test_compact_report_mentions_the_essentials",
+        "test_report_english",
+        "test_detailed_report_shows_factors_and_issue_samples",
+        "test_recommendation_lines_for_wait",
+        "test_markdown_export_contains_tables",
+        "test_report_survives_missing_issue_data",
+        "test_up_to_date_report",
+        "test_plain_output_has_no_rich_markup",
+        "test_json_output_is_markup_free"
+      ]
+    },
+    {
+      "path": "tests/test_risk.py",
+      "lines": 564,
+      "summary": "Risk-engine tests: the scoring rules are the product, so they are pinned here",
+      "tests": 33,
+      "names": [
+        "test_keyword_scan_detects_database_and_session",
+        "test_keyword_scan_breaking_change_is_the_heaviest",
+        "test_keyword_scan_low_risk_markers",
+        "test_keyword_points_are_capped",
+        "test_keyword_points_scale_down_for_a_single_mention",
+        "test_keyword_intensity_grows_with_hits",
+        "test_age_points",
+        "test_age_points_unknown_is_not_free",
+        "test_commit_volume_and_pr_volume",
+        "test_issue_points_with_baseline_normalisation",
+        "test_issue_points_severity_clusters",
+        "test_issue_points_unavailable_is_half_cap_not_zero",
+        "test_context_points",
+        "test_bonus_points_for_matured_docs_release",
+        "test_classify_issues_clusters",
+        "test_gateway_cluster_needs_failure_language",
+        "test_issue_points_refuses_unreliable_baseline_scale",
+        "test_issue_points_flags_a_giant_post_release_wave",
+        "test_scenario_low_risk_docs_release",
+        "test_scenario_typical_patch_release_needs_observation",
+        "test_scenario_fresh_massive_rollup_is_high",
+        "test_scenario_insufficient_data_is_unknown_not_low",
+        "test_unknown_age_forces_unknown_level",
+        "test_missing_issue_data_lowers_confidence_and_flags_unknown_area",
+        "test_score_is_capped_at_100_and_stability_mirrors_it",
+        "test_level_bands",
+        "test_threshold_and_minimum_age_gate",
+        "test_missing_issue_data_never_makes_a_release_look_safer",
+        "test_observed_regression_is_folded_into_the_regression_signal",
+        "test_ignore_hard_gates_config_is_not_needed_but_flags_exist",
+        "test_lower_bound_display_at_the_ceiling",
+        "test_factors_always_explain_themselves",
+        "test_component_view_is_populated"
+      ]
+    },
+    {
+      "path": "tests/test_scan_secrets.py",
+      "lines": 222,
+      "summary": "Tests for the secret/privacy scanner - the guard needs its own guard",
+      "tests": 14,
+      "names": [
+        "test_credentials_are_detected",
+        "test_private_data_is_detected",
+        "test_legitimate_content_is_not_flagged",
+        "test_scanner_clean_on_this_repository",
+        "test_cli_reports_findings_and_exits_nonzero",
+        "test_text_mode_flags_outbound_payloads",
+        "test_text_mode_accepts_clean_payloads",
+        "test_stdin_mode_scans_piped_text",
+        "test_installer_scripts_are_present_and_syntactically_valid",
+        "test_installer_documents_its_options",
+        "test_installer_never_runs_hermes_update",
+        "test_readme_documents_one_click_install_and_agent_prompt",
+        "test_pre_commit_hook_is_wired_and_probes_the_interpreter",
+        "test_ci_workflow_runs_the_scan_on_full_history"
+      ]
+    },
+    {
+      "path": "tests/test_state.py",
+      "lines": 130,
+      "summary": "State persistence tests: update_state.json and watch_state.json",
+      "tests": 9,
+      "names": [
+        "test_state_store_layout",
+        "test_update_state_roundtrip",
+        "test_update_state_matches_documented_json_shape",
+        "test_update_state_unknown_keys_are_ignored",
+        "test_corrupt_state_file_returns_none",
+        "test_update_state_statuses_and_summary",
+        "test_watch_state_history_is_capped",
+        "test_watch_state_corrupt_file_yields_fresh_state",
+        "test_watch_state_mark_notified"
+      ]
+    },
+    {
+      "path": "tests/test_updater.py",
+      "lines": 344,
+      "summary": "Updater mechanics: command building, snapshots, dry runs (nothing is executed)",
+      "tests": 19,
+      "names": [
+        "test_build_update_command_defaults",
+        "test_build_update_command_no_backup_and_extra_args",
+        "test_build_update_command_without_cli_raises",
+        "test_snapshot_fingerprints_and_copies_config",
+        "test_snapshot_tolerates_missing_files",
+        "test_dependency_install_command_prefers_uv",
+        "test_run_update_dry_run_does_not_touch_anything",
+        "test_run_rollback_requires_confirmation_and_state",
+        "test_run_rollback_dry_run_plan",
+        "test_run_rollback_without_git_repo_raises",
+        "test_rollback_with_backup_path_but_no_commit",
+        "test_create_snapshot_fingerprints_and_copies_config",
+        "test_create_snapshot_records_missing_entries",
+        "test_dry_run_update_asks_for_the_plan_and_changes_nothing",
+        "test_run_update_happy_path_records_state",
+        "test_run_update_failure_marks_the_state_and_points_at_rollback",
+        "test_failed_health_check_can_auto_roll_back",
+        "test_dependency_install_command_falls_back_to_pip",
+        "test_dependency_install_command_without_a_venv_is_empty"
+      ]
+    },
+    {
+      "path": "tests/test_util.py",
+      "lines": 269,
+      "summary": "Unit tests for the shared helpers - the layer every other module leans on",
+      "tests": 28,
+      "names": [
+        "test_utcnow_is_timezone_aware_utc",
+        "test_parse_iso8601_accepts_common_forms",
+        "test_parse_iso8601_returns_none_for_garbage",
+        "test_hours_between_and_later_of",
+        "test_humanize_hours_in_both_languages",
+        "test_days_ago_is_before_now",
+        "test_iso_and_format_local_handle_none",
+        "test_json_round_trip",
+        "test_read_json_tolerates_missing_and_garbage",
+        "test_write_text_creates_parents",
+        "test_ensure_dir_is_idempotent",
+        "test_suppress_oserror_swallows_only_oserror",
+        "test_sha256_file_and_missing_path",
+        "test_dir_size_bytes_and_disk_free",
+        "test_human_bytes_units",
+        "test_run_process_success_captures_output",
+        "test_run_process_failure_does_not_raise",
+        "test_run_process_reports_missing_binary",
+        "test_run_process_empty_command",
+        "test_run_process_times_out_cleanly",
+        "test_run_process_truncates_huge_output",
+        "test_procresult_properties",
+        "test_wrap_command_is_a_noop_off_windows",
+        "test_wrap_command_handles_windows_launchers",
+        "test_resolve_executable_finds_python_and_respects_extra_dirs",
+        "test_platform_summary_shape",
+        "test_unique_preserve_order_and_clamp",
+        "test_degradation_defaults"
+      ]
+    },
+    {
+      "path": "tests/test_versioning.py",
+      "lines": 125,
+      "summary": "Version parsing/comparison tests - the part that must never be wrong",
+      "tests": 12,
+      "names": [
+        "test_parse_version_output_real_layout",
+        "test_parse_version_output_legacy_layout",
+        "test_parse_version_output_unparseable",
+        "test_parse_version_variants",
+        "test_compare_versions_and_prereleases",
+        "test_calver_tags",
+        "test_classify_bump",
+        "test_feature_release_detection",
+        "test_prerelease_text",
+        "test_extract_and_latest",
+        "test_versions_between",
+        "test_calver_parametrised"
+      ]
+    },
+    {
+      "path": "tests/test_watch.py",
+      "lines": 194,
+      "summary": "Watch-mode delta tests: only meaningful transitions may notify",
+      "tests": 14,
+      "names": [
+        "test_first_run_is_silent_by_default",
+        "test_first_run_notifies_when_configured",
+        "test_new_release_notifies",
+        "test_same_band_score_wobble_is_silent",
+        "test_risk_band_change_notifies",
+        "test_new_hard_gate_notifies",
+        "test_cleared_hard_gate_notifies",
+        "test_new_critical_regression_notifies",
+        "test_resolved_critical_regression_notifies",
+        "test_channel_change_notifies",
+        "test_wait_to_update_notifies",
+        "test_confidence_bucket_change_notifies",
+        "test_min_interval_throttles",
+        "test_confidence_bucket_boundaries"
+      ]
+    }
+  ],
+  "totals": {
+    "modules": 28,
+    "lines": 11245,
+    "tests": 341
+  }
+}

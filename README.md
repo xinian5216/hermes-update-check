@@ -45,6 +45,7 @@ irm https://raw.githubusercontent.com/xinian5216/hermes-update-check/main/instal
 15. [安全边界（明确说明）](#十四安全边界)
 16. [隐私与密钥](#十六隐私与密钥公开仓库的三道防线)
 17. [测试与开发](#十五测试与开发)
+18. [代码索引与开发规范](#十七代码索引与开发规范给-ai-agent-用)
 
 ---
 
@@ -73,6 +74,8 @@ hermes-update-check/
 ├── scripts/scan_secrets.py        # 发布前密钥/隐私扫描（pre-commit 钩子 + CI 都调它）
 ├── CHANGELOG.md                   # 版本变更记录
 ├── SECURITY.md                    # 安全策略：不存密钥、如何报告问题、仓库如何保持干净
+├── AGENTS.md                      # 给 AI agent 的约定与开发循环
+├── docs/CODE_MAP.md, index.json   # 自动生成的代码索引（scripts/build_index.py）
 ├── README.md
 ├── LICENSE
 ├── src/hermes_update_check/
@@ -849,7 +852,7 @@ fi
 
 ```bash
 uv venv .venv && uv pip install -e ".[dev]" --python .venv/bin/python
-.venv/bin/python -m pytest -q          # 301 个测试，全部离线：不需要网络、不碰真实 Hermes 安装
+.venv/bin/python -m pytest -q          # 406 个测试（341 个函数），全部离线：不用网络、不碰真实安装
 .venv/bin/python -m pytest -q tests/test_provenance.py tests/test_gates.py tests/test_advisor.py
 ```
 
@@ -905,6 +908,40 @@ python scripts/scan_secrets.py --all-history    # 全部 git 历史对象
 命中时退出码为 1，输出**脱敏**片段（只留前几个字符），全文只打印规则名与行号。
 
 `examples/` 里的示例是**脱敏后的真实输出**：安装路径替换为 `/opt/hermes`、`/home/hermes`，本地修改文件名单替换为占位符。发布新示例前请先跑一遍扫描。
+
+---
+
+## 十七、代码索引与开发规范（给 AI agent 用）
+
+改这个项目时**不要一上来就通读全部源码**——先读索引，再按需打开文件：
+
+| 文件 | 内容 | 生成方式 |
+|---|---|---|
+| [`AGENTS.md`](AGENTS.md) | 项目铁律（5 条不可破坏的不变量）、目录速查、开发循环、约定 | 手写 |
+| [`docs/CODE_MAP.md`](docs/CODE_MAP.md) | 每个模块的一句话职责 + 公开类/函数/常量 + **行号** + CLI 命令表 + 测试清单 | `scripts/build_index.py` |
+| [`docs/index.json`](docs/index.json) | 同上，机器可读（模块 / 符号 / 签名 / 测试名） | 同上 |
+
+```bash
+python scripts/build_index.py           # 改完代码后重新生成
+python scripts/build_index.py --check   # 只校验是否过期（CI 用，过期即失败）
+```
+
+索引由 `ast` 从源码分析生成，**不会和代码脱节**：CI 里 `--check` 会拦住忘记更新的提交。
+
+### 开发循环（本地 = CI 同一套门槛）
+
+```bash
+python -m pytest -q                                   # 406 个测试（341 个函数），离线
+python -m pytest --cov --cov-fail-under=80            # 覆盖率门槛（当前 83%）
+ruff check .                                          # lint（0 findings 才能过）
+ruff format --check .                                 # 格式检查（如需改写：ruff format .）
+python scripts/scan_secrets.py --staged               # 提交前脱敏扫描（钩子已自动执行）
+python scripts/build_index.py                         # 公开接口有变动时
+```
+
+发布流程：改 `pyproject.toml` + `src/hermes_update_check/__init__.py` 的版本号 →
+更新 `CHANGELOG.md` → 打 tag `vX.Y.Z` → `gh release create`（Release 页面附带
+`uv build` 生成的 wheel 与 sdist）。
 
 ---
 

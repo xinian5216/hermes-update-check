@@ -8,6 +8,12 @@ semantic versioning.
 
 ### Added
 
+* **Code index for agents** (`AGENTS.md`, `docs/CODE_MAP.md`, `docs/index.json`,
+  `scripts/build_index.py`): every module's purpose, public symbols and line numbers,
+  generated from the source with `ast` and verified in CI (`--check`), so an agent can
+  find its way without reading the whole tree.
+* **Quality gates in CI**: `ruff check` + `ruff format --check` and a coverage floor
+  (`--cov-fail-under=80`, currently 83%) on the Ubuntu/Python 3.12 leg.
 * **Code provenance** (`provenance.py`, `channel`): the tool no longer trusts
   `hermes --version` alone. It reports branch / commit / nearest release tag /
   ahead-behind counts / dirty worktree and classifies the install as `STABLE`,
@@ -45,6 +51,8 @@ semantic versioning.
 
 ### Changed
 
+* The whole codebase is formatted with `ruff format` (no behaviour change) and now
+  lints clean under the configured rule set.
 * Missing data never lowers risk any more: unknown parts count at a floor, the
   score is published as a lower bound, and an incomplete observation window makes
   the verdict degrade to `WAIT — INSUFFICIENT OBSERVATION DATA`.
@@ -53,6 +61,8 @@ semantic versioning.
 
 ### Fixed
 
+* Dead code removed (unused imports/variables) as found by the new lint gate; the
+  `UNKNOWN_REGRESSION_FLOOR` re-export is now explicit so the public surface is stable.
 * Printing Chinese help text or a report on a Windows console with a legacy code
   page (cp1252/cp936) raised `UnicodeEncodeError` and exited 1; the CLI now
   switches the console to UTF-8 and reconfigures its streams with
