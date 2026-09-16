@@ -236,8 +236,11 @@ def test_wrap_command_handles_windows_launchers(monkeypatch: pytest.MonkeyPatch)
     assert wrap_command(["native.exe"]) == ["native.exe"]
 
 
-def test_resolve_executable_finds_python_and_respects_extra_dirs(tmp_path: Path) -> None:
-    assert resolve_executable(Path(sys.executable).name) is not None
+def test_resolve_executable_finds_real_and_fake_tools(tmp_path: Path) -> None:
+    # the interpreter's own directory is passed explicitly, so this holds even when
+    # PATH is minimal (CI containers) or the tests run from a stripped environment
+    exe_dir = Path(sys.executable).parent
+    assert resolve_executable(Path(sys.executable).name, extra_dirs=[exe_dir]) is not None
     assert resolve_executable("definitely-not-a-binary-xyz") is None
 
     fake_dir = tmp_path / "bin"

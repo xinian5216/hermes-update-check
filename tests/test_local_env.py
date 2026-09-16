@@ -7,6 +7,7 @@ stubbed ``run_process`` - so no test depends on what is installed locally.
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -45,6 +46,12 @@ def stub_process(
         return ProcResult(cmd=[str(c) for c in cmd], returncode=returncode, stdout=output, error=error)
 
     monkeypatch.setattr("hermes_update_check.local_env.run_process", fake_run)
+    # the CLI lookup must not depend on whether the machine running the tests happens to
+    # have `hermes` installed - it does on the author's box, it does not on CI runners
+    monkeypatch.setattr(
+        "hermes_update_check.local_env.resolve_executable",
+        lambda name, **kwargs: "/usr/local/bin/hermes" if name == "hermes" else None,
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -162,6 +169,7 @@ def _git_repo(path: Path) -> Path:
     return path
 
 
+@pytest.mark.skipif(shutil.which("git") is None, reason="git is required for this test")
 def test_detect_git_state_on_a_real_repository(tmp_path: Path) -> None:
     repo = _git_repo(tmp_path / "repo")
     state = detect_git_state(repo)
@@ -175,6 +183,7 @@ def test_detect_git_state_on_a_real_repository(tmp_path: Path) -> None:
     assert state.error is None
 
 
+@pytest.mark.skipif(shutil.which("git") is None, reason="git is required for this test")
 def test_detect_git_state_sees_uncommitted_changes(tmp_path: Path) -> None:
     repo = _git_repo(tmp_path / "repo2")
     (repo / "file.txt").write_text("changed\n", encoding="utf-8")

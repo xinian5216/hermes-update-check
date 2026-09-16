@@ -574,7 +574,7 @@ _no public symbols_
 | [`tests/test_gates.py`](../tests/test_gates.py) | 20 | 370 | Hard-gate tests: gates must override a low score and never be bypassed silently |
 | [`tests/test_github_api.py`](../tests/test_github_api.py) | 12 | 215 | GitHub payload parsing tests (fixtures only - no network) |
 | [`tests/test_http_cache.py`](../tests/test_http_cache.py) | 10 | 118 | HTTP layer tests: cache TTL, stale fallback, failure handling (no external network) |
-| [`tests/test_local_env.py`](../tests/test_local_env.py) | 19 | 271 | Environment-detection tests: the layer that reads the *real* machine |
+| [`tests/test_local_env.py`](../tests/test_local_env.py) | 19 | 280 | Environment-detection tests: the layer that reads the *real* machine |
 | [`tests/test_notify.py`](../tests/test_notify.py) | 14 | 257 | Notification-channel tests: payload shape, failure handling, no secret leakage |
 | [`tests/test_preflight_health.py`](../tests/test_preflight_health.py) | 13 | 184 | Preflight and health-check tests (local filesystem only) |
 | [`tests/test_provenance.py`](../tests/test_provenance.py) | 16 | 274 | Code provenance tests: the five cases from the design brief, plus the rest |
@@ -584,6 +584,6 @@ _no public symbols_
 | [`tests/test_scan_secrets.py`](../tests/test_scan_secrets.py) | 14 | 220 | Tests for the secret/privacy scanner - the guard needs its own guard |
 | [`tests/test_state.py`](../tests/test_state.py) | 9 | 130 | State persistence tests: update_state.json and watch_state.json |
 | [`tests/test_updater.py`](../tests/test_updater.py) | 19 | 344 | Updater mechanics: command building, snapshots, dry runs (nothing is executed) |
-| [`tests/test_util.py`](../tests/test_util.py) | 28 | 269 | Unit tests for the shared helpers - the layer every other module leans on |
+| [`tests/test_util.py`](../tests/test_util.py) | 28 | 272 | Unit tests for the shared helpers - the layer every other module leans on |
 | [`tests/test_versioning.py`](../tests/test_versioning.py) | 12 | 125 | Version parsing/comparison tests - the part that must never be wrong |
 | [`tests/test_watch.py`](../tests/test_watch.py) | 14 | 194 | Watch-mode delta tests: only meaningful transitions may notify |

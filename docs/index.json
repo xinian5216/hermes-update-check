@@ -3101,7 +3101,7 @@
     },
     {
       "path": "tests/test_local_env.py",
-      "lines": 271,
+      "lines": 280,
       "summary": "Environment-detection tests: the layer that reads the *real* machine",
       "tests": 19,
       "names": [
@@ -3330,7 +3330,7 @@
     },
     {
       "path": "tests/test_util.py",
-      "lines": 269,
+      "lines": 272,
       "summary": "Unit tests for the shared helpers - the layer every other module leans on",
       "tests": 28,
       "names": [
@@ -3358,7 +3358,7 @@
         "test_procresult_properties",
         "test_wrap_command_is_a_noop_off_windows",
         "test_wrap_command_handles_windows_launchers",
-        "test_resolve_executable_finds_python_and_respects_extra_dirs",
+        "test_resolve_executable_finds_real_and_fake_tools",
         "test_platform_summary_shape",
         "test_unique_preserve_order_and_clamp",
         "test_degradation_defaults"
