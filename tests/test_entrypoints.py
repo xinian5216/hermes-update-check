@@ -7,7 +7,9 @@ the module form, and every module logs through the configured logger).
 
 from __future__ import annotations
 
+import json
 import logging
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -33,6 +35,34 @@ def test_module_entrypoint_shows_help() -> None:
     result = _run("--help")
     assert result.returncode == 0
     assert "usage" in result.stdout.lower()
+
+
+def test_help_survives_a_legacy_console_encoding() -> None:
+    """Regression (found by the Windows CI job): cp1252 consoles cannot encode the
+    Chinese help text, and printing it raised UnicodeEncodeError -> exit 1."""
+    env = {**os.environ, "PYTHONIOENCODING": "cp1252"}
+    result = subprocess.run(
+        [sys.executable, "-m", "hermes_update_check", "--help"],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "usage" in result.stdout.lower()
+
+
+def test_json_output_survives_a_legacy_console_encoding(tmp_path: Path) -> None:
+    """Machine-readable output must stay parseable regardless of console locale."""
+    env = {**os.environ, "PYTHONIOENCODING": "cp1252"}
+    result = subprocess.run(
+        [sys.executable, "-m", "hermes_update_check", "--json", "config", "show"],
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=str(tmp_path),
+    )
+    assert result.returncode == 0, result.stderr
+    json.loads(result.stdout)
 
 
 def test_module_entrypoint_rejects_unknown_command() -> None:

@@ -53,6 +53,12 @@ semantic versioning.
 
 ### Fixed
 
+* Printing Chinese help text or a report on a Windows console with a legacy code
+  page (cp1252/cp936) raised `UnicodeEncodeError` and exited 1; the CLI now
+  switches the console to UTF-8 and reconfigures its streams with
+  `errors="replace"`, so output degrades gracefully instead of crashing.
+  * Found by the new CI installer job, which runs the tool under a plain
+    PowerShell console after installing it.
 * Date-style release tags (`v2026.9.14`) are no longer compared as versions.
 * The local commit is compared against the release tag (a checkout can be *behind*
   the tag while the remote branch is hundreds of commits ahead).

@@ -149,7 +149,35 @@ def build_parser() -> argparse.ArgumentParser:
 # --------------------------------------------------------------------------- #
 
 
+def make_output_encoding_safe() -> None:
+    """Never crash on a console that cannot represent the text we print.
+
+    Windows consoles default to a legacy code page (cp1252, cp936, ...), where
+    printing Chinese help text or a Chinese report raises ``UnicodeEncodeError``
+    and kills the process. Prefer UTF-8 (that is what CI logs, pipes and editors
+    expect), and fall back to ``errors="replace"`` so the worst case is a few
+    replacement characters instead of a traceback. Found by the Windows CI job.
+    """
+    if sys.platform == "win32":
+        try:  # make the console itself UTF-8 so the characters actually render
+            import ctypes
+
+            ctypes.windll.kernel32.SetConsoleOutputCP(65001)
+            ctypes.windll.kernel32.SetConsoleCP(65001)
+        except Exception:  # pragma: no cover - console-less/odd environments
+            pass
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
+        except Exception:  # pragma: no cover - not a TextIOWrapper
+            try:
+                stream.reconfigure(errors="replace")  # type: ignore[union-attr]
+            except Exception:
+                pass
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
+    make_output_encoding_safe()
     parser = build_parser()
     args = parser.parse_args(argv)
     command = args.command or "check"
