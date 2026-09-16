@@ -1,7 +1,17 @@
 # hermes-update-check
 
+[![CI](https://github.com/xinian5216/hermes-update-check/actions/workflows/ci.yml/badge.svg)](https://github.com/xinian5216/hermes-update-check/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/xinian5216/hermes-update-check)](https://github.com/xinian5216/hermes-update-check/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](pyproject.toml)
+[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](pyproject.toml)
+[![Tests: 409 offline](https://img.shields.io/badge/tests-409%20offline-brightgreen.svg)](AGENTS.md)
+
 > **先检查 → 再评估 → 给建议 → 你确认 → 才更新。**
 > 这个工具永远不会自己更新 Hermes。
+
+最新发布：**v1.1.0**（[Release 页](https://github.com/xinian5216/hermes-update-check/releases/latest)附带 wheel 与 sdist，
+可直接 `pip install` 安装，无需 git 与 curl 脚本）。
 
 面向 [Hermes Agent](https://github.com/NousResearch/hermes-agent) 的「更新检测与风险评估」工具，用来避免因为盲目更新导致的
 严重 Bug、配置损坏、Session 数据异常、Gateway 故障和兼容性问题。
@@ -208,7 +218,26 @@ irm https://raw.githubusercontent.com/xinian5216/hermes-update-check/main/instal
 > Windows 上把第 2、4、5 步的路径换成 `.venv\Scripts\python.exe` 与
 > `.venv\Scripts\hermes-update-check.exe`，或者直接用上面的 `install.ps1`。
 
-### 方式 C：手动安装（uv / pip）
+### 方式 C：从 Release 安装（不用 git、不用一键脚本）
+
+每个版本都会在 [Release 页](https://github.com/xinian5216/hermes-update-check/releases/latest)
+附带构建好的 wheel 与 sdist，适合内网、离线镜像或想固定版本的场景：
+
+```bash
+# 文件名里带版本号，换版本时把 1.1.0 改掉即可
+pip install "https://github.com/xinian5216/hermes-update-check/releases/download/v1.1.0/hermes_update_check-1.1.0-py3-none-any.whl"
+hermes-update-check --version
+```
+
+也可以先下载再用本机工具装（`pipx install ./hermes_update_check-1.1.0-py3-none-any.whl`）。
+装完就是同一个命令，`check` / `report` / `watch` 全都能用。两点要知道：
+
+* `update` 只是替你调用 **Hermes 自身的** `hermes update`（本工具从不自己改 Hermes），
+  所以和 Hermes 是不是 Git 安装无关；
+* `rollback` 需要 **Hermes 本身**是 Git 安装 —— 它用 `git checkout <commit>` + 重装依赖回退；
+  如果 Hermes 是 pip/uv 安装，它会明确报错（`... is not a git checkout`）而不是乱试。
+
+### 方式 D：手动安装（uv / pip）
 
 ```bash
 # uv（推荐）
@@ -852,7 +881,7 @@ fi
 
 ```bash
 uv venv .venv && uv pip install -e ".[dev]" --python .venv/bin/python
-.venv/bin/python -m pytest -q          # 406 个测试（341 个函数），全部离线：不用网络、不碰真实安装
+.venv/bin/python -m pytest -q          # 409 个测试（344 个函数），全部离线：不用网络、不碰真实安装
 .venv/bin/python -m pytest -q tests/test_provenance.py tests/test_gates.py tests/test_advisor.py
 ```
 
@@ -931,7 +960,7 @@ python scripts/build_index.py --check   # 只校验是否过期（CI 用，过�
 ### 开发循环（本地 = CI 同一套门槛）
 
 ```bash
-python -m pytest -q                                   # 406 个测试（341 个函数），离线
+python -m pytest -q                                   # 409 个测试（344 个函数），离线
 python -m pytest --cov --cov-fail-under=80            # 覆盖率门槛（当前 83%）
 ruff check .                                          # lint（0 findings 才能过）
 ruff format --check .                                 # 格式检查（如需改写：ruff format .）
@@ -939,9 +968,14 @@ python scripts/scan_secrets.py --staged               # 提交前脱敏扫描（
 python scripts/build_index.py                         # 公开接口有变动时
 ```
 
-发布流程：改 `pyproject.toml` + `src/hermes_update_check/__init__.py` 的版本号 →
-更新 `CHANGELOG.md` → 打 tag `vX.Y.Z` → `gh release create`（Release 页面附带
-`uv build` 生成的 wheel 与 sdist）。
+发布流程（维护者）：
+
+1. 同时改 `pyproject.toml` 与 `src/hermes_update_check/__init__.py` 的版本号（有测试断言两者一致）；
+2. 在 `CHANGELOG.md` 写对应小节 —— 它会直接成为 Release 说明；
+3. 跑上面这套门槛，全绿后打 tag：`git tag -a vX.Y.Z -m "..." && git push origin vX.Y.Z`；
+4. `uv build` 生成 wheel/sdist，再 `gh release create vX.Y.Z --notes-file <CHANGELOG 小节> dist/*`；
+5. **像外人一样验收**：从 Release 页面下载 wheel → 在全新 venv 里 `pip install` → 运行
+   `hermes-update-check --version`。`gh release view` 只能证明发布存在，不能证明产物装得上。
 
 ---
 
