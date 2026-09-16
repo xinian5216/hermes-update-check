@@ -31,7 +31,8 @@ roll back.
 | path | what lives there |
 |---|---|
 | `src/hermes_update_check/` | the package (see `docs/CODE_MAP.md` for every module) |
-| `tests/` | 406 offline tests; fake GitHub client in `tests/conftest.py` |
+| `tests/` | 409 offline tests; fake GitHub client in `tests/conftest.py` |
+| `docs/CODE_MAP.md`, `docs/index.json` | generated code map for agents (see below) |
 | `scripts/build_index.py` | regenerates `docs/CODE_MAP.md` + `docs/index.json` |
 | `scripts/scan_secrets.py` | secret/privacy scanner (pre-commit hook + CI) |
 | `install.sh` / `install.ps1` | one-click installers |
@@ -56,7 +57,7 @@ Windows: the interpreter is at `.venv\Scripts\python.exe` and the command at
 ## The loop
 
 ```bash
-.venv/bin/python -m pytest -q                         # 406 tests, must stay green, offline
+.venv/bin/python -m pytest -q                         # 409 tests, must stay green, offline
 .venv/bin/python -m pytest --cov --cov-fail-under=80  # coverage gate (currently 83%)
 .venv/bin/python -m ruff check .                      # lint gate (0 findings)
 .venv/bin/python -m ruff format --check .             # formatting gate
@@ -67,6 +68,21 @@ Windows: the interpreter is at `.venv\Scripts\python.exe` and the command at
 Pre-push checklist: tests green · ruff lint+format clean · coverage ≥ 80% · index regenerated ·
 scanner clean · `CHANGELOG.md` updated for user-visible changes · version bumped for a
 release (`pyproject.toml` + `__init__.py`, then tag `vX.Y.Z`).
+
+## Cutting a release
+
+1. bump the version in **both** `pyproject.toml` and `src/hermes_update_check/__init__.py`
+   (a test asserts they match) and add the matching `CHANGELOG.md` section - that section
+   becomes the release notes;
+2. run the checklist above;
+3. `git tag -a vX.Y.Z -m "<one line>" && git push origin vX.Y.Z`;
+4. `uv build`, then
+   `gh release create vX.Y.Z --title "..." --notes-file <changelog section> dist/*`;
+5. verify the way a stranger would: download the wheel from the release URL, install it in
+   a fresh venv, run `hermes-update-check --version`. `gh release view` only proves the
+   release exists, not that the artifact installs.
+
+Currently released: **v1.1.0** (wheel + sdist attached).
 
 ## Conventions
 
