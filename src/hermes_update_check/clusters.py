@@ -16,9 +16,10 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Iterable, Optional
+from typing import Iterable, Optional, Sequence
 
 from .github_api import Issue
+from .usage_profile import affected_features, mentions_all_providers
 
 SEVERITY_CRITICAL = "CRITICAL"
 SEVERITY_HIGH = "HIGH"
@@ -41,6 +42,14 @@ SEVERITY_RANK = {SEVERITY_CRITICAL: 3, SEVERITY_HIGH: 2, SEVERITY_MEDIUM: 1, SEV
 
 #: Severity floor assigned to a cluster when issue data cannot be observed at all.
 UNKNOWN_REGRESSION_FLOOR = 25
+
+#: One issue that matches several clusters is counted fully in its primary cluster
+#: and only partially in the others, so a single root cause cannot be billed three
+#: times over (doc section 17: "primary 1.0 / secondary 0.4 / tertiary 0.2").
+CORRELATION_WEIGHTS: tuple[float, ...] = (1.0, 0.4, 0.2)
+
+#: Title-token overlap above which two issues are treated as the same root cause.
+DUPLICATE_SIMILARITY = 0.6
 
 
 @dataclass(frozen=True)
@@ -77,12 +86,20 @@ CLUSTER_SPECS: tuple[ClusterSpec, ...] = (
         en="Session data",
         base_severity=SEVERITY_HIGH,
         patterns=(
-            r"session[^.]{0,30}(lost|lost|missing|gone|corrupt|disappear|dropped)",
-            r"(lost|lost|missing|corrupt)[^.]{0,20}sessions?",
-            r"transcript[^.]{0,20}(lost|missing|corrupt)",
-            r"resume[^.]{0,20}(wrong|failed|lost)",
+            # data-loss semantics only: "session restore - missing AttributeError
+            # handling" is a bug, not a lost session, and must not grade CRITICAL
+            r"sessions?[^.]{0,25}(?:lost|wiped|deleted|destroyed|disappear|corrupt|unrecoverable)(?!\s+to\b)",
+            r"(?:lost|wiped|deleted|destroyed)\s+(?:all\s+|the\s+|my\s+|their\s+)?sessions?\b(?!\s+to\b)",
+            r"sessions?\s+(?:data|history|transcripts?|contents?)[^.]{0,25}(?:lost|missing|gone|wiped|corrupt)",
+            r"transcripts?[^.]{0,25}(?:lost|missing|corrupt|wiped)",
+            r"resume[^.]{0,20}(?:fail|error|cannot|broken|refus)",
         ),
-        critical_patterns=(r"\blost\b", r"\bmissing\b", r"corrupt", r"data loss"),
+        critical_patterns=(
+            r"sessions?[^.]{0,20}(?:lost|wiped|deleted|destroyed|unrecoverable)",
+            r"(?:lost|wiped|deleted|destroyed)\s+(?:all\s+|the\s+)?sessions?\b",
+            r"transcripts?[^.]{0,20}(?:lost|wiped)",
+            r"\bdata loss\b",
+        ),
     ),
     ClusterSpec(
         key="GATEWAY",
@@ -147,13 +164,16 @@ CLUSTER_SPECS: tuple[ClusterSpec, ...] = (
         en="Crash / process failure",
         base_severity=SEVERITY_HIGH,
         patterns=(
-            r"\bcrash(es|ed|ing)?\b",
+            # a bare "traceback" or "exit code N" is evidence *inside* a report, not a
+            # crash report: the noise in this repo made those match every discussion
+            r"\bcrash(?:es|ed|ing)?\b",
             r"\bsegfault\b",
-            r"\btraceback\b",
             r"\bpanic\b",
             r"\bcore dump\b",
             r"SIGTRAP",
-            r"exit code \d+",
+            r"fatal (?:error|exception)[^.]{0,30}(?:hermes|process|agent|app|cli)",
+            r"unhandled exception[^.]{0,25}(?:kills?|crashes?|exits?)",
+            r"process (?:dies?|exited unexpectedly|terminated without)",
         ),
         critical_patterns=(r"segfault", r"\bpanic\b", r"core dump", r"crash[- ]?dump"),
     ),
@@ -235,15 +255,33 @@ class RegressionCluster:
     samples: list[Issue] = field(default_factory=list)
     notes_zh: list[str] = field(default_factory=list)
     notes_en: list[str] = field(default_factory=list)
+    #: feature keys from the usage profile this cluster can affect (phase 3)
+    affected_features: list[str] = field(default_factory=list)
+    #: how many of ``reports`` describe a *distinct* root cause (duplicates collapsed)
+    root_causes: int = 0
+    #: one issue matching several clusters is only partially billed here
+    correlation_factor: float = 1.0
+    #: capped evidence text (titles + bodies) used for feature/provider attribution
+    evidence_text: str = ""
+
+    @property
+    def duplicate_reports(self) -> int:
+        return max(0, self.reports - self.root_causes) if self.root_causes else 0
 
     @property
     def contribution(self) -> float:
-        """0..1 contribution to the regression signal."""
+        """0..1 contribution to the regression signal.
+
+        Four independent dampers: severity, confidence, how many *independent*
+        reporters there are, and how much of the volume survives deduplication and
+        cluster correlation (one root cause must not be billed three times).
+        """
         severity_w = SEVERITY_WEIGHTS.get(self.severity, SEVERITY_WEIGHTS[SEVERITY_MEDIUM])
         confidence_w = CONFIDENCE_WEIGHTS.get(self.confidence, CONFIDENCE_WEIGHTS[CONFIDENCE_LOW])
         reporters = max(1, self.unique_reporters)
         report_w = min(1.0, 0.35 + 0.25 * (reporters - 1))
-        return round(severity_w * confidence_w * report_w, 4)
+        duplicate_factor = (self.root_causes / self.reports) if self.reports and self.root_causes else 1.0
+        return round(severity_w * confidence_w * report_w * duplicate_factor * self.correlation_factor, 4)
 
     @property
     def is_severe(self) -> bool:
@@ -290,6 +328,10 @@ class RegressionCluster:
             "mentions_version": self.mentions_version,
             "signatures": self.signatures,
             "contribution": self.contribution,
+            "affected_features": list(self.affected_features),
+            "root_causes": self.root_causes,
+            "duplicate_reports": self.duplicate_reports,
+            "correlation_factor": self.correlation_factor,
             "samples": [issue.to_dict() for issue in self.samples[:3]],
             "notes_zh": self.notes_zh,
             "notes_en": self.notes_en,
@@ -321,8 +363,21 @@ def cluster_keys_for(issue: Issue, *, include_body: bool = True) -> list[str]:
 
 
 def severity_for(key: str, text: str) -> str:
-    """Cluster severity, promoted to CRITICAL when the text says so."""
+    """Cluster severity, promoted to CRITICAL when the text says so.
+
+    Providers are special-cased (doc section 16): one broken provider is HIGH, no
+    matter how angrily it is reported - only a provider-*system* failure
+    (everything down, credentials corrupted) is CRITICAL.
+    """
     spec = CLUSTER_BY_KEY[key]
+    if key == "PROVIDER":
+        # doc section 16: one provider completely down is HIGH; a partial provider
+        # problem stays MEDIUM; only the provider *system* failing is CRITICAL.
+        if mentions_all_providers(text):
+            return SEVERITY_CRITICAL
+        if _PROVIDER_OUTAGE_RE.search(text or ""):
+            return SEVERITY_HIGH
+        return SEVERITY_MEDIUM
     for pattern in _CRITICAL_COMPILED.get(key, []):
         if pattern.search(text):
             return SEVERITY_CRITICAL
@@ -379,6 +434,62 @@ def _text_of(issue: Issue) -> str:
     return f"{issue.title}\n{issue.body or ''}"
 
 
+def _signature_tokens(title: str) -> set[str]:
+    return set(_title_signature(title).split())
+
+
+def _jaccard(left: set[str], right: set[str]) -> float:
+    if not left or not right:
+        return 0.0
+    return len(left & right) / len(left | right)
+
+
+#: Wording that marks an issue as a copy of another one.
+_DUPLICATE_TEXT_MARKERS = ("duplicate of", "dup of", "duplicate:", "duplicate #", "same as #", "same issue as")
+
+#: Wording that means "this provider is completely gone" (as opposed to one model).
+_PROVIDER_OUTAGE_RE = re.compile(
+    r"\bcompletely\b|\bunusable\b|\boutage\b|\btotally\b|not work\w*\s+at\s+all|"
+    r"(?:provider|api|model|endpoint)[^.]{0,25}\b(?:down|dead|offline)\b",
+    re.IGNORECASE,
+)
+
+
+def _is_duplicate(issue: Issue, canonical: Issue) -> bool:
+    """Same root cause? Explainable heuristics only - no NLP, no guessing."""
+    text = _text_of(issue).lower()
+    canonical_text = _text_of(canonical).lower()
+    if any(marker in text for marker in _DUPLICATE_TEXT_MARKERS) and f"#{canonical.number}" in text:
+        return True
+    if any(marker in canonical_text for marker in _DUPLICATE_TEXT_MARKERS) and f"#{issue.number}" in canonical_text:
+        return True
+    if any(str(label).lower() == "duplicate" for label in issue.labels) and _jaccard(
+        _signature_tokens(issue.title), _signature_tokens(canonical.title)
+    ) > 0.3:
+        return True
+    if _title_signature(issue.title) == _title_signature(canonical.title):
+        return True
+    return _jaccard(_signature_tokens(issue.title), _signature_tokens(canonical.title)) >= DUPLICATE_SIMILARITY
+
+
+def _collapse_duplicates(members: Sequence[Issue]) -> tuple[int, list[tuple[int, list[int]]]]:
+    """Group issues that describe the same root cause.
+
+    Returns ``(root_cause_count, [(canonical_number, [duplicate numbers]), ...])``.
+    """
+    ordered = sorted(members, key=lambda issue: issue.number)
+    groups: list[tuple[Issue, list[Issue]]] = []
+    for issue in ordered:
+        for canonical, dupes in groups:
+            if _is_duplicate(issue, canonical):
+                dupes.append(issue)
+                break
+        else:
+            groups.append((issue, []))
+    duplicates = [(canonical.number, [dupe.number for dupe in dupes]) for canonical, dupes in groups if dupes]
+    return len(groups), duplicates
+
+
 def build_clusters(
     issues: Iterable[Issue],
     *,
@@ -386,12 +497,25 @@ def build_clusters(
     release_version: Optional[str] = None,
     release_tag: Optional[str] = None,
 ) -> list[RegressionCluster]:
-    """Grade every cluster found in the scanned issues."""
+    """Grade every cluster found in the scanned issues.
+
+    An issue that matches several clusters is counted fully in its primary cluster
+    (the most severe reading for that issue, catalogue order breaking ties) and only
+    partially in the others - see :data:`CORRELATION_WEIGHTS`.
+    """
     enrichment = enrichment or {}
     grouped: dict[str, list[Issue]] = {spec.key: [] for spec in CLUSTER_SPECS}
+    correlation: dict[str, list[float]] = {spec.key: [] for spec in CLUSTER_SPECS}
+    spec_order = {spec.key: index for index, spec in enumerate(CLUSTER_SPECS)}
     for issue in issues:
-        for key in cluster_keys_for(issue):
+        keys = cluster_keys_for(issue)
+        if not keys:
+            continue
+        text = _text_of(issue)
+        ordered = sorted(keys, key=lambda key: (-SEVERITY_RANK.get(severity_for(key, text), 0), spec_order[key]))
+        for position, key in enumerate(ordered):
             grouped[key].append(issue)
+            correlation[key].append(CORRELATION_WEIGHTS[min(position, len(CORRELATION_WEIGHTS) - 1)])
 
     clusters: list[RegressionCluster] = []
     for spec in CLUSTER_SPECS:
@@ -405,6 +529,7 @@ def build_clusters(
                 enrichment=enrichment,
                 release_version=release_version,
                 release_tag=release_tag,
+                correlation_weights=correlation.get(spec.key) or (),
             )
         )
     clusters.sort(key=lambda c: (SEVERITY_RANK.get(c.severity, 0), c.contribution), reverse=True)
@@ -418,6 +543,7 @@ def _grade_cluster(
     enrichment: dict[int, IssueEnrichment],
     release_version: Optional[str],
     release_tag: Optional[str],
+    correlation_weights: Sequence[float] = (),
 ) -> RegressionCluster:
     reports = len(members)
     authors = {(issue.author or "").strip().lower() for issue in members if issue.author}
@@ -477,6 +603,32 @@ def _grade_cluster(
         notes_zh.append(f"{maintainer_replies} 个 Issue 有 maintainer 参与回复")
         notes_en.append(f"{maintainer_replies} issue(s) have maintainer replies")
 
+    # -- phase 3: duplicates, correlation discount, feature attribution -------- #
+    root_causes, duplicate_groups = _collapse_duplicates(members)
+    if root_causes < reports:
+        collapsed = reports - root_causes
+        listing = "、".join(f"#{canonical}(+{len(dupes)})" for canonical, dupes in duplicate_groups)
+        notes_zh.append(f"疑似重复报告 {collapsed} 个，按 {root_causes} 个独立根因计分（{listing}）")
+        notes_en.append(
+            f"{collapsed} report(s) look like duplicates; scored as {root_causes} root cause(s) ({listing})"
+        )
+
+    correlation_factor = (
+        round(sum(correlation_weights) / len(correlation_weights), 4) if correlation_weights else 1.0
+    )
+    if correlation_factor < 0.95:
+        notes_zh.append(f"这些 Issue 同时命中其他类别：本类按 {correlation_factor:.2f} 折算，避免同一根因重复计分")
+        notes_en.append(
+            f"these issues also match other classes: billed at {correlation_factor:.2f} here to avoid double counting"
+        )
+
+    evidence = "\n".join(_text_of(issue) for issue in members)
+    titles = "\n".join(issue.title for issue in members)
+    features = affected_features(spec.key, evidence, titles=titles)
+    if spec.key == "PROVIDER" and severity != SEVERITY_CRITICAL:
+        notes_zh.append("单个 Provider 故障按 HIGH 处理（只有全体 Provider / 凭证体系故障才是 CRITICAL）")
+        notes_en.append("a single provider outage is HIGH; only a provider-system or credential failure is CRITICAL")
+
     return RegressionCluster(
         key=spec.key,
         zh=spec.zh,
@@ -494,6 +646,10 @@ def _grade_cluster(
         samples=sorted(members, key=lambda i: (i.state.lower() != "open", -i.comments))[:3],
         notes_zh=notes_zh,
         notes_en=notes_en,
+        affected_features=features,
+        root_causes=root_causes,
+        correlation_factor=correlation_factor,
+        evidence_text=evidence[:8000],
     )
 
 

@@ -113,6 +113,9 @@ class WatchState:
     last_critical_clusters: list[str] = field(default_factory=list)
     last_confidence_bucket: Optional[str] = None
     last_overall_level: Optional[str] = None
+    # -- phase 3 -------------------------------------------------------------- #
+    last_critical_features: list[str] = field(default_factory=list)
+    last_personal_action: Optional[str] = None
 
     MAX_HISTORY = 60
 
@@ -128,6 +131,8 @@ class WatchState:
         gate_blocks: Optional[list[str]] = None,
         critical_clusters: Optional[list[str]] = None,
         confidence: Optional[int] = None,
+        critical_features: Optional[list[str]] = None,
+        personal_action: Optional[str] = None,
     ) -> None:
         self.last_checked_at = iso(utcnow())
         self.last_latest_tag = tag
@@ -144,6 +149,10 @@ class WatchState:
             self.last_critical_clusters = list(critical_clusters)
         if confidence is not None:
             self.last_confidence_bucket = confidence_bucket(confidence)
+        if critical_features is not None:
+            self.last_critical_features = list(critical_features)
+        if personal_action is not None:
+            self.last_personal_action = personal_action
         entry = {
             "checked_at": self.last_checked_at,
             "tag": tag,

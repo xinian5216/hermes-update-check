@@ -19,6 +19,7 @@ from typing import Any, Mapping, MutableMapping
 
 from . import TOOL_NAME
 from .errors import ConfigError
+from .usage_profile import UsageProfile
 
 try:  # pragma: no cover - environment dependent
     import yaml
@@ -33,7 +34,7 @@ CONFIG_ENV_VAR = ENV_PREFIX + "CONFIG"
 
 DEFAULTS: dict[str, Any] = {
     "risk_threshold": 40,
-    "minimum_release_age_days": 5,
+    "minimum_release_age_days": 0,
     "auto_update": False,
     "backup_before_update": True,
     "check_github_issues": True,
@@ -55,15 +56,37 @@ DEFAULTS: dict[str, Any] = {
     "paths": {"hermes_home": None, "state_dir": None},
     "hard_gates": {
         "enabled": True,
-        "minimum_release_age_hours": 48,
-        "block_main_branch_update": True,
-        "block_dirty_worktree": True,
-        "block_prerelease": True,
-        "block_active_database_regression": True,
-        "block_active_session_regression": True,
-        "block_active_gateway_regression": False,
-        "block_active_update_failure": True,
+        # phase 3: only these five things still block (see docs/README section 六)
+        "block_on_systemic_risk": True,
+        "block_on_critical_workflow": True,
+        "block_on_rollback_safety": True,
         "block_on_insufficient_data": True,
+        # local safety, not release quality - still a blocker by default
+        "block_dirty_worktree": True,
+        # phase 3: demoted to warnings (set true only if you want the old behaviour)
+        "block_main_branch_update": False,
+        "block_prerelease": False,
+        "warn_active_gateway_regression": True,
+        "warn_active_mcp_regression": True,
+        "warn_active_provider_regression": True,
+        "warn_active_auth_regression": True,
+        "warn_active_crash_regression": True,
+    },
+    "release_age_policy": {
+        "block_hours": 6,
+        "caution_hours": 12,
+        "acceptable_hours": 24,
+    },
+    "smoke_tests": {
+        "cli_start": True,
+        "session_open": True,
+        "config_load": True,
+        "gateway": False,
+        "mcp_load": False,
+    },
+    "usage_profile": {
+        "features": {},
+        "providers": {},
     },
     "update": {
         "branch": "main",
@@ -96,6 +119,30 @@ DEFAULTS: dict[str, Any] = {
 }
 
 
+#: Phase-2 keys that are still *accepted* (and reported as deprecated) but are no
+#: longer part of the active defaults. Keeping them in the schema means an old config
+#: loads without "unknown key" noise (doc section 27).
+LEGACY_KEYS: dict[str, Any] = {
+    "hard_gates": {
+        "minimum_release_age_hours": None,
+        "block_active_database_regression": None,
+        "block_active_session_regression": None,
+        "block_active_gateway_regression": None,
+        "block_active_update_failure": None,
+    },
+}
+
+
+def _config_schema() -> dict[str, Any]:
+    """DEFAULTS plus the legacy keys - used only for the unknown-key warning."""
+    schema = {key: (_copy_value(value) if isinstance(value, Mapping) else value) for key, value in DEFAULTS.items()}
+    for section, values in LEGACY_KEYS.items():
+        schema.setdefault(section, {})
+        if isinstance(schema[section], Mapping):
+            schema[section] = {**schema[section], **values}
+    return schema
+
+
 # --------------------------------------------------------------------------- #
 # dataclasses (typed view over the merged mapping)
 # --------------------------------------------------------------------------- #
@@ -113,18 +160,89 @@ class GitHubConfig:
 
 @dataclass
 class HardGateConfig:
-    """Rules that override the numeric risk score."""
+    """Which rules may still stop an update (phase 3 keeps this list short)."""
 
     enabled: bool = True
-    minimum_release_age_hours: float = 48.0
-    block_main_branch_update: bool = True
-    block_dirty_worktree: bool = True
-    block_prerelease: bool = True
-    block_active_database_regression: bool = True
-    block_active_session_regression: bool = True
-    block_active_gateway_regression: bool = False
-    block_active_update_failure: bool = True
+    # blocking
+    block_on_systemic_risk: bool = True
+    block_on_critical_workflow: bool = True
+    block_on_rollback_safety: bool = True
     block_on_insufficient_data: bool = True
+    block_dirty_worktree: bool = True
+    # warnings (caps the verdict at ACCEPTABLE)
+    block_main_branch_update: bool = False
+    block_prerelease: bool = False
+    warn_active_gateway_regression: bool = True
+    warn_active_mcp_regression: bool = True
+    warn_active_provider_regression: bool = True
+    warn_active_auth_regression: bool = True
+    warn_active_crash_regression: bool = True
+    # --- deprecated (phase 2) ------------------------------------------------
+    # These still load so an old config keeps working; the migration in
+    # `_migrate_legacy_gates` maps them onto the phase-3 switches and the report
+    # says what to change. `None` means "not present in the file".
+    minimum_release_age_hours: Optional[float] = None
+    block_active_database_regression: Optional[bool] = None
+    block_active_session_regression: Optional[bool] = None
+    block_active_gateway_regression: Optional[bool] = None
+    block_active_update_failure: Optional[bool] = None
+
+
+@dataclass
+class ReleaseAgePolicy:
+    """Segmented release-age policy (doc section 9).
+
+    ``< block_hours`` blocks, the caution band caps the verdict at ACCEPTABLE,
+    ``acceptable_hours`` marks the end of the caution zone. Anything older is
+    "normal" and is only reflected in Change Risk.
+    """
+
+    block_hours: float = 6.0
+    caution_hours: float = 12.0
+    acceptable_hours: float = 24.0
+
+    def band(self, age_hours: float) -> str:
+        if age_hours < self.block_hours:
+            return "block"
+        if age_hours < self.caution_hours:
+            return "caution"
+        if age_hours < self.acceptable_hours:
+            return "acceptable"
+        return "normal"
+
+    def to_dict(self) -> dict[str, float]:
+        return {
+            "block_hours": self.block_hours,
+            "caution_hours": self.caution_hours,
+            "acceptable_hours": self.acceptable_hours,
+        }
+
+
+@dataclass
+class SmokeTestConfig:
+    """Post-update smoke tests (doc section 20); all read-only by design."""
+
+    cli_start: bool = True
+    session_open: bool = True
+    config_load: bool = True
+    gateway: bool = False
+    mcp_load: bool = False
+
+    def enabled_tests(self) -> list[str]:
+        return [
+            name
+            for name in ("cli_start", "session_open", "config_load", "gateway", "mcp_load")
+            if getattr(self, name, False)
+        ]
+
+    def to_dict(self) -> dict[str, bool]:
+        return {
+            "cli_start": self.cli_start,
+            "session_open": self.session_open,
+            "config_load": self.config_load,
+            "gateway": self.gateway,
+            "mcp_load": self.mcp_load,
+        }
 
 
 @dataclass
@@ -216,6 +334,11 @@ class Config:
     logging: LoggingConfig = field(default_factory=LoggingConfig)
     risk: RiskWeights = field(default_factory=RiskWeights)
     hard_gates: HardGateConfig = field(default_factory=HardGateConfig)
+    release_age_policy: ReleaseAgePolicy = field(default_factory=ReleaseAgePolicy)
+    smoke_tests: SmokeTestConfig = field(default_factory=SmokeTestConfig)
+    usage_profile: UsageProfile = field(default_factory=UsageProfile)
+    #: deprecation notices produced while loading (shown by `config show`)
+    deprecated: list[str] = field(default_factory=list)
     # bookkeeping
     source_path: Path | None = None
     warnings: list[str] = field(default_factory=list)
@@ -458,16 +581,55 @@ def _build_config(data: Mapping[str, Any], warnings: list[str]) -> Config:
     hg = data.get("hard_gates") or {}
     cfg.hard_gates = HardGateConfig(
         enabled=bool(hg.get("enabled", True)),
-        minimum_release_age_hours=_as_float(hg.get("minimum_release_age_hours"), 48.0),
-        block_main_branch_update=bool(hg.get("block_main_branch_update", True)),
+        block_on_systemic_risk=bool(hg.get("block_on_systemic_risk", True)),
+        block_on_critical_workflow=bool(hg.get("block_on_critical_workflow", True)),
+        block_on_rollback_safety=bool(hg.get("block_on_rollback_safety", True)),
         block_dirty_worktree=bool(hg.get("block_dirty_worktree", True)),
-        block_prerelease=bool(hg.get("block_prerelease", True)),
-        block_active_database_regression=bool(hg.get("block_active_database_regression", True)),
-        block_active_session_regression=bool(hg.get("block_active_session_regression", True)),
-        block_active_gateway_regression=bool(hg.get("block_active_gateway_regression", False)),
-        block_active_update_failure=bool(hg.get("block_active_update_failure", True)),
+        block_main_branch_update=bool(hg.get("block_main_branch_update", False)),
+        block_prerelease=bool(hg.get("block_prerelease", False)),
+        warn_active_gateway_regression=bool(hg.get("warn_active_gateway_regression", True)),
+        warn_active_mcp_regression=bool(hg.get("warn_active_mcp_regression", True)),
+        warn_active_provider_regression=bool(hg.get("warn_active_provider_regression", True)),
+        warn_active_auth_regression=bool(hg.get("warn_active_auth_regression", True)),
+        warn_active_crash_regression=bool(hg.get("warn_active_crash_regression", True)),
         block_on_insufficient_data=bool(hg.get("block_on_insufficient_data", True)),
+        minimum_release_age_hours=(
+            _as_float(hg.get("minimum_release_age_hours"), 0.0) if "minimum_release_age_hours" in hg else None
+        ),
+        block_active_database_regression=(
+            bool(hg["block_active_database_regression"]) if "block_active_database_regression" in hg else None
+        ),
+        block_active_session_regression=(
+            bool(hg["block_active_session_regression"]) if "block_active_session_regression" in hg else None
+        ),
+        block_active_gateway_regression=(
+            bool(hg["block_active_gateway_regression"]) if "block_active_gateway_regression" in hg else None
+        ),
+        block_active_update_failure=(
+            bool(hg["block_active_update_failure"]) if "block_active_update_failure" in hg else None
+        ),
     )
+
+    policy = data.get("release_age_policy") or {}
+    cfg.release_age_policy = ReleaseAgePolicy(
+        block_hours=_as_float(policy.get("block_hours"), 6.0),
+        caution_hours=_as_float(policy.get("caution_hours"), 12.0),
+        acceptable_hours=_as_float(policy.get("acceptable_hours"), 24.0),
+    )
+
+    smoke = data.get("smoke_tests") or {}
+    cfg.smoke_tests = SmokeTestConfig(
+        cli_start=bool(smoke.get("cli_start", True)),
+        session_open=bool(smoke.get("session_open", True)),
+        config_load=bool(smoke.get("config_load", True)),
+        gateway=bool(smoke.get("gateway", False)),
+        mcp_load=bool(smoke.get("mcp_load", False)),
+    )
+
+    profile = data.get("usage_profile")
+    cfg.usage_profile = UsageProfile.from_dict(profile if isinstance(profile, Mapping) else None, warnings=warnings)
+
+    _migrate_legacy_config(cfg, data, warnings)
 
     net = data.get("network") or {}
     cfg.network = NetworkConfig(
@@ -533,7 +695,7 @@ def _build_config(data: Mapping[str, Any], warnings: list[str]) -> Config:
         bonus_cap=_as_float(risk.get("bonus_cap"), 15.0),
     )
 
-    _warn_unknown_keys(data, DEFAULTS, warnings, prefix="")
+    _warn_unknown_keys(data, _config_schema(), warnings, prefix="")
     return cfg
 
 
@@ -545,6 +707,60 @@ def _warn_unknown_keys(data: Mapping[str, Any], schema: Mapping[str, Any], warni
             continue
         if isinstance(value, Mapping) and isinstance(schema[key], Mapping):
             _warn_unknown_keys(value, schema[key], warnings, prefix=f"{dotted}.")
+
+
+def _migrate_legacy_config(cfg: Config, data: Mapping[str, Any], warnings: list[str]) -> None:
+    """Phase-2 keys keep working, but the user is told what replaced them.
+
+    Doc section 27: never error on an old config - migrate it and say so.
+    """
+    hg = data.get("hard_gates") or {}
+    notices: list[str] = []
+
+    age_hours = cfg.hard_gates.minimum_release_age_hours
+    if age_hours is not None:
+        if age_hours > 0:
+            cfg.release_age_policy.block_hours = min(float(age_hours), cfg.release_age_policy.caution_hours)
+        notices.append(
+            f"Deprecated: hard_gates.minimum_release_age_hours = {age_hours:g}\n"
+            f"  Use: release_age_policy (block_hours={cfg.release_age_policy.block_hours:g}, "
+            f"caution_hours={cfg.release_age_policy.caution_hours:g}, "
+            f"acceptable_hours={cfg.release_age_policy.acceptable_hours:g})\n"
+            "  A release is no longer blocked just for being young: under 6 h blocks, 6-12 h caps the verdict "
+            "at ACCEPTABLE, and beyond that the age only feeds Change Risk."
+        )
+    legacy_switches = (
+        ("block_active_database_regression", "block_on_systemic_risk", "systemic"),
+        ("block_active_session_regression", "block_on_systemic_risk", "systemic"),
+        ("block_active_update_failure", "block_on_systemic_risk", "systemic"),
+        ("block_active_gateway_regression", "warn_active_gateway_regression", "warning"),
+    )
+    for old_key, new_key, kind in legacy_switches:
+        if old_key not in hg:
+            continue
+        notices.append(f"Deprecated: hard_gates.{old_key}\n  Use: hard_gates.{new_key}")
+        if not bool(hg[old_key]):
+            # an explicit "false" is honoured: that class stops contributing
+            setattr(cfg.hard_gates, new_key, False)
+    if bool(hg.get("block_main_branch_update", False)):
+        notices.append(
+            "Note: hard_gates.block_main_branch_update = true keeps the phase-2 behaviour "
+            "(a main-branch checkout blocks the update). The phase-3 default is a warning."
+        )
+    if bool(hg.get("block_prerelease", False)):
+        notices.append(
+            "Note: hard_gates.block_prerelease = true keeps blocking prereleases; phase 3 only warns by default."
+        )
+    if cfg.minimum_release_age_days > 0 and "minimum_release_age_days" in data:
+        notices.append(
+            f"Deprecated: minimum_release_age_days = {cfg.minimum_release_age_days:g}\n"
+            "  Use: release_age_policy - the value no longer delays a recommendation by days; it now only caps "
+            "the verdict at ACCEPTABLE while the release is inside the window."
+        )
+
+    cfg.deprecated = notices
+    for notice in notices:
+        warnings.append(notice.splitlines()[0])
 
 
 def _validate(cfg: Config, warnings: list[str]) -> None:
@@ -572,6 +788,17 @@ def _validate(cfg: Config, warnings: list[str]) -> None:
         cfg.network.timeout_seconds = 15.0
     if cfg.network.retries < 0:
         cfg.network.retries = 0
+
+    policy = cfg.release_age_policy
+    if policy.block_hours < 0:
+        warnings.append("release_age_policy.block_hours < 0 makes no sense; using 0")
+        policy.block_hours = 0.0
+    if policy.caution_hours < policy.block_hours:
+        warnings.append("release_age_policy.caution_hours < block_hours; raising it to block_hours")
+        policy.caution_hours = policy.block_hours
+    if policy.acceptable_hours < policy.caution_hours:
+        warnings.append("release_age_policy.acceptable_hours < caution_hours; raising it to caution_hours")
+        policy.acceptable_hours = policy.caution_hours
 
 
 def _as_int(value: Any, default: int) -> int:

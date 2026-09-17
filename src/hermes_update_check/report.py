@@ -1,14 +1,17 @@
 """Report rendering: the human-readable answer, in Chinese or English.
 
-Layout (phase 2):
+Layout (phase 3): the global risk is background, the personal reading decides.
 
     LOCAL INSTALLATION   - code provenance: channel, branch, commit, ahead/behind
     LATEST STABLE        - the release on GitHub
     UPDATE STATUS        - is an update even the right question?
-    RISK                 - Change Risk / Regression Signal / Data Confidence / Overall
-    HARD GATES           - BLOCK / WARN rules that override the score
-    REGRESSION SIGNALS   - graded clusters (severity x independence x corroboration)
-    RECOMMENDATION       - the final action + why + when to re-check
+    GLOBAL RISK          - Change Risk / Regression Signal / Data Confidence / Overall
+    PERSONAL READINESS   - Personal Impact / Core Feature Readiness / Rollback Safety
+    YOUR CORE FEATURES   - one row per feature of your usage profile
+    KNOWN ISSUES         - each cluster with severity/confidence *and* whether you use it
+    SYSTEMIC RISKS       - the categories that are never negotiable
+    GATES & CAUTIONS     - what blocks, what merely warns
+    RECOMMENDATION       - the action, why, and the two different clocks
 
 Machine output stays free of ANSI/Rich markup: `--json` comes from
 ``UpdateCheck.to_dict()``, and the markdown writer emits plain text only.
@@ -23,11 +26,15 @@ from .clusters import RegressionCluster
 from .console import Console
 from .gates import GATE_PASS, GATE_SKIP, GateReport
 from .provenance import UPDATE_STATUS_AHEAD
-from .risk import (
-    RECOMMEND_AVOID,
-    RECOMMEND_UNKNOWN,
-    RECOMMEND_UPDATE,
+from .advisor import (
+    RECOMMEND_ACCEPTABLE,
+    RECOMMEND_BLOCKED,
+    RECOMMEND_SAFE,
     RECOMMEND_WAIT,
+)
+from .rollback_safety import SAFETY_FAIL, SAFETY_PASS, SAFETY_UNKNOWN, SAFETY_WARN
+from .risk import (
+    RECOMMEND_UNKNOWN,
     RiskAssessment,
 )
 from .util import humanize_hours, iso
@@ -37,8 +44,12 @@ REPORT_TITLE = "Hermes Update Advisor"
 SECTION_LOCAL = ("本地安装状态", "LOCAL INSTALLATION")
 SECTION_RELEASE = ("最新正式版本", "LATEST STABLE")
 SECTION_STATUS = ("更新状态", "UPDATE STATUS")
-SECTION_RISK = ("风险", "RISK")
-SECTION_GATES = ("硬门禁", "HARD GATES")
+SECTION_RISK = ("全局风险（背景信息）", "GLOBAL RISK (background)")
+SECTION_PERSONAL = ("个人就绪度", "PERSONAL READINESS")
+SECTION_FEATURES = ("你的核心功能", "YOUR CORE FEATURES")
+SECTION_ISSUES = ("已知问题", "KNOWN ISSUES")
+SECTION_SYSTEMIC = ("系统级风险", "SYSTEMIC RISKS")
+SECTION_GATES = ("门禁与提示", "GATES & CAUTIONS")
 SECTION_REGRESSIONS = ("回归信号", "REGRESSION SIGNALS")
 SECTION_FACTORS = ("风险因子明细", "RISK FACTOR BREAKDOWN")
 SECTION_RECOMMENDATION = ("建议", "RECOMMENDATION")
@@ -74,6 +85,10 @@ class Reporter:
         self._render_update_status(check)
         if check.assessment is not None:
             self._render_risk(check.assessment, check)
+        self._render_personal(check.readiness, check.rollback_safety)
+        self._render_features(check.readiness)
+        self._render_known_issues(check.readiness)
+        self._render_systemic(check.readiness)
         self._render_gates(check.gates)
         self._render_regressions(check.clusters, detailed=detailed)
         if check.assessment is not None:
@@ -309,6 +324,121 @@ class Reporter:
         console.kv_table(rows)
         console.blank()
 
+    def _render_personal(self, readiness, safety) -> None:
+        """Personal Impact / Core Feature Readiness / Rollback Safety (phase 3)."""
+        console = self.console
+        console.heading(self._section(SECTION_PERSONAL))
+        if readiness is None:
+            console.print(self._t("未计算个人就绪度。", "personal readiness was not computed."))
+            console.blank()
+            return
+        rows = [
+            (
+                self._t("个人影响 Personal Impact", "Personal Impact"),
+                f"{readiness.impact if readiness.impact is not None else 'UNKNOWN'} "
+                f"/ 100  {readiness.impact_level}",
+            ),
+            (
+                self._t("核心功能可用性 Core Readiness", "Core Feature Readiness"),
+                f"{readiness.readiness if readiness.readiness is not None else 'UNKNOWN'} "
+                f"/ 100  {readiness.readiness_level}",
+            ),
+        ]
+        if safety is not None:
+            label = {
+                SAFETY_PASS: self._t("通过", "PASS"),
+                SAFETY_WARN: self._t("警告", "WARN"),
+                SAFETY_FAIL: self._t("失败（会阻断更新）", "FAIL (blocks the update)"),
+                SAFETY_UNKNOWN: self._t("未知（按不安全处理）", "UNKNOWN (treated as unsafe)"),
+            }.get(safety.status, safety.status)
+            rows.append((self._t("回滚路径 Rollback Safety", "Rollback Safety"), label))
+        source = {
+            "config": self._t("来自配置 usage_profile", "from usage_profile in your config"),
+            "detected": self._t("自动检测（运行 `profile detect` 后请人工调整）", "auto-detected (run `profile detect` and review)"),
+            "builtin-default": self._t("内置默认画像", "built-in default profile"),
+        }.get(readiness.profile.source, readiness.profile.source)
+        rows.append((self._t("画像来源 Profile", "Profile source"), source))
+        console.kv_table(rows)
+        console.blank()
+        console.print(
+            self._t(
+                "  个人影响 = 已知问题对你所用功能的暴露程度；核心可用性 = 关键工作流是否真的不可用。",
+                "  Personal impact = how much known issues touch what you use; readiness = whether a "
+                "workflow is actually unavailable.",
+            )
+        )
+        console.blank()
+
+    def _render_features(self, readiness) -> None:
+        console = self.console
+        if readiness is None:
+            return
+        console.heading(self._section(SECTION_FEATURES))
+        featured = [f for f in readiness.features if f.cluster_keys or not f.is_unused]
+        if not featured:
+            console.print(self._t("没有命中任何已知回归类别。", "no known regression class matches your features."))
+            console.blank()
+            return
+        rows = []
+        for feature in featured[:14]:
+            label = readiness.profile.label(feature.key, lang=self.lang)
+            detail = f"{feature.status}"
+            if feature.is_unused:
+                detail += self._t("（未使用，不计入）", " (unused, not counted)")
+            elif feature.cluster_keys:
+                detail += f"  {feature.severity or '-'} / {feature.confidence or '-'}"
+                if feature.unavailable:
+                    detail += self._t(" · 报告称不可用", " · reported unavailable")
+            rows.append((label, detail))
+        console.kv_table(rows)
+        console.blank()
+
+    def _render_known_issues(self, readiness) -> None:
+        """Every cluster, with the profile verdict next to it (doc section 23)."""
+        console = self.console
+        if readiness is None or not readiness.features:
+            return
+        console.heading(self._section(SECTION_ISSUES))
+        rows = []
+        for feature in readiness.features:
+            if not feature.cluster_keys:
+                continue
+            label = readiness.profile.label(feature.key, lang=self.lang)
+            level = feature.level
+            rows.append(
+                (
+                    f"{label}",
+                    f"{feature.severity:<8} {feature.confidence:<8} {level.upper()}",
+                )
+            )
+        for row in rows[:12]:
+            console.kv_table([row])
+        console.blank()
+
+    def _render_systemic(self, readiness) -> None:
+        console = self.console
+        console.heading(self._section(SECTION_SYSTEMIC))
+        if readiness is None:
+            console.print(self._t("未计算。", "not computed."))
+            console.blank()
+            return
+        rows = []
+        for risk in readiness.systemic:
+            label = risk.zh if self.lang == "zh" else risk.en
+            if risk.detected:
+                state = self._t("发现证据", "detected")
+                if risk.source == "local":
+                    state = self._t("本地检查未通过（阻断）", "local check failed (blocks)")
+                elif risk.blocking:
+                    state = self._t("可信度高（阻断）", "high confidence (blocks)")
+                else:
+                    state = self._t("证据不足（仅提示）", "not corroborated (watch only)")
+            else:
+                state = self._t("无", "none")
+            rows.append((label, state))
+        console.kv_table(rows)
+        console.blank()
+
     def _render_recommendation(self, check: UpdateCheck) -> None:
         console = self.console
         console.heading(self._section(SECTION_RECOMMENDATION))
@@ -324,14 +454,31 @@ class Reporter:
         headline = rec.headline_zh if self.lang == "zh" else rec.headline_en
         if headline:
             console.print(f"  {headline}")
+        explanation = rec.explanation_zh if self.lang == "zh" else rec.explanation_en
+        if explanation:
+            for index, line in enumerate(_wrap(explanation, width=86)):
+                console.print(("  " if index == 0 else "  ") + line)
         console.print(
             self._t(
-                f"  （由 {rec.decided_by_label} 决定；Overall Risk: {rec.overall if rec.overall is not None else 'UNKNOWN'}"
-                f"{'，下界' if rec.score_is_lower_bound else ''}）",
-                f"  (decided by {rec.decided_by}; Overall Risk: {rec.overall if rec.overall is not None else 'UNKNOWN'}"
-                f"{', lower bound' if rec.score_is_lower_bound else ''})",
+                f"  （由 {rec.decided_by_label} 决定；"
+                f"你的风险：个人影响 {rec.personal_impact if rec.personal_impact is not None else 'UNKNOWN'}"
+                f" / 核心可用性 {rec.core_readiness if rec.core_readiness is not None else 'UNKNOWN'}；"
+                f"全局风险 {rec.overall if rec.overall is not None else 'UNKNOWN'}"
+                f"{'（下界）' if rec.score_is_lower_bound else ''}——仅作背景）",
+                f"  (decided by {rec.decided_by}; your risk: personal impact "
+                f"{rec.personal_impact if rec.personal_impact is not None else 'UNKNOWN'} / core readiness "
+                f"{rec.core_readiness if rec.core_readiness is not None else 'UNKNOWN'}; global risk "
+                f"{rec.overall if rec.overall is not None else 'UNKNOWN'}"
+                f"{' (lower bound)' if rec.score_is_lower_bound else ''} - background only)",
             )
         )
+        cautions = rec.cautions_zh if self.lang == "zh" else rec.cautions_en
+        if cautions:
+            console.blank()
+            console.print(self._t("  提示（不影响是否可更新）：", "  Cautions (these do not block):"))
+            for item in _dedupe(cautions)[:5]:
+                for index, line in enumerate(_wrap(item, width=86)):
+                    console.print(("    - " if index == 0 else "      ") + line)
         reasons = rec.reasons_zh if self.lang == "zh" else rec.reasons_en
         if reasons:
             console.blank()
@@ -349,21 +496,37 @@ class Reporter:
             console.blank()
             console.print(
                 self._t(
-                    f"  建议复查时间：{iso(rec.recheck_at)}（约 {rec.recheck_hours:g} 小时后）",
-                    f"  Recommended recheck: {iso(rec.recheck_at)} (~{rec.recheck_hours:g} hours later)",
+                    f"  下次监控复查 Next Monitoring Check：{iso(rec.recheck_at)}（约 {rec.recheck_hours:g} 小时后）",
+                    f"  Next Monitoring Check: {iso(rec.recheck_at)} (~{rec.recheck_hours:g} hours later)",
                 )
             )
             reason = rec.recheck_reason_zh if self.lang == "zh" else rec.recheck_reason_en
             if reason:
                 console.print(f"    {reason}")
-        if rec.action == RECOMMEND_UPDATE:
+        if rec.policy_clearance_at is not None and rec.policy_clearance_hours is not None:
+            console.print(
+                self._t(
+                    f"  策略最早放行 Earliest Policy Clearance：{iso(rec.policy_clearance_at)}"
+                    f"（约 {rec.policy_clearance_hours:g} 小时后，届时发布年龄不再触发谨慎/阻断）",
+                    f"  Earliest Policy Clearance: {iso(rec.policy_clearance_at)} "
+                    f"(~{rec.policy_clearance_hours:g} hours later; the release age stops cautioning/blocking)",
+                )
+            )
+        if rec.recheck_hours is not None:
+            console.print(
+                self._t(
+                    "  （复查时间只是下一次观察的时机，不代表届时一定能更新）",
+                    "  (the recheck time is when to look again, not a promise that the update becomes possible)",
+                )
+            )
+        if rec.action in {RECOMMEND_SAFE, RECOMMEND_ACCEPTABLE}:
             console.blank()
             console.print("  hermes-update-check update --dry-run   " + self._t("# 先看计划", "# show the plan"))
             console.print(
                 "  hermes-update-check update             "
                 + self._t("# 备份 + 更新 + 健康检查", "# backup + update + health check")
             )
-        if rec.action in {RECOMMEND_WAIT, RECOMMEND_AVOID}:
+        if rec.action in {RECOMMEND_BLOCKED, RECOMMEND_WAIT, RECOMMEND_UNKNOWN}:
             console.blank()
             console.print("  hermes-update-check check              " + self._t("# 稍后再看", "# look again later"))
         console.blank()

@@ -52,24 +52,60 @@ def ready_decision() -> UpdateDecision:
     return UpdateDecision(status=UPDATE_STATUS_AVAILABLE, is_update_candidate=True, target_tag="v2026.9.14")
 
 
-def test_gate_blocks_a_young_release(cfg: Config) -> None:
-    release = make_release(age_hours=14.7)
+def test_gate_blocks_only_a_very_young_release(cfg: Config) -> None:
+    """Phase 3 (doc section 9): < 6 h blocks, 6-12 h cautions, the rest passes.
+
+    The old 48-hour wall is gone: a release that is a day old no longer waits.
+    """
+    fresh = make_release(age_hours=3.0)
     report = evaluate_gates(
         cfg,
         provenance=stable_prov(),
         decision=ready_decision(),
-        release=release,
+        release=fresh,
         assessment=make_assessment(score=12),
         environment=EnvironmentState(),
     )
     age_gate = next(g for g in report.gates if g.key == "release_age")
     assert age_gate.status == GATE_BLOCK
-    assert "14.7" in age_gate.reason_en
-    assert "48" in age_gate.reason_en
+    assert "3.0" in age_gate.reason_en
     assert age_gate.earliest_recheck is not None
-    # earliest recheck = published + 48h
-    assert abs((age_gate.earliest_recheck - release.when).total_seconds() - 48 * 3600) < 5
+    # earliest policy clearance = published + block_hours
+    assert abs((age_gate.earliest_recheck - fresh.when).total_seconds() - 6 * 3600) < 5
     assert report.blocked is True
+    assert report.age_band == "block"
+
+
+def test_caution_band_warns_instead_of_blocking(cfg: Config) -> None:
+    report = evaluate_gates(
+        cfg,
+        provenance=stable_prov(),
+        decision=ready_decision(),
+        release=make_release(age_hours=8.0),
+        assessment=make_assessment(score=12),
+        environment=EnvironmentState(),
+    )
+    age_gate = next(g for g in report.gates if g.key == "release_age")
+    assert age_gate.status == GATE_WARN
+    assert age_gate.caps_verdict is True  # caps the verdict at ACCEPTABLE, never blocks
+    assert report.blocked is False
+    assert report.age_band == "caution"
+    assert report.caution_clearance is not None
+
+
+def test_a_day_old_release_is_no_longer_held_back(cfg: Config) -> None:
+    """The exact release that made the old model say WAIT for 48 h."""
+    report = evaluate_gates(
+        cfg,
+        provenance=stable_prov(),
+        decision=ready_decision(),
+        release=make_release(age_hours=14.7),
+        assessment=make_assessment(score=12),
+        environment=EnvironmentState(),
+    )
+    assert next(g for g in report.gates if g.key == "release_age").status == GATE_PASS
+    assert report.blocked is False
+    assert report.age_band == "acceptable"
 
 
 def test_gate_passes_an_old_release(cfg: Config) -> None:
@@ -125,7 +161,26 @@ def test_dirty_worktree_can_be_downgraded_to_warning(cfg: Config) -> None:
     assert any(g.key == "dirty_worktree" and g.status == GATE_WARN for g in report.gates)
 
 
-def test_main_branch_blocks(cfg: Config) -> None:
+def test_main_branch_warns_by_default(cfg: Config) -> None:
+    """Phase 3 (doc section 10): tracking main raises Environment Risk, it does not block."""
+    report = evaluate_gates(
+        cfg,
+        provenance=stable_prov(channel=CHANNEL_MAIN, tag_matched=False),
+        decision=ready_decision(),
+        release=make_release(age_hours=200),
+        assessment=make_assessment(score=15),
+        environment=EnvironmentState(),
+    )
+    gate = next(g for g in report.gates if g.key == "main_branch")
+    assert gate.status == GATE_WARN
+    assert gate.caps_verdict is True
+    assert report.blocked_by("main_branch") is False
+    assert report.blocked is False
+
+
+def test_main_branch_can_still_be_configured_to_block(cfg: Config) -> None:
+    """An explicit opt-in keeps the old, stricter behaviour available."""
+    cfg.hard_gates.block_main_branch_update = True
     report = evaluate_gates(
         cfg,
         provenance=stable_prov(channel=CHANNEL_MAIN, tag_matched=False),
@@ -137,21 +192,20 @@ def test_main_branch_blocks(cfg: Config) -> None:
     assert report.blocked_by("main_branch") is True
 
 
-def test_main_branch_can_be_warned_instead(cfg: Config) -> None:
-    cfg.hard_gates.block_main_branch_update = False
+def test_prerelease_warns_by_default_and_can_still_block(cfg: Config) -> None:
     report = evaluate_gates(
         cfg,
-        provenance=stable_prov(channel=CHANNEL_MAIN, tag_matched=False),
+        provenance=stable_prov(channel=CHANNEL_PRERELEASE, tag_matched=False),
         decision=ready_decision(),
         release=make_release(age_hours=200),
         assessment=make_assessment(score=15),
         environment=EnvironmentState(),
     )
-    assert report.blocked_by("main_branch") is False
-    assert any(g.key == "main_branch" and g.status == GATE_WARN for g in report.gates)
+    gate = next(g for g in report.gates if g.key == "prerelease")
+    assert gate.status == GATE_WARN
+    assert report.blocked is False
 
-
-def test_prerelease_blocks_by_default(cfg: Config) -> None:
+    cfg.hard_gates.block_prerelease = True
     report = evaluate_gates(
         cfg,
         provenance=stable_prov(channel=CHANNEL_PRERELEASE, tag_matched=False),
@@ -163,17 +217,34 @@ def test_prerelease_blocks_by_default(cfg: Config) -> None:
     assert report.blocked_by("prerelease") is True
 
 
-def test_active_database_regression_blocks(cfg: Config) -> None:
+def test_state_db_corruption_blocks_through_the_systemic_gate(cfg: Config) -> None:
+    """Phase 3: data corruption still blocks - but as a *systemic* risk, and only
+    when the evidence is corroborated (2 independent reporters + maintainer triage)."""
     from test_clusters import issue
 
     from hermes_update_check.clusters import build_clusters
+    from hermes_update_check.impact import compute_personal_readiness
+    from hermes_update_check.usage_profile import builtin_default_profile
 
     clusters = build_clusters(
         [
-            issue(1, "[Bug] state.db corrupt after update", author="alice"),
-            issue(2, "[Bug] state.db corrupt, data loss", author="bob"),
+            issue(
+                1,
+                "[Bug] state.db corrupt after update - data loss",
+                author="alice",
+                labels=["bug", "confirmed"],
+                body="Steps to reproduce: run hermes update, then open a session.",
+            ),
+            issue(
+                2,
+                "[Bug] state.db corrupt, data loss on upgrade",
+                author="bob",
+                labels=["bug"],
+                body="Steps to reproduce: upgrade from v0.21.2 to v0.21.3.",
+            ),
         ]
     )
+    readiness = compute_personal_readiness(builtin_default_profile(), clusters, extra_systemic=())
     report = evaluate_gates(
         cfg,
         provenance=stable_prov(),
@@ -182,14 +253,48 @@ def test_active_database_regression_blocks(cfg: Config) -> None:
         assessment=make_assessment(score=20),
         clusters=clusters,
         environment=EnvironmentState(),
+        readiness=readiness,
     )
-    gate = next(g for g in report.gates if g.key == "active_database_regression")
+    gate = next(g for g in report.gates if g.key == "systemic_risk")
     assert gate.status == GATE_BLOCK
-    assert "state.db" in gate.reason_en.lower() or "database" in gate.reason_en.lower()
+    assert readiness.blocking_systemic, "DATA_CORRUPTION should be blocking"
     assert report.blocked is True
+    # the old per-cluster blocking gate is gone; the class is a *warning* now
+    assert not any(g.key == "active_database_regression" for g in report.gates)
 
 
-def test_gateway_regression_gate_is_off_by_default_but_available(cfg: Config) -> None:
+def test_an_uncorroborated_corruption_report_only_warns(cfg: Config) -> None:
+    """A single unconfirmed report is not enough to block (doc: high confidence only)."""
+    from test_clusters import issue
+
+    from hermes_update_check.clusters import build_clusters
+    from hermes_update_check.impact import compute_personal_readiness
+    from hermes_update_check.usage_profile import builtin_default_profile
+
+    clusters = build_clusters([issue(9, "[Bug] state.db corrupt on my machine", author="alice")])
+    readiness = compute_personal_readiness(builtin_default_profile(), clusters, extra_systemic=())
+    report = evaluate_gates(
+        cfg,
+        provenance=stable_prov(),
+        decision=ready_decision(),
+        release=make_release(age_hours=200),
+        assessment=make_assessment(score=20),
+        clusters=clusters,
+        environment=EnvironmentState(),
+        readiness=readiness,
+    )
+    assert readiness.active_systemic  # the evidence is visible...
+    assert not readiness.blocking_systemic  # ...but not corroborated
+    assert report.blocked_by("systemic_risk") is False
+    assert next(g for g in report.gates if g.key == "systemic_risk").status == GATE_WARN
+
+
+def test_gateway_regression_warns_and_never_blocks_by_itself(cfg: Config) -> None:
+    """Phase 3 (doc section 8): an ordinary gateway regression is a warning.
+
+    It still shows up (Environment Risk + readiness cost for anyone who runs a
+    gateway) but it cannot stop the update on its own.
+    """
     from test_clusters import issue
 
     from hermes_update_check.clusters import build_clusters
@@ -209,9 +314,12 @@ def test_gateway_regression_gate_is_off_by_default_but_available(cfg: Config) ->
         clusters=clusters,
         environment=EnvironmentState(),
     )
-    assert next(g for g in report.gates if g.key == "active_gateway_regression").status == GATE_SKIP
+    gate = next(g for g in report.gates if g.key == "warn_gateway_regression")
+    assert gate.status == GATE_WARN
+    assert gate.caps_verdict is True
+    assert report.blocked is False
 
-    cfg.hard_gates.block_active_gateway_regression = True
+    cfg.hard_gates.warn_active_gateway_regression = False
     report = evaluate_gates(
         cfg,
         provenance=stable_prov(),
@@ -221,7 +329,7 @@ def test_gateway_regression_gate_is_off_by_default_but_available(cfg: Config) ->
         clusters=clusters,
         environment=EnvironmentState(),
     )
-    assert next(g for g in report.gates if g.key == "active_gateway_regression").status == GATE_BLOCK
+    assert next(g for g in report.gates if g.key == "warn_gateway_regression").status == GATE_SKIP
 
 
 def test_single_reporter_cluster_does_not_trigger_the_regression_gate(cfg: Config) -> None:
@@ -264,7 +372,9 @@ def test_missing_release_blocks(cfg: Config) -> None:
         environment=EnvironmentState(),
     )
     assert report.blocked_by("insufficient_data") is True
-    assert report.blocked_by("release_age") is True
+    # an unknown publication date is a warning now (the insufficient-data gate blocks)
+    assert report.blocked_by("release_age") is False
+    assert next(g for g in report.gates if g.key == "release_age").status == GATE_WARN
 
 
 def test_environment_gate(cfg: Config) -> None:

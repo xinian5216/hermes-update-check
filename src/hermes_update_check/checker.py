@@ -24,6 +24,9 @@ from .clusters import (
 )
 from .config import Config, resolve_state_dir
 from .gates import EnvironmentState, GateReport, evaluate_gates, probe_environment
+from .impact import PersonalReadiness, compute_personal_readiness, local_rollback_risk
+from .rollback_safety import RollbackSafety, assess_rollback_safety
+from .usage_profile import UsageProfile, resolve_profile
 from .github_api import (
     CompareResult,
     GitHubClient,
@@ -97,6 +100,10 @@ class UpdateCheck:
     environment: Optional[EnvironmentState] = None
     gates: Optional[GateReport] = None
     recommendation: Optional[Recommendation] = None
+    # -- phase 3 additions --------------------------------------------------- #
+    profile: Optional[UsageProfile] = None
+    readiness: Optional[PersonalReadiness] = None
+    rollback_safety: Optional[RollbackSafety] = None
 
     @property
     def degraded(self) -> bool:
@@ -264,12 +271,22 @@ class UpdateCheck:
             "hard_gates_summary": self.gates.to_dict() if self.gates else None,
             "regressions": [c.to_dict() for c in self.clusters],
             "issues": self.issues.to_dict() if self.issues else None,
+            # -- phase 3 ------------------------------------------------------- #
+            "personal_readiness": self.readiness.to_dict() if self.readiness else None,
+            "rollback_safety": self.rollback_safety.to_dict() if self.rollback_safety else None,
+            "usage_profile": self.profile.to_dict() if self.profile else None,
             "recommendation": self.action,
             "recommendation_detail": self.recommendation.to_dict() if self.recommendation else None,
             "recommended_recheck": iso(self.recommendation.recheck_at) if self.recommendation else None,
             "recommended_recheck_hours": (
                 round(self.recommendation.recheck_hours, 2)
                 if self.recommendation and self.recommendation.recheck_hours is not None
+                else None
+            ),
+            "policy_clearance": iso(self.recommendation.policy_clearance_at) if self.recommendation else None,
+            "policy_clearance_hours": (
+                round(self.recommendation.policy_clearance_hours, 2)
+                if self.recommendation and self.recommendation.policy_clearance_hours is not None
                 else None
             ),
             "degradation": self.degradation,
@@ -471,6 +488,26 @@ def run_check(
     )
     check.assessment = assess(ctx)
 
+    # -- phase 3: personal impact / readiness / systemic risk / rollback ------ #
+    check.profile = resolve_profile(cfg, hermes_home=local.hermes_home)
+    check.readiness = compute_personal_readiness(check.profile, check.clusters)
+    check.rollback_safety = assess_rollback_safety(
+        cfg,
+        local,
+        provenance,
+        state_dir=root,
+        logger=log,
+    )
+    local_risk = local_rollback_risk(
+        check.rollback_safety.status,
+        detail_zh="；".join(check.rollback_safety.reasons_zh[:2]),
+        detail_en="; ".join(check.rollback_safety.reasons_en[:2]),
+    )
+    if local_risk is not None:
+        check.readiness.systemic.append(local_risk)
+        check.readiness.reasons_zh.append(f"本地回滚检查未通过：{local_risk.evidence_zh}")
+        check.readiness.reasons_en.append(f"local rollback check failed: {local_risk.evidence_en}")
+
     # -- hard gates + final recommendation --------------------------------- #
     check.environment = probe_environment(local, logger=log)
     check.gates = evaluate_gates(
@@ -481,6 +518,8 @@ def run_check(
         assessment=check.assessment,
         clusters=check.clusters,
         environment=check.environment,
+        readiness=check.readiness,
+        rollback_safety=check.rollback_safety,
     )
     check.recommendation = advise(
         cfg,
@@ -490,6 +529,7 @@ def run_check(
         gates=check.gates,
         clusters=check.clusters,
         release=latest,
+        readiness=check.readiness,
     )
 
     try:

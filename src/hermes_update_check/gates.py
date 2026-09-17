@@ -1,26 +1,36 @@
-"""Hard gates: rules that override the risk score.
+"""Gates: the few rules that can still stop an update.
 
-The score answers "how risky does this look"; gates answer "is updating allowed
-at all right now". A dirty worktree or a 14-hour-old release blocks an update
-even when the computed risk is low - that is the whole point.
+Phase 2 blocked on anything that looked risky (a 48-hour-old release, a main-branch
+checkout, any active gateway regression). Phase 3 keeps only what is genuinely
+non-negotiable, because a tool that always says WAIT is a tool nobody uses:
 
-Priority order (implemented in :mod:`hermes_update_check.advisor`):
+**Blocking** (doc section 7)
+  1. *systemic critical risk* - data corruption, session loss, credential loss,
+     config destruction, installation corruption, rollback failure, cannot start,
+     all providers down - and only with high-confidence evidence;
+  2. *critical workflow broken* - a regression the profile marks ``critical``,
+     confirmed (severity >= HIGH and confidence HIGH);
+  3. *update mechanism* - the update/rollback path itself reported broken;
+  4. *local safety* - rollback not available, dirty worktree, environment broken;
+  5. *insufficient data* - never dress missing data up as safe.
 
-1. insufficient data
-2. abnormal local environment
-3. **hard gates**  (this module)
-4. risk score
-5. release cooling period
-6. update
+**Demoted to warnings / risk points** (doc sections 8-10)
+  release age, main channel, prerelease, channel mismatch, and every ordinary
+  gateway / MCP / provider regression. They raise Environment Risk, they cap the
+  verdict at ACCEPTABLE and they show up in the report - they no longer stop you.
+
+Release age is segmented instead of a 48 h wall (``release_age_policy``):
+``< block_hours`` blocks, the caution band caps at ACCEPTABLE, the rest passes.
 """
 
 from __future__ import annotations
 
 import logging
+import re
 import sqlite3
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Any, Optional, Sequence
 
 from .clusters import (
     CONFIDENCE_HIGH,
@@ -29,32 +39,42 @@ from .clusters import (
     SEVERITY_HIGH,
     RegressionCluster,
 )
-from .config import Config
+from .config import Config, ReleaseAgePolicy
 from .github_api import Release
+from .impact import (
+    FEATURE_FAIL,
+    FEATURE_WARN,
+    PersonalReadiness,
+    SystemicRisk,
+)
 from .local_env import LocalEnv
 from .logging_setup import get_logger
 from .provenance import (
     CHANNEL_MAIN,
     CHANNEL_PRERELEASE,
     UPDATE_STATUS_AHEAD,
+    UPDATE_STATUS_UP_TO_DATE,
     CodeProvenance,
     UpdateDecision,
     channel_mismatch,
 )
 from .risk import RiskAssessment
+from .rollback_safety import SAFETY_FAIL, RollbackSafety
 from .util import iso, utcnow
+from .usage_profile import LEVEL_CRITICAL
 
 GATE_BLOCK = "BLOCK"
 GATE_WARN = "WARN"
 GATE_PASS = "PASS"
 GATE_SKIP = "SKIP"
 
-#: Cluster key -> (config attribute, gate key, zh label, en label)
-REGRESSION_GATES: tuple[tuple[str, str, str, str], ...] = (
-    ("DATABASE", "block_active_database_regression", "数据库回归", "active database regression"),
-    ("SESSION", "block_active_session_regression", "Session/数据丢失回归", "active session/data-loss regression"),
-    ("GATEWAY", "block_active_gateway_regression", "Gateway 回归", "active gateway regression"),
-    ("UPDATE_FAILURE", "block_active_update_failure", "升级失败回归", "active update-failure regression"),
+#: Ordinary regression classes that only warn (they feed readiness, not the verdict).
+WARNING_REGRESSION_GATES: tuple[tuple[str, str, str, str], ...] = (
+    ("GATEWAY", "warn_active_gateway_regression", "Gateway 回归", "active gateway regression"),
+    ("MCP", "warn_active_mcp_regression", "MCP 回归", "active MCP regression"),
+    ("PROVIDER", "warn_active_provider_regression", "Provider 回归", "active provider regression"),
+    ("AUTH", "warn_active_auth_regression", "认证/凭证回归", "active auth regression"),
+    ("CRASH", "warn_active_crash_regression", "崩溃报告", "active crash reports"),
 )
 
 
@@ -136,6 +156,8 @@ class GateResult:
     earliest_recheck: Optional[datetime] = None
     detail_zh: str = ""
     detail_en: str = ""
+    #: WARN gates that only *cap* the verdict (ACCEPTABLE, never SAFE)
+    caps_verdict: bool = True
 
     @property
     def blocking(self) -> bool:
@@ -152,6 +174,7 @@ class GateResult:
             "remediation_zh": self.remediation_zh,
             "remediation_en": self.remediation_en,
             "earliest_recheck": iso(self.earliest_recheck),
+            "caps_verdict": self.caps_verdict,
         }
 
 
@@ -161,6 +184,12 @@ class GateReport:
     gates: list[GateResult] = field(default_factory=list)
     environment: Optional[EnvironmentState] = None
     channel_warning: Optional[tuple[str, str]] = None
+    #: release-age band: block | caution | acceptable | normal ("" when inapplicable)
+    age_band: str = ""
+    #: when the release leaves the blocking band (Earliest Policy Clearance)
+    policy_clearance: Optional[datetime] = None
+    #: when the release leaves the caution band
+    caution_clearance: Optional[datetime] = None
 
     @property
     def blocking(self) -> list[GateResult]:
@@ -169,6 +198,11 @@ class GateReport:
     @property
     def warnings(self) -> list[GateResult]:
         return [g for g in self.gates if g.status == GATE_WARN]
+
+    @property
+    def cautions(self) -> list[GateResult]:
+        """Warnings that cap the verdict at ACCEPTABLE."""
+        return [g for g in self.warnings if g.caps_verdict]
 
     @property
     def blocked(self) -> bool:
@@ -181,6 +215,9 @@ class GateReport:
     def blocked_by(self, key: str) -> bool:
         return any(g.key == key and g.blocking for g in self.gates)
 
+    def get(self, key: str) -> Optional[GateResult]:
+        return next((g for g in self.gates if g.key == key), None)
+
     @property
     def earliest_recheck(self) -> Optional[datetime]:
         stamps = [g.earliest_recheck for g in self.blocking if g.earliest_recheck is not None]
@@ -192,6 +229,10 @@ class GateReport:
             "blocked": self.blocked,
             "blocking": [g.key for g in self.blocking],
             "warning": [g.key for g in self.warnings],
+            "cautions": [g.key for g in self.cautions],
+            "age_band": self.age_band,
+            "policy_clearance": iso(self.policy_clearance),
+            "caution_clearance": iso(self.caution_clearance),
             "gates": [g.to_dict() for g in self.gates],
             "environment": self.environment.to_dict() if self.environment else None,
             "channel_warning_en": self.channel_warning[1] if self.channel_warning else None,
@@ -205,8 +246,10 @@ def evaluate_gates(
     decision: UpdateDecision,
     release: Optional[Release],
     assessment: Optional[RiskAssessment],
-    clusters: list[RegressionCluster] = (),  # type: ignore[assignment]
+    clusters: Sequence[RegressionCluster] = (),
     environment: Optional[EnvironmentState] = None,
+    readiness: Optional[PersonalReadiness] = None,
+    rollback_safety: Optional[RollbackSafety] = None,
     now: Optional[datetime] = None,
 ) -> GateReport:
     """Evaluate every configured gate. Pure function of its inputs (no I/O)."""
@@ -218,13 +261,18 @@ def evaluate_gates(
 
     report.gates.append(_gate_insufficient_data(cfg, gates_cfg, release, assessment, decision))
     report.gates.append(_gate_environment(environment, decision))
-    report.gates.append(_gate_release_age(gates_cfg, release, decision, moment))
+    report.gates.append(_gate_release_age(cfg, release, decision, moment, report))
     report.gates.append(_gate_main_branch(gates_cfg, provenance, decision))
     report.gates.append(_gate_dirty_worktree(gates_cfg, provenance, decision))
     report.gates.append(_gate_prerelease(gates_cfg, provenance, decision))
-    for cluster_key, attr, label_zh, label_en in REGRESSION_GATES:
+    report.gates.append(
+        _gate_systemic(gates_cfg, readiness, decision)
+    )
+    report.gates.append(_gate_critical_workflow(gates_cfg, readiness, decision))
+    report.gates.append(_gate_rollback_safety(gates_cfg, rollback_safety, decision))
+    for cluster_key, attr, label_zh, label_en in WARNING_REGRESSION_GATES:
         report.gates.append(
-            _gate_regression(getattr(gates_cfg, attr, False), cluster_key, label_zh, label_en, clusters)
+            _gate_regression_warning(getattr(gates_cfg, attr, True), cluster_key, label_zh, label_en, clusters)
         )
 
     report.channel_warning = channel_mismatch(provenance, cfg.preferred_channel)
@@ -243,7 +291,7 @@ def evaluate_gates(
 
 
 # --------------------------------------------------------------------------- #
-# individual gates
+# blocking gates
 # --------------------------------------------------------------------------- #
 
 
@@ -265,7 +313,7 @@ def _gate_insufficient_data(
     if not gates_cfg.block_on_insufficient_data:
         result.status = GATE_SKIP
         return result
-    if decision.status in {UPDATE_STATUS_AHEAD, "up_to_date"}:
+    if decision.status in {UPDATE_STATUS_AHEAD, UPDATE_STATUS_UP_TO_DATE}:
         result.reason_zh = "无需更新，不适用"
         result.reason_en = "no update to evaluate"
         return result
@@ -303,72 +351,147 @@ def _gate_environment(environment: Optional[EnvironmentState], decision: UpdateD
     return result
 
 
-def _gate_release_age(
+def _gate_systemic(
     gates_cfg,
-    release: Optional[Release],
+    readiness: Optional[PersonalReadiness],
     decision: UpdateDecision,
-    now: datetime,
 ) -> GateResult:
-    minimum_hours = float(getattr(gates_cfg, "minimum_release_age_hours", 48.0))
+    """System-wide risks: not negotiable, not profile-dependent (doc section 13)."""
     result = GateResult(
-        key="release_age",
-        name_zh=f"Release 年龄 >= {minimum_hours:g}h",
-        name_en=f"release at least {minimum_hours:g}h old",
+        key="systemic_risk",
+        name_zh="系统级风险（数据/Session/凭证/安装/回滚）",
+        name_en="systemic critical risk (data/session/credential/install/rollback)",
         status=GATE_PASS,
-        reason_zh=f"发布已满 {minimum_hours:g} 小时",
-        reason_en=f"release is older than {minimum_hours:g} h",
+        reason_zh="未发现系统级风险",
+        reason_en="no systemic critical risk detected",
     )
-    if minimum_hours <= 0:
+    if readiness is None:
         result.status = GATE_SKIP
-        return result
-    if decision.status in {UPDATE_STATUS_AHEAD, "up_to_date"}:
-        result.status = GATE_SKIP
-        result.reason_zh = "无需更新，不适用"
-        result.reason_en = "no update to evaluate"
-        return result
-    if release is None or release.when is None:
-        result.status = GATE_BLOCK
-        result.reason_zh = "无法确定发布时间，无法确认观察期"
-        result.reason_en = "release date unknown; the observation window cannot be verified"
+        result.reason_zh = "未计算个人可用性，跳过"
+        result.reason_en = "personal readiness was not computed"
         return result
 
-    age_hours = release.age_hours if release.age_hours is not None else 0.0
-    if age_hours < minimum_hours:
-        deadline = release.when + timedelta(hours=minimum_hours)
+    blocking = [risk for risk in readiness.blocking_systemic if risk.source != "local"]
+    if blocking and getattr(gates_cfg, "block_on_systemic_risk", True):
         result.status = GATE_BLOCK
-        result.reason_zh = f"Release 仅发布 {age_hours:.1f} 小时，低于最小观察期 {minimum_hours:g} 小时"
-        result.reason_en = (
-            f"release is only {age_hours:.1f} hours old; the minimum observation period is {minimum_hours:g} h"
+        worst = blocking[0]
+        result.reason_zh = "；".join(risk.evidence_zh or risk.zh for risk in blocking[:3])
+        result.reason_en = "; ".join(risk.evidence_en or risk.en for risk in blocking[:3])
+        result.remediation_zh = "这些是系统级问题（与使用画像无关）：等修复版本或 Issue 关闭后再更新"
+        result.remediation_en = (
+            "these are system-wide issues independent of your profile: wait for a fix release or closed issues"
         )
-        result.earliest_recheck = deadline
-        result.remediation_zh = "等观察期结束、且没有新的严重 Issue 后再评估"
-        result.remediation_en = "wait for the observation window and no new severe issues before re-evaluating"
+        return result
+
+    watched = [risk for risk in readiness.active_systemic if not risk.blocking and risk.source != "local"]
+    if watched:
+        result.status = GATE_WARN
+        result.reason_zh = "；".join(f"{risk.zh}（{risk.confidence or '可信度不足'}）" for risk in watched[:3])
+        result.reason_en = "; ".join(f"{risk.en} (confidence {risk.confidence or 'unproven'})" for risk in watched[:3])
+    return result
+
+
+def _gate_critical_workflow(
+    gates_cfg,
+    readiness: Optional[PersonalReadiness],
+    decision: UpdateDecision,
+) -> GateResult:
+    """A *confirmed* regression in a feature the user marked critical blocks."""
+    result = GateResult(
+        key="critical_workflow",
+        name_zh="关键工作流是否可用",
+        name_en="critical workflow available",
+        status=GATE_PASS,
+        reason_zh="关键功能没有确认的严重回归",
+        reason_en="no confirmed severe regression in a critical feature",
+    )
+    if readiness is None:
+        result.status = GATE_SKIP
+        result.reason_zh = "未计算个人可用性，跳过"
+        result.reason_en = "personal readiness was not computed"
+        return result
+
+    broken = [feature for feature in readiness.critical_broken if feature.key not in _SYSTEMIC_FEATURE_KEYS]
+    if broken and getattr(gates_cfg, "block_on_critical_workflow", True):
+        labels_zh = "、".join(readiness.profile.label(feature.key, lang="zh") for feature in broken[:3])
+        labels_en = ", ".join(readiness.profile.label(feature.key, lang="en") for feature in broken[:3])
+        result.status = GATE_BLOCK
+        result.reason_zh = f"你标记为 critical 的功能出现高可信度严重回归：{labels_zh}"
+        result.reason_en = f"high-confidence severe regression in a feature you marked critical: {labels_en}"
+        result.remediation_zh = "等这些 Issue 关闭或修复版本发布；如果该功能其实不关键，可调整 usage_profile"
+        result.remediation_en = (
+            "wait for the issues to close or a fix release; if the feature is not actually critical, adjust usage_profile"
+        )
+        return result
+
+    suspect = [feature for feature in readiness.critical_suspect if feature.key not in _SYSTEMIC_FEATURE_KEYS]
+    if suspect:
+        labels_zh = "、".join(readiness.profile.label(feature.key, lang="zh") for feature in suspect[:3])
+        labels_en = ", ".join(readiness.profile.label(feature.key, lang="en") for feature in suspect[:3])
+        result.status = GATE_WARN
+        result.reason_zh = f"关键功能存在尚未确认的严重报告（可信度中等）：{labels_zh}"
+        result.reason_en = f"unconfirmed severe reports (medium confidence) for critical features: {labels_en}"
+    return result
+
+
+#: Features whose failures are already covered by the systemic gate.
+_SYSTEMIC_FEATURE_KEYS = {"config"}
+
+
+def _gate_rollback_safety(
+    gates_cfg,
+    safety: Optional[RollbackSafety],
+    decision: UpdateDecision,
+) -> GateResult:
+    result = GateResult(
+        key="rollback_safety",
+        name_zh="回滚路径可用",
+        name_en="rollback path available",
+        status=GATE_PASS,
+        reason_zh="回滚检查通过",
+        reason_en="rollback checks passed",
+    )
+    if safety is None:
+        result.status = GATE_SKIP
+        result.reason_zh = "未做回滚检查"
+        result.reason_en = "rollback safety was not probed"
+        return result
+    if safety.status == SAFETY_FAIL and getattr(gates_cfg, "block_on_rollback_safety", True):
+        result.status = GATE_BLOCK
+        result.reason_zh = "；".join(safety.reasons_zh[:3]) or "回滚路径不可用"
+        result.reason_en = "; ".join(safety.reasons_en[:3]) or "the rollback path is not available"
+        result.remediation_zh = "先修复回滚条件（磁盘空间 / 状态目录 / Git 目录），再执行更新"
+        result.remediation_en = "fix the rollback preconditions (disk space / state dir / git checkout) before updating"
+    elif safety.status in {"WARN", "UNKNOWN"}:
+        result.status = GATE_WARN
+        result.reason_zh = "；".join(safety.reasons_zh[:3]) or f"回滚检查结果为 {safety.status}"
+        result.reason_en = "; ".join(safety.reasons_en[:3]) or f"rollback check returned {safety.status}"
     return result
 
 
 def _gate_main_branch(gates_cfg, provenance: CodeProvenance, decision: UpdateDecision) -> GateResult:
-    blocking = bool(getattr(gates_cfg, "block_main_branch_update", True))
+    """Main branch is a warning now: it raises Environment Risk, it does not block."""
+    blocking = bool(getattr(gates_cfg, "block_main_branch_update", False))
     result = GateResult(
         key="main_branch",
-        name_zh="禁止在 main 开发分支上执行更新",
-        name_en="no update while tracking the main development branch",
+        name_zh="开发分支（main）提示",
+        name_en="development branch (main) notice",
         status=GATE_PASS,
         reason_zh="不在 main 开发分支",
         reason_en="not on the main development branch",
     )
     if provenance.channel == CHANNEL_MAIN:
-        if blocking:
-            result.status = GATE_BLOCK
-            result.reason_zh = "当前安装跟踪 main 开发分支（代码可能领先正式 Release）"
-            result.reason_en = (
-                "the installation tracks the main development branch (code may be ahead of the latest release)"
-            )
-        else:
-            result.status = GATE_WARN
-            result.reason_zh = "当前安装跟踪 main 开发分支"
-            result.reason_en = "the installation tracks the main development branch"
-        result.remediation_zh = "如需更新，先切回正式 Release（备份后执行 git checkout <tag>）；本工具不会自动切换"
-        result.remediation_en = "to update, switch back to a release tag first (git checkout <tag> after a backup); this tool never switches automatically"
+        result.status = GATE_BLOCK if blocking else GATE_WARN
+        result.caps_verdict = not blocking
+        result.reason_zh = "当前安装跟踪 main 开发分支（代码可能领先正式 Release，稳定性低于正式版本）"
+        result.reason_en = (
+            "the installation tracks the main development branch (code may be ahead of the latest release "
+            "and is less battle-tested)"
+        )
+        result.remediation_zh = "如果希望只跑正式版本：备份后手动 checkout 对应 tag（本工具不会自动切换）"
+        result.remediation_en = (
+            "to track stable only: check out a release tag after a backup (this tool never switches automatically)"
+        )
     elif decision.status == UPDATE_STATUS_AHEAD:
         result.reason_zh = "代码已领先最新 Release"
         result.reason_en = "code is ahead of the latest release"
@@ -376,6 +499,7 @@ def _gate_main_branch(gates_cfg, provenance: CodeProvenance, decision: UpdateDec
 
 
 def _gate_dirty_worktree(gates_cfg, provenance: CodeProvenance, decision: UpdateDecision) -> GateResult:
+    """Local safety: still a blocker (doc section 10) - it is not a release-quality signal."""
     blocking = bool(getattr(gates_cfg, "block_dirty_worktree", True))
     result = GateResult(
         key="dirty_worktree",
@@ -387,7 +511,7 @@ def _gate_dirty_worktree(gates_cfg, provenance: CodeProvenance, decision: Update
     )
     if not provenance.dirty_worktree:
         return result
-    if decision.status in {UPDATE_STATUS_AHEAD, "up_to_date"}:
+    if decision.status in {UPDATE_STATUS_AHEAD, UPDATE_STATUS_UP_TO_DATE}:
         result.status = GATE_WARN
         result.reason_zh = f"工作区有 {provenance.dirty_files} 个未提交修改（本次无需更新）"
         result.reason_en = f"worktree has {provenance.dirty_files} uncommitted change(s) (no update pending)"
@@ -408,11 +532,12 @@ def _gate_dirty_worktree(gates_cfg, provenance: CodeProvenance, decision: Update
 
 
 def _gate_prerelease(gates_cfg, provenance: CodeProvenance, decision: UpdateDecision) -> GateResult:
-    blocking = bool(getattr(gates_cfg, "block_prerelease", True))
+    """Prerelease is a warning by default: the user asked for it by installing one."""
+    blocking = bool(getattr(gates_cfg, "block_prerelease", False))
     result = GateResult(
         key="prerelease",
-        name_zh="禁止预发布版本",
-        name_en="no prerelease builds",
+        name_zh="预发布版本提示",
+        name_en="prerelease notice",
         status=GATE_PASS,
         reason_zh="非预发布版本",
         reason_en="not a prerelease",
@@ -420,6 +545,7 @@ def _gate_prerelease(gates_cfg, provenance: CodeProvenance, decision: UpdateDeci
     if provenance.channel != CHANNEL_PRERELEASE:
         return result
     result.status = GATE_BLOCK if blocking else GATE_WARN
+    result.caps_verdict = not blocking
     result.reason_zh = "当前运行的是预发布版本（prerelease/beta/rc）"
     result.reason_en = "currently running a prerelease build (prerelease/beta/rc)"
     result.remediation_zh = "确认知悉风险后再更新；或切回正式 Release"
@@ -427,17 +553,77 @@ def _gate_prerelease(gates_cfg, provenance: CodeProvenance, decision: UpdateDeci
     return result
 
 
-def _gate_regression(
+def _gate_release_age(
+    cfg: Config,
+    release: Optional[Release],
+    decision: UpdateDecision,
+    now: datetime,
+    report: GateReport,
+) -> GateResult:
+    """Segmented policy (doc section 9): only a very fresh release blocks."""
+    policy: ReleaseAgePolicy = getattr(cfg, "release_age_policy", None) or ReleaseAgePolicy()
+    result = GateResult(
+        key="release_age",
+        name_zh=f"Release 年龄（<{policy.block_hours:g}h 阻断 / <{policy.caution_hours:g}h 谨慎）",
+        name_en=f"release age (<{policy.block_hours:g}h blocked / <{policy.caution_hours:g}h caution)",
+        status=GATE_PASS,
+        reason_zh="发布已过谨慎观察期",
+        reason_en="release is past the caution window",
+    )
+    if decision.status in {UPDATE_STATUS_AHEAD, UPDATE_STATUS_UP_TO_DATE}:
+        result.status = GATE_SKIP
+        result.reason_zh = "无需更新，不适用"
+        result.reason_en = "no update to evaluate"
+        return result
+    if release is None or release.when is None:
+        result.status = GATE_WARN
+        result.reason_zh = "无法确定发布时间，无法确认发布年龄"
+        result.reason_en = "release date unknown; the release age cannot be verified"
+        return result
+
+    age_hours = release.age_hours if release.age_hours is not None else 0.0
+    band = policy.band(age_hours)
+    report.age_band = band
+    if release.when is not None:
+        report.policy_clearance = release.when + timedelta(hours=policy.block_hours)
+        report.caution_clearance = release.when + timedelta(hours=policy.caution_hours)
+
+    if band == "block":
+        result.status = GATE_BLOCK
+        result.reason_zh = (
+            f"Release 仅发布 {age_hours:.1f} 小时（< {policy.block_hours:g}h）：太新，先让它跑一会儿"
+        )
+        result.reason_en = (
+            f"release is only {age_hours:.1f} hours old (< {policy.block_hours:g}h): too fresh, let it settle"
+        )
+        result.earliest_recheck = report.policy_clearance
+        result.remediation_zh = "等到最早可放行时间（Earliest Policy Clearance）后再评估"
+        result.remediation_en = "re-evaluate after the earliest policy clearance time"
+    elif band == "caution":
+        result.status = GATE_WARN
+        result.reason_zh = f"Release 发布 {age_hours:.1f} 小时（{policy.block_hours:g}-{policy.caution_hours:g}h）：谨慎区间，最多给出 ACCEPTABLE"
+        result.reason_en = (
+            f"release is {age_hours:.1f} hours old ({policy.block_hours:g}-{policy.caution_hours:g}h): "
+            "caution band, the verdict is capped at ACCEPTABLE"
+        )
+    elif band == "acceptable":
+        result.reason_zh = f"Release 发布 {age_hours:.1f} 小时：已经过谨慎区间"
+        result.reason_en = f"release is {age_hours:.1f} hours old: past the caution window"
+    return result
+
+
+def _gate_regression_warning(
     enabled: bool,
     cluster_key: str,
     label_zh: str,
     label_en: str,
-    clusters,
+    clusters: Sequence[RegressionCluster],
 ) -> GateResult:
+    """Ordinary regression classes warn and cap the verdict - they never block."""
     result = GateResult(
-        key=f"active_{cluster_key.lower()}_regression",
-        name_zh=f"禁止存在活跃的{label_zh}",
-        name_en=f"no active {label_en}",
+        key=f"warn_{cluster_key.lower()}_regression",
+        name_zh=f"{label_zh}提示",
+        name_en=f"{label_en} notice",
         status=GATE_PASS if enabled else GATE_SKIP,
         reason_zh="无活跃回归报告",
         reason_en="no active regression reports",
@@ -454,7 +640,7 @@ def _gate_regression(
     if not active:
         return result
     worst = active[0]
-    result.status = GATE_BLOCK
+    result.status = GATE_WARN
     result.reason_zh = (
         f"{worst.zh} 存在 {worst.reports} 个报告（{worst.unique_reporters} 位报告人，"
         f"{worst.open_count} 个 open），严重程度 {worst.severity}，可信度 {worst.confidence}"
@@ -463,8 +649,10 @@ def _gate_regression(
         f"{worst.reports} report(s) of {worst.en} ({worst.unique_reporters} reporter(s), "
         f"{worst.open_count} open), severity {worst.severity}, confidence {worst.confidence}"
     )
-    result.remediation_zh = "等这些 Issue 关闭或出现修复版本后再更新"
-    result.remediation_en = "wait until those issues are closed or a fix release ships"
+    features = ", ".join(worst.affected_features[:4])
+    if features:
+        result.detail_zh = f"影响范围：{features}"
+        result.detail_en = f"affects: {features}"
     return result
 
 

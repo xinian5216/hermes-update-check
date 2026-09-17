@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import sys
 from pathlib import Path
 from typing import Any, Optional, Sequence
@@ -52,15 +53,20 @@ from .logging_setup import setup_logging
 from .notify import NotificationMessage, build_notifiers, describe_notifiers, notify_all
 from .preflight import STATUS_FAIL, PreflightReport, run_preflight
 from .report import Reporter
+from .advisor import (
+    RECOMMEND_ACCEPTABLE,
+    RECOMMEND_BLOCKED,
+    RECOMMEND_MANUAL_REVIEW,
+    RECOMMEND_SAFE,
+    RECOMMEND_WAIT,
+)
 from .risk import (
-    RECOMMEND_AVOID,
     RECOMMEND_UNKNOWN,
     RECOMMEND_UP_TO_DATE,
-    RECOMMEND_UPDATE,
-    RECOMMEND_WAIT,
 )
 from .state import StateStore
 from .updater import RollbackOutcome, UpdateOutcome, run_rollback, run_update
+from .usage_profile import detect_usage_profile, resolve_profile
 from .util import humanize_hours
 
 # --------------------------------------------------------------------------- #
@@ -152,6 +158,14 @@ def build_parser() -> argparse.ArgumentParser:
     cfg_cmd = sub.add_parser("config", help="show / locate / create the configuration")
     cfg_cmd.add_argument("action", choices=["show", "path", "init"], nargs="?", default="show")
     cfg_cmd.add_argument("--force", action="store_true", help="overwrite an existing config file (config init)")
+
+    profile = sub.add_parser("profile", help="usage profile: what *you* depend on (phase 3)")
+    profile.add_argument(
+        "action", choices=["show", "detect", "edit"], nargs="?", default="show",
+        help="show the profile in use / detect one from your Hermes install / print the YAML to edit",
+    )
+    profile.add_argument("--write", action="store_true", help="write the result into the config file (a .bak is kept)")
+    profile.add_argument("--json", dest="profile_json", action="store_true", help="machine readable output")
 
     notify_test = sub.add_parser("notify-test", help="send a test notification to every configured channel")
     notify_test.add_argument("--message", default="hermes-update-check test notification")
@@ -262,6 +276,8 @@ def _dispatch(
         return cmd_health(args, cfg, console, store, logger)
     if command == "preflight":
         return cmd_preflight(args, cfg, console, store, logger)
+    if command == "profile":
+        return cmd_profile(args, cfg, console)
     if command == "config":
         return cmd_config(args, cfg, console)
     if command == "notify-test":
@@ -353,6 +369,8 @@ def cmd_watch(args: argparse.Namespace, cfg: Config, console: Console, store: St
         gate_blocks=[g.key for g in (check.gates.blocking if check.gates else [])],
         critical_clusters=[c.key for c in check.clusters if c.severity == SEVERITY_CRITICAL],
         confidence=(assessment.data_confidence if assessment else None),
+        critical_features=[f.key for f in (check.readiness.critical_broken if check.readiness else [])],
+        personal_action=check.action,
     )
 
     if args.json:
@@ -438,7 +456,7 @@ def cmd_update(args: argparse.Namespace, cfg: Config, console: Console, store: S
                     "Re-run with --force if you really want to update; nothing was changed."
                 ),
                 title="GATE",
-                level="WAIT" if rec.action != RECOMMEND_AVOID else "AVOID",
+                level=rec.action,
             )
             return _check_exit_code(check)
         if check.action in {RECOMMEND_UP_TO_DATE, RECOMMEND_AHEAD_OF_STABLE} and not args.force:
@@ -622,6 +640,127 @@ def cmd_preflight(args: argparse.Namespace, cfg: Config, console: Console, store
     return EXIT_OK if report.ok_to_proceed else EXIT_PREFLIGHT_FAILED
 
 
+def cmd_profile(args: argparse.Namespace, cfg: Config, console: Console) -> int:
+    """``profile show|detect|edit`` - what this user actually depends on (phase 3)."""
+    action = getattr(args, "action", "show") or "show"
+    as_json = bool(getattr(args, "profile_json", False))
+    hermes_home = resolve_hermes_home(cfg)
+    lang = cfg.language
+
+    if action == "show":
+        profile = resolve_profile(cfg, hermes_home=hermes_home)
+        if as_json:
+            print(json.dumps(profile.to_dict(), indent=2, ensure_ascii=False))
+            return EXIT_OK
+        source = {
+            "config": ("来自你的配置 usage_profile", "from usage_profile in your config"),
+            "detected": ("自动检测（可用 `profile edit --write` 固定下来）", "auto-detected (pin it with `profile edit --write`)"),
+            "builtin-default": ("内置默认画像", "built-in default profile"),
+        }.get(profile.source, (profile.source, profile.source))
+        console.heading("使用画像" if lang == "zh" else "USAGE PROFILE")
+        console.print(f"  {'来源' if lang == 'zh' else 'source'}: {source[0] if lang == 'zh' else source[1]}")
+        console.blank()
+        for line in profile.describe_lines(lang=lang):
+            console.print(f"  {line}")
+        console.blank()
+        console.print(
+            "  "
+            + (
+                "critical = 关键（严重回归会阻断）· important = 重要（影响个人影响分）· optional = 可选 · unused = 未使用（完全不计）"
+                if lang == "zh"
+                else "critical = blocks on a confirmed regression · important = counts toward personal impact · "
+                "optional = small weight · unused = never counted"
+            )
+        )
+        console.blank()
+        return EXIT_OK
+
+    if action == "detect":
+        detection = detect_usage_profile(hermes_home=hermes_home)
+        profile = detection.profile
+        if as_json:
+            print(json.dumps({"profile": profile.to_dict(), "evidence": detection.evidence}, indent=2, ensure_ascii=False))
+        else:
+            console.heading(
+                "检测结果（只区分已配置/未配置，不会替你判断关键程度）"
+                if lang == "zh"
+                else "DETECTED (configured vs not; it will not guess what is critical)"
+            )
+            console.blank()
+            for line in profile.describe_lines(lang=lang):
+                console.print(f"  {line}")
+            console.blank()
+            if detection.evidence:
+                console.print("  " + ("依据：" if lang == "zh" else "evidence:"))
+                for key, items in sorted(detection.evidence.items()):
+                    console.print(f"    {key:<24} {', '.join(items[:3])}")
+                console.blank()
+            for note in detection.notes_zh if lang == "zh" else detection.notes_en:
+                console.print(f"  · {note}")
+            console.blank()
+        if getattr(args, "write", False):
+            _write_profile(cfg, profile, console, lang=lang)
+        return EXIT_OK
+
+    # edit
+    profile = resolve_profile(cfg, hermes_home=hermes_home)
+    if getattr(args, "write", False):
+        _write_profile(cfg, profile, console, lang=lang)
+        return EXIT_OK
+    path = cfg.source_path or default_config_path()
+    console.heading("把下面这段放进配置文件" if lang == "zh" else "PUT THIS BLOCK INTO YOUR CONFIG")
+    console.blank()
+    console.print(f"  {path}")
+    console.blank()
+    for line in profile.yaml_block().rstrip().splitlines():
+        console.print(f"  {line}")
+    console.blank()
+    console.print(
+        "  "
+        + (
+            "改好后运行 `hermes-update-check profile show` 确认；"
+            "或用 `profile edit --write` 让本工具直接写入（会先备份成 config.yaml.bak，注释会丢失）。"
+            if lang == "zh"
+            else "verify with `hermes-update-check profile show`, or let the tool write it with "
+            "`profile edit --write` (it backs the file up to config.yaml.bak first; comments are lost)."
+        )
+    )
+    console.blank()
+    return EXIT_OK
+
+
+def _write_profile(cfg: Config, profile, console: Console, *, lang: str = "zh") -> None:
+    """Write usage_profile into the config file, keeping every other section."""
+    try:
+        import yaml
+    except ImportError:  # pragma: no cover - PyYAML is an install dependency
+        console.error(
+            "PyYAML is required to write the config" if lang == "en" else "写入配置需要 PyYAML"
+        )
+        return
+    path = cfg.source_path or default_config_path()
+    raw = dict(cfg.raw or {})
+    raw["usage_profile"] = {"features": dict(sorted(profile.features.items())), "providers": dict(sorted(profile.providers.items()))}
+    path.parent.mkdir(parents=True, exist_ok=True)
+    backup: Optional[Path] = None
+    if path.exists():
+        backup = path.with_name(path.name + ".bak")
+        shutil.copy2(path, backup)
+    header = (
+        "# written by hermes-update-check (profile edit --write)\n"
+        "# YAML comments from the previous file were dropped; a backup is at the .bak next to it.\n"
+    )
+    path.write_text(header + yaml.safe_dump(raw, sort_keys=False, allow_unicode=True), encoding="utf-8")
+    console.print(
+        (
+            f"  已写入 {path}" + (f"（备份：{backup}）" if backup else "")
+            if lang == "zh"
+            else f"  written to {path}" + (f" (backup: {backup})" if backup else "")
+        )
+    )
+    console.blank()
+
+
 def cmd_config(args: argparse.Namespace, cfg: Config, console: Console) -> int:
     if args.action == "path":
         path = cfg.source_path or default_config_path()
@@ -679,8 +818,9 @@ def _check_exit_code(check: UpdateCheck) -> int:
         return EXIT_WAIT
     if action == RECOMMEND_UNKNOWN:
         return EXIT_INSUFFICIENT_DATA
-    if action in {RECOMMEND_WAIT, RECOMMEND_AVOID}:
+    if action in {RECOMMEND_BLOCKED, RECOMMEND_WAIT}:
         return EXIT_WAIT
+    # SAFE / ACCEPTABLE mean "updating is a reasonable next step"
     return EXIT_OK
 
 
@@ -811,33 +951,58 @@ def _watch_signal(cfg: Config, watch_state, check: UpdateCheck) -> tuple[str, st
             True,
         )
 
-    # 5. risk band improved / worsened
-    band_order = {"LOW": 0, "LOW-MEDIUM": 1, "MEDIUM": 2, "HIGH": 3, "VERY HIGH": 4, "UNKNOWN": 5}
-    if previous_level and current_level and previous_level != current_level:
-        old_rank = band_order.get(previous_level, 5)
-        new_rank = band_order.get(current_level, 5)
-        if old_rank != new_rank and (old_rank >= 3 or new_rank >= 3):
-            direction = "下降" if new_rank < old_rank else "上升"
-            return (
-                f"风险等级{direction}：{previous_level} -> {current_level}（{current_tag}）",
-                f"risk level changed: {previous_level} -> {current_level} ({current_tag})",
-                True,
-            )
+    # 5. phase 3: the *personal* verdict changed (doc section 25)
+    #
+    #   BLOCKED -> WAIT        WAIT -> ACCEPTABLE      ACCEPTABLE -> SAFE
+    #   SAFE -> WAIT           ACCEPTABLE -> BLOCKED
+    #
+    # A global-risk move inside the same verdict (92 -> 91, HIGH -> MEDIUM) is
+    # deliberately silent: it changes nothing the user should act on.
+    action_order = {
+        RECOMMEND_BLOCKED: 0,
+        RECOMMEND_WAIT: 1,
+        RECOMMEND_UNKNOWN: 1,
+        RECOMMEND_MANUAL_REVIEW: 1,
+        RECOMMEND_ACCEPTABLE: 2,
+        RECOMMEND_SAFE: 3,
+    }
+    if current_action != previous_action and previous_action and current_action in action_order:
+        previous_rank = action_order.get(previous_action)
+        current_rank = action_order.get(current_action)
+        if previous_rank is not None and current_rank is not None:
+            improving = current_rank > previous_rank
+            if current_action in {RECOMMEND_SAFE, RECOMMEND_ACCEPTABLE} and cfg.watch.notify_when_safe:
+                return (
+                    f"{current_tag} 现在可以更新：{previous_action} -> {current_action}",
+                    f"{current_tag} is now safe to update: {previous_action} -> {current_action}",
+                    True,
+                )
+            if current_action in {RECOMMEND_BLOCKED, RECOMMEND_WAIT}:
+                direction = "改善但仍需等待" if improving else "变得不可更新"
+                direction_en = "improved but still waiting" if improving else "became not updatable"
+                return (
+                    f"建议变化（{direction}）：{previous_action} -> {current_action}",
+                    f"recommendation changed ({direction_en}): {previous_action} -> {current_action}",
+                    True,
+                )
 
-    # 6. action transition, e.g. WAIT -> UPDATE
-    if current_action != previous_action:
-        if cfg.watch.notify_when_safe and current_action == RECOMMEND_UPDATE:
-            return (
-                f"{current_tag} 现在可以更新（此前建议 {previous_action}）",
-                f"{current_tag} is now safe to update (was {previous_action})",
-                True,
-            )
-        if current_action in {RECOMMEND_WAIT, RECOMMEND_AVOID, RECOMMEND_MANUAL_REVIEW}:
-            return (
-                f"建议变化：{previous_action} -> {current_action}",
-                f"recommendation changed: {previous_action} -> {current_action}",
-                True,
-            )
+    # 6. your critical workflow: newly broken / resolved
+    previous_broken = set(watch_state.last_critical_features or [])
+    current_broken = {feature.key for feature in (check.readiness.critical_broken if check.readiness else [])}
+    if current_broken - previous_broken:
+        names = "、".join(sorted(current_broken - previous_broken))
+        return (
+            f"你的关键工作流出现回归：{names}",
+            f"your critical workflow regression detected: {names}",
+            True,
+        )
+    if previous_broken - current_broken:
+        names = "、".join(sorted(previous_broken - current_broken))
+        return (
+            f"关键工作流回归已解除：{names}",
+            f"critical workflow regression resolved: {names}",
+            True,
+        )
 
     # 7. confidence bucket change (data quality)
     if previous_bucket and confidence_bucket(current_confidence) != previous_bucket:

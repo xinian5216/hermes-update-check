@@ -162,18 +162,24 @@ def test_config_to_dict_serialises_paths(tmp_path: Path) -> None:
 
 
 def test_hard_gate_defaults() -> None:
+    """Phase 3: only the systemic / critical / local-safety rules block by default."""
     cfg = Config()
     gates = cfg.hard_gates
     assert gates.enabled is True
-    assert gates.minimum_release_age_hours == 48
-    assert gates.block_main_branch_update is True
+    assert gates.block_on_systemic_risk is True
+    assert gates.block_on_critical_workflow is True
+    assert gates.block_on_rollback_safety is True
     assert gates.block_dirty_worktree is True
-    assert gates.block_prerelease is True
-    assert gates.block_active_database_regression is True
-    assert gates.block_active_session_regression is True
-    assert gates.block_active_gateway_regression is False
-    assert gates.block_active_update_failure is True
     assert gates.block_on_insufficient_data is True
+    # demoted to warnings in phase 3 - these no longer stop an update
+    assert gates.block_main_branch_update is False
+    assert gates.block_prerelease is False
+    assert gates.warn_active_gateway_regression is True
+    # the phase-2 knobs survive as deprecated, unset by default
+    assert gates.minimum_release_age_hours is None
+    assert cfg.release_age_policy.block_hours == 6
+    assert cfg.release_age_policy.caution_hours == 12
+    assert cfg.release_age_policy.acceptable_hours == 24
 
 
 def test_hard_gates_from_yaml(tmp_path: Path) -> None:
@@ -188,19 +194,25 @@ def test_hard_gates_from_yaml(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     cfg = load_config(path, env={})
-    assert cfg.hard_gates.minimum_release_age_hours == 12
     assert cfg.hard_gates.block_dirty_worktree is False
+    assert cfg.hard_gates.block_on_insufficient_data is False
+    # the legacy key still loads, is reported as deprecated, and maps onto the policy
+    assert cfg.hard_gates.minimum_release_age_hours == 12
+    assert cfg.release_age_policy.block_hours == 12
+    assert any("minimum_release_age_hours" in note for note in cfg.deprecated)
     assert cfg.hard_gates.block_active_gateway_regression is True
     assert cfg.hard_gates.block_on_insufficient_data is False
-    # untouched keys keep their (safe) defaults
-    assert cfg.hard_gates.block_main_branch_update is True
+    # untouched keys keep their (safe) phase-3 defaults
+    assert cfg.hard_gates.block_main_branch_update is False
+    assert cfg.hard_gates.block_on_systemic_risk is True
 
 
 def test_hard_gates_enabled_via_env(tmp_path: Path) -> None:
     cfg = load_config(tmp_path / "none.yaml", env={})
     assert cfg.hard_gates.enabled is True
     data = cfg.to_dict()
-    assert data["hard_gates"]["minimum_release_age_hours"] == 48
+    assert data["hard_gates"]["block_on_systemic_risk"] is True
+    assert data["release_age_policy"]["block_hours"] == 6
 
 
 def test_unknown_hard_gate_key_warns(tmp_path: Path) -> None:
