@@ -63,9 +63,10 @@ def test_check_json_is_machine_readable(cfg: Config, hermes_home: Path, tmp_path
 
     assert code in {EXIT_OK, 10}
     assert payload["recommendation"] in {
-        "UPDATE",
+        "SAFE",
+        "ACCEPTABLE",
         "WAIT",
-        "AVOID",
+        "BLOCKED",
         "INSUFFICIENT_DATA",
         "AHEAD_OF_STABLE",
         "MANUAL_REVIEW",

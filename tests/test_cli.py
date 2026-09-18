@@ -121,9 +121,9 @@ def _assessment(recommendation: str, score: int | None = 10, level: str = "LOW")
 @pytest.mark.parametrize(
     "recommendation,score,level,expected",
     [
-        ("UPDATE", 10, "LOW", EXIT_OK),
+        ("UPDATE", 10, "LOW", EXIT_OK),  # legacy alias of SAFE
         ("WAIT", 55, "MEDIUM", EXIT_WAIT),
-        ("AVOID", 90, "VERY HIGH", EXIT_WAIT),
+        ("AVOID", 90, "VERY HIGH", EXIT_WAIT),  # legacy alias of BLOCKED
         ("INSUFFICIENT_DATA", None, "UNKNOWN", EXIT_INSUFFICIENT_DATA),
     ],
 )
@@ -142,9 +142,10 @@ def _check_with_recommendation(action: str):
 @pytest.mark.parametrize(
     "action,expected",
     [
-        ("UPDATE", EXIT_OK),
+        ("SAFE", EXIT_OK),
+        ("ACCEPTABLE", EXIT_OK),  # updating is a reasonable next step, not a promise
+        ("BLOCKED", EXIT_WAIT),
         ("WAIT", EXIT_WAIT),
-        ("AVOID", EXIT_WAIT),
         ("AHEAD_OF_STABLE", EXIT_OK),  # nothing to do: code is ahead of the release
         ("MANUAL_REVIEW", EXIT_WAIT),  # needs a human
         ("INSUFFICIENT_DATA", EXIT_INSUFFICIENT_DATA),

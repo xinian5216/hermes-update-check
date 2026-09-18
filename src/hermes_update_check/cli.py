@@ -820,6 +820,11 @@ def _check_exit_code(check: UpdateCheck) -> int:
         return EXIT_INSUFFICIENT_DATA
     if action in {RECOMMEND_BLOCKED, RECOMMEND_WAIT}:
         return EXIT_WAIT
+    # phase-2 names, still accepted (older state files, the legacy assessment path)
+    if action == "AVOID":
+        return EXIT_WAIT
+    if action in {"UPDATE", "UP_TO_DATE"}:
+        return EXIT_OK
     # SAFE / ACCEPTABLE mean "updating is a reasonable next step"
     return EXIT_OK
 
@@ -951,6 +956,24 @@ def _watch_signal(cfg: Config, watch_state, check: UpdateCheck) -> tuple[str, st
             True,
         )
 
+    # 6. your critical workflow: newly broken / resolved
+    previous_broken = set(watch_state.last_critical_features or [])
+    current_broken = {feature.key for feature in (check.readiness.critical_broken if check.readiness else [])}
+    if current_broken - previous_broken:
+        names = "、".join(sorted(current_broken - previous_broken))
+        return (
+            f"你的关键工作流出现回归：{names}",
+            f"your critical workflow regression detected: {names}",
+            True,
+        )
+    if previous_broken - current_broken:
+        names = "、".join(sorted(previous_broken - current_broken))
+        return (
+            f"关键工作流回归已解除：{names}",
+            f"critical workflow regression resolved: {names}",
+            True,
+        )
+
     # 5. phase 3: the *personal* verdict changed (doc section 25)
     #
     #   BLOCKED -> WAIT        WAIT -> ACCEPTABLE      ACCEPTABLE -> SAFE
@@ -985,24 +1008,6 @@ def _watch_signal(cfg: Config, watch_state, check: UpdateCheck) -> tuple[str, st
                     f"recommendation changed ({direction_en}): {previous_action} -> {current_action}",
                     True,
                 )
-
-    # 6. your critical workflow: newly broken / resolved
-    previous_broken = set(watch_state.last_critical_features or [])
-    current_broken = {feature.key for feature in (check.readiness.critical_broken if check.readiness else [])}
-    if current_broken - previous_broken:
-        names = "、".join(sorted(current_broken - previous_broken))
-        return (
-            f"你的关键工作流出现回归：{names}",
-            f"your critical workflow regression detected: {names}",
-            True,
-        )
-    if previous_broken - current_broken:
-        names = "、".join(sorted(previous_broken - current_broken))
-        return (
-            f"关键工作流回归已解除：{names}",
-            f"critical workflow regression resolved: {names}",
-            True,
-        )
 
     # 7. confidence bucket change (data quality)
     if previous_bucket and confidence_bucket(current_confidence) != previous_bucket:

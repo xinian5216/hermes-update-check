@@ -643,8 +643,23 @@ class Reporter:
                             "Do not update yet - keep observing before deciding.",
                         )
                     )
-            elif rec.action == RECOMMEND_UPDATE:
+            elif rec.action in {RECOMMEND_SAFE, RECOMMEND_ACCEPTABLE}:
                 lines.append(self._t("可以更新，但请先执行完整备份。", "You may update - take a full backup first."))
+            else:
+                # BLOCKED / INSUFFICIENT_DATA / MANUAL_REVIEW / AHEAD_OF_STABLE
+                lines.append(
+                    self._t(
+                        "不要更新，继续观察（原因见上）。",
+                        "Do not update - keep observing (see the reasons above).",
+                    )
+                )
+                if rec.recheck_at is not None and rec.recheck_hours is not None:
+                    lines.append(
+                        self._t(
+                            f"下次观察时间：{iso(rec.recheck_at)}（约 {rec.recheck_hours:g} 小时后）。",
+                            f"Next check: {iso(rec.recheck_at)} (~{rec.recheck_hours:g} hours later).",
+                        )
+                    )
             return lines
 
         if assessment is None:
@@ -665,13 +680,13 @@ class Reporter:
                 )
             )
             return lines
-        if rec_action == RECOMMEND_UPDATE:
+        if rec_action in {RECOMMEND_SAFE, RECOMMEND_ACCEPTABLE, "UPDATE"}:
             lines.append(self._t("风险可接受，可以更新。", "Risk is acceptable - you may update."))
             lines.append(
                 self._t("但请先做完整备份（不要跳过备份步骤）。", "Take a full backup first (do not skip it).")
             )
             return lines
-        if rec_action == RECOMMEND_AVOID:
+        if rec_action in {RECOMMEND_BLOCKED, "AVOID"}:
             lines.append(self._t("强烈不建议更新：风险评分进入最高区间。", "Strongly not recommended: top risk band."))
             lines.append(
                 self._t(

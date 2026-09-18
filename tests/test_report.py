@@ -45,7 +45,7 @@ def test_compact_report_mentions_the_essentials(cfg, hermes_home, state_root, ca
     assert "建议" in out
     # phase-2 sections
     assert "本地安装状态" in out
-    assert "硬门禁" in out
+    assert "门禁与提示" in out
 
 
 def test_report_english(cfg, hermes_home, state_root, capsys) -> None:
@@ -56,7 +56,7 @@ def test_report_english(cfg, hermes_home, state_root, capsys) -> None:
     assert "RECOMMENDATION" in out
     assert "RISK FACTOR BREAKDOWN" in out
     assert "LOCAL ENVIRONMENT" in out
-    assert "HARD GATES" in out
+    assert "GATES & CAUTIONS" in out
 
 
 def test_detailed_report_shows_factors_and_issue_samples(cfg, hermes_home, state_root, capsys) -> None:
@@ -69,15 +69,36 @@ def test_detailed_report_shows_factors_and_issue_samples(cfg, hermes_home, state
 
 
 def test_recommendation_lines_for_wait(cfg, hermes_home, state_root) -> None:
+    """The lines follow the advisor verdict (phase 3), not the legacy score."""
     check = build_check(cfg, hermes_home, state_root)
     reporter = Reporter(Console(plain=True), lang="zh")
     lines = reporter.recommendation_lines(check, check.assessment)
     text = "\n".join(lines)
-    if check.assessment.recommendation == "WAIT":
-        assert "暂时不要更新" in text
-        assert "观察" in text
+    action = check.recommendation.action if check.recommendation else check.assessment.recommendation
+    if action in {"WAIT", "BLOCKED", "INSUFFICIENT_DATA", "MANUAL_REVIEW"}:
+        assert "不要更新" in text or "观察" in text
     else:
         assert "可以更新" in text
+        assert "备份" in text
+
+
+def test_recommendation_lines_for_a_blocked_verdict(cfg, hermes_home, state_root) -> None:
+    """A BLOCKED verdict must say so and never invite an update."""
+    from hermes_update_check.advisor import RECOMMEND_BLOCKED, Recommendation
+
+    check = build_check(cfg, hermes_home, state_root)
+    check.recommendation = Recommendation(
+        action=RECOMMEND_BLOCKED,
+        decided_by="systemic_risk",
+        headline_zh="BLOCKED —— 系统级风险",
+        headline_en="BLOCKED - systemic critical risk",
+        recheck_hours=24.0,
+        recheck_at=check.generated_at,
+    )
+    reporter = Reporter(Console(plain=True), lang="zh")
+    text = "\n".join(reporter.recommendation_lines(check, check.assessment))
+    assert "不要更新" in text
+    assert "观察" in text
 
 
 def test_markdown_export_contains_tables(cfg, hermes_home, state_root) -> None:

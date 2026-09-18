@@ -104,12 +104,14 @@ def test_same_band_score_wobble_is_silent() -> None:
     assert en == "no change"
 
 
-def test_risk_band_change_notifies() -> None:
+def test_risk_band_change_alone_stays_silent() -> None:
+    """Phase 3 (doc section 25): a global-risk move that leaves the verdict alone
+    must not notify - "80 -> 70" is not something the user should act on."""
     cfg = Config()
-    previous = seeded(level="VERY HIGH", score=92)
-    _zh, en, notify = signal(cfg, previous, build_check(level="HIGH", score=75))
-    assert notify is True
-    assert "VERY HIGH -> HIGH" in en or "risk level" in en
+    previous = seeded(level="VERY HIGH", score=92, recommendation="ACCEPTABLE")
+    _zh, en, notify = signal(cfg, previous, build_check(level="HIGH", score=75, action="ACCEPTABLE"))
+    assert notify is False
+    assert "risk level" not in en
 
 
 def test_new_hard_gate_notifies() -> None:
@@ -160,13 +162,52 @@ def test_channel_change_notifies() -> None:
     assert "channel changed" in en
 
 
-def test_wait_to_update_notifies() -> None:
+def test_wait_to_acceptable_notifies() -> None:
     cfg = Config()
-    # same risk band, but the action flipped from WAIT to UPDATE
+    # same risk band, but the verdict flipped WAIT -> ACCEPTABLE
     previous = seeded(recommendation="WAIT", level="MEDIUM", score=38)
-    _zh, en, notify = signal(cfg, previous, build_check(action="UPDATE", score=35, level="MEDIUM"))
+    _zh, en, notify = signal(cfg, previous, build_check(action="ACCEPTABLE", score=35, level="MEDIUM"))
     assert notify is True
     assert "safe to update" in en
+
+
+def test_acceptable_to_blocked_notifies() -> None:
+    cfg = Config()
+    previous = seeded(recommendation="ACCEPTABLE", level="LOW-MEDIUM", score=30)
+    _zh, en, notify = signal(cfg, previous, build_check(action="BLOCKED", score=30, level="LOW-MEDIUM"))
+    assert notify is True
+    assert "BLOCKED" in en or "not updatable" in en
+
+
+def test_critical_workflow_regression_notifies() -> None:
+    """The notification the user actually asked for: their own critical feature."""
+    from hermes_update_check.clusters import RegressionCluster
+    from hermes_update_check.impact import compute_personal_readiness
+    from hermes_update_check.usage_profile import LEVEL_CRITICAL, UsageProfile
+
+    cfg = Config()
+    profile = UsageProfile(features={"sessions": LEVEL_CRITICAL}, source="config")
+    cluster = RegressionCluster(
+        key="SESSION",
+        zh="Session",
+        en="Session",
+        severity="CRITICAL",
+        confidence="HIGH",
+        reports=3,
+        unique_reporters=3,
+        open_count=3,
+        affected_features=["sessions"],
+        root_causes=3,
+        evidence_text="session data is unrecoverable after the update",
+    )
+    readiness = compute_personal_readiness(profile, [cluster])
+    check = build_check(action="BLOCKED")
+    check.readiness = readiness
+
+    previous = seeded(recommendation="ACCEPTABLE")  # nothing broken before
+    _zh, en, notify = signal(cfg, previous, check)
+    assert notify is True
+    assert "critical workflow" in en
 
 
 def test_confidence_bucket_change_notifies() -> None:

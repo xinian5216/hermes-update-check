@@ -348,7 +348,7 @@ class UsageProfile:
         profile = cls(source="config")
         for section, target in (("features", profile.features), ("providers", profile.providers)):
             raw = data.get(section)
-            if raw is None or isinstance(raw, (str, bytes)):
+            if raw is None:
                 continue
             if not isinstance(raw, Mapping):
                 warn.append(f"usage_profile.{section} must be a mapping of name: level; ignored")

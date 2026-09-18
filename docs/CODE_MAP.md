@@ -5,8 +5,8 @@ Read this before opening files: it is regenerated from the source by
 
 ## Quick facts
 
-- package: `hermes_update_check` - 28 modules, 11245 lines
-- tests: 344 test functions in 23 files (offline, no network)
+- package: `hermes_update_check` - 31 modules, 14092 lines
+- tests: 401 test functions in 26 files (offline, no network)
 - docs: `README.md` (user guide), `SECURITY.md` (privacy policy), `CHANGELOG.md`
 - invariants: never updates Hermes without an explicit `y`; unknown data is reported as
   UNKNOWN, never as safe; exit codes are a public contract (see `errors.py`)
@@ -32,6 +32,7 @@ Read this before opening files: it is regenerated from the source by
 | `health` | run the post-update health checks |
 | `preflight` | run the pre-update checks only |
 | `config` | show / locate / create the configuration |
+| `profile` | usage profile: what *you* depend on (phase 3) |
 | `notify-test` | send a test notification to every configured channel |
 | `version` | print the tool version |
 
@@ -40,23 +41,26 @@ Read this before opening files: it is regenerated from the source by
 | module | lines | what it is for |
 |---|---|---|
 | [`risk`](../hermes_update_check/risk.py) | 1195 | The risk engine: everything that turns observations into an Update Risk Score |
-| [`cli`](../hermes_update_check/cli.py) | 1015 | Command line interface |
-| [`checker`](../hermes_update_check/checker.py) | 786 | Orchestration: gather every input, then hand it to the risk engine |
-| [`report`](../hermes_update_check/report.py) | 685 | Report rendering: the human-readable answer, in Chinese or English |
-| [`clusters`](../hermes_update_check/clusters.py) | 649 | Regression clustering: turn raw issue hits into *credible* regression signals |
-| [`config`](../hermes_update_check/config.py) | 616 | Configuration loading, validation and path resolution |
+| [`cli`](../hermes_update_check/cli.py) | 1185 | Command line interface |
+| [`report`](../hermes_update_check/report.py) | 863 | Report rendering: the human-readable answer, in Chinese or English |
+| [`config`](../hermes_update_check/config.py) | 843 | Configuration loading, validation and path resolution |
+| [`checker`](../hermes_update_check/checker.py) | 826 | Orchestration: gather every input, then hand it to the risk engine |
+| [`clusters`](../hermes_update_check/clusters.py) | 805 | Regression clustering: turn raw issue hits into *credible* regression signals |
+| [`impact`](../hermes_update_check/impact.py) | 718 | Personal impact, core-feature readiness and systemic critical risk |
+| [`gates`](../hermes_update_check/gates.py) | 679 | Gates: the few rules that can still stop an update |
+| [`advisor`](../hermes_update_check/advisor.py) | 649 | The advisor: turn provenance + risk + readiness + gates into one verdict |
 | [`updater`](../hermes_update_check/updater.py) | 604 | Update execution: snapshot -> update -> health check -> (rollback) |
+| [`usage_profile`](../hermes_update_check/usage_profile.py) | 604 | Which parts of Hermes this user actually depends on |
 | [`provenance`](../hermes_update_check/provenance.py) | 564 | Code provenance: *what code is actually running*, not just what it calls itself |
 | [`github_api`](../hermes_update_check/github_api.py) | 546 | GitHub API access for the Hermes repository: releases, compares, issue searches |
 | [`local_env`](../hermes_update_check/local_env.py) | 533 | Local environment detection: what Hermes is installed here, how, and in what state |
 | [`util`](../hermes_update_check/util.py) | 512 | Small, dependency-free helpers: subprocess runner, JSON IO, time parsing, hashing |
 | [`health`](../hermes_update_check/health.py) | 511 | Post-update health checks: did the update actually leave a working install? |
-| [`gates`](../hermes_update_check/gates.py) | 491 | Hard gates: rules that override the risk score |
 | [`preflight`](../hermes_update_check/preflight.py) | 485 | Pre-update checks: is this machine actually in a state where an update is safe to start? |
-| [`advisor`](../hermes_update_check/advisor.py) | 419 | The advisor: turn provenance + risk + gates into one explainable verdict |
+| [`rollback_safety`](../hermes_update_check/rollback_safety.py) | 327 | Can we actually get back if the update goes wrong? |
 | [`http`](../hermes_update_check/http.py) | 309 | HTTP layer: stdlib-only client with timeouts, retries, on-disk cache and rate-limit awareness |
 | [`versioning`](../hermes_update_check/versioning.py) | 299 | Version parsing and comparison |
-| [`state`](../hermes_update_check/state.py) | 266 | State files: `update_state.json`, watch state, cache/snapshot directories |
+| [`state`](../hermes_update_check/state.py) | 275 | State files: `update_state.json`, watch state, cache/snapshot directories |
 | [`console`](../hermes_update_check/console.py) | 228 | Terminal rendering: pretty with `rich`, correct with plain text |
 | [`errors`](../hermes_update_check/errors.py) | 120 | Exceptions and process exit codes |
 | [`notify.telegram`](../hermes_update_check/notify/telegram.py) | 111 | Telegram channel (first-class notifier - `my chat` is where alerts are read) |
@@ -82,120 +86,127 @@ Read this before opening files: it is regenerated from the source by
 
 _no public symbols_
 
-### `advisor` — The advisor: turn provenance + risk + gates into one explainable verdict
+### `advisor` — The advisor: turn provenance + risk + readiness + gates into one verdict
 
-`hermes_update_check/advisor.py` (419 lines)
+`hermes_update_check/advisor.py` (649 lines)
 
 | kind | symbol | line | purpose |
 |---|---|---|---|
-| constant | `RECOMMEND_AHEAD_OF_STABLE` | 43 | 'AHEAD_OF_STABLE' |
-| constant | `RECOMMEND_MANUAL_REVIEW` | 44 | 'MANUAL_REVIEW' |
-| constant | `DECIDED_BY` | 46 | {'update_status': '更新状态', 'insufficient_data': '数据不足', 'environment': … |
-| constant | `RECHECK_CRITICAL_HOURS` | 56 | 12.0 |
-| constant | `RECHECK_SEVERE_HOURS` | 57 | 24.0 |
-| constant | `RECHECK_ROUTINE_HOURS` | 58 | 24.0 |
-| constant | `RECHECK_WAIT_DAYS` | 59 | 3.0 |
-| constant | `RECHECK_AVOID_DAYS` | 60 | 7.0 |
-| class | **Recommendation** — is_blocking, decided_by_label, to_dict | 64 | The final, human-readable verdict |
-| function | `advise(cfg: Config, *, provenance: CodeProvenance, decision: UpdateDecision, assessment: Optional[RiskAssessment], gates: GateReport, clusters: list[RegressionCluster] = …, release: Optional[Release] = …, now: Optional[datetime] = …) -> Recommendation` | 119 | Apply the priority order and produce the final recommendation |
-| function | `recommended_recheck(*, action: str, gate_deadline: Optional[datetime], clusters: list[RegressionCluster], routine_hours: float, now: datetime) -> tuple[Optional[float], str, str]` | 362 | How soon is it worth looking again? |
+| constant | `RECOMMEND_BLOCKED` | 56 | 'BLOCKED' |
+| constant | `RECOMMEND_WAIT` | 57 | 'WAIT' |
+| constant | `RECOMMEND_ACCEPTABLE` | 58 | 'ACCEPTABLE' |
+| constant | `RECOMMEND_SAFE` | 59 | 'SAFE' |
+| constant | `RECOMMEND_AHEAD_OF_STABLE` | 62 | 'AHEAD_OF_STABLE' |
+| constant | `RECOMMEND_MANUAL_REVIEW` | 63 | 'MANUAL_REVIEW' |
+| constant | `DECIDED_BY` | 80 | {'update_status': '更新状态', 'insufficient_data': '数据不足', 'environment': … |
+| constant | `RECHECK_CRITICAL_HOURS` | 96 | 12.0 |
+| constant | `RECHECK_SEVERE_HOURS` | 97 | 24.0 |
+| constant | `RECHECK_ROUTINE_HOURS` | 98 | 24.0 |
+| constant | `RECHECK_WAIT_HOURS` | 99 | 72.0 |
+| class | **Recommendation** — is_blocking, is_update_friendly, decided_by_label, to_dict | 107 | The final, human-readable verdict |
+| function | `advise(cfg: Config, *, provenance: CodeProvenance, decision: UpdateDecision, assessment: Optional[RiskAssessment], gates: GateReport, clusters: Sequence[RegressionCluster] = …, release: Optional[Release] = …, readiness: Optional[PersonalReadiness] = …, now: Optional[datetime] = …) -> Recommendation` | 201 | Apply the phase-3 priority order and produce the final recommendation |
+| function | `recommended_recheck(*, action: str, gate_deadline: Optional[datetime], clusters: Sequence[RegressionCluster], routine_hours: float, now: datetime) -> tuple[Optional[float], str, str]` | 603 | Next monitoring check - explicitly *not* a promise that updating becomes possible |
 
 ### `checker` — Orchestration: gather every input, then hand it to the risk engine
 
-`hermes_update_check/checker.py` (786 lines)
+`hermes_update_check/checker.py` (826 lines)
 
 | kind | symbol | line | purpose |
 |---|---|---|---|
-| constant | `ISSUE_FALLBACK_QUERY` | 64 | 'label:bug' |
-| constant | `BASELINE_MIN_DAYS` | 66 | 3.0 |
-| constant | `BASELINE_MAX_DAYS` | 67 | 14.0 |
-| class | **UpdateCheck** — degraded, update_status, channel, action, tracking_main, recommended_action | 71 | The complete result of one check - everything the report needs |
-| function | `build_http_client(cfg: Config, state_root: Path, *, logger: Optional[logging.Logger] = …, no_cache: bool = …) -> tuple[HttpClient, bool]` | 286 | Create the HTTP client with token and disk cache |
-| function | `resolve_github_token(cfg: Config) -> tuple[Optional[str], bool]` | 302 | Find a GitHub token in the environment (never in the config file) |
-| function | `build_github_client(cfg: Config, state_root: Path, *, logger: Optional[logging.Logger] = …, no_cache: bool = …) -> tuple[GitHubClient, bool, HttpClient]` | 316 |  |
-| function | `run_check(cfg: Config, *, env: Optional[LocalEnv] = …, client: Optional[GitHubClient] = …, state_root: Optional[Path] = …, no_cache: bool = …, include_issues: Optional[bool] = …, logger: Optional[logging.Logger] = …) -> UpdateCheck` | 333 | Full check: local env -> releases -> compare -> issues -> risk assessment |
-| function | `collect_issue_signal(cfg: Config, client: GitHubClient, release: Release, *, provenance: Optional[CodeProvenance] = …, logger: Optional[logging.Logger] = …, use_cache: bool = …) -> IssueSignal` | 562 | Search GitHub issues filed after the release, plus a baseline window |
-| function | `issue_signal_confidence(signal: IssueSignal) -> int` | 741 | Issue Signal Confidence (0-100): how much should the issue data be trusted? |
-| function | `summarize_release_line(release: Release) -> str` | 769 | One-line label like ``v0.21.3 (v2026.9.14) - 0.6 days old`` |
-| function | `level_of(score: Optional[int]) -> str` | 777 |  |
-| function | `iso_now() -> str` | 781 |  |
-| function | `normalise_release_tag(tag: Optional[str]) -> Optional[str]` | 785 |  |
+| constant | `ISSUE_FALLBACK_QUERY` | 67 | 'label:bug' |
+| constant | `BASELINE_MIN_DAYS` | 69 | 3.0 |
+| constant | `BASELINE_MAX_DAYS` | 70 | 14.0 |
+| class | **UpdateCheck** — degraded, update_status, channel, action, tracking_main, recommended_action | 74 | The complete result of one check - everything the report needs |
+| function | `build_http_client(cfg: Config, state_root: Path, *, logger: Optional[logging.Logger] = …, no_cache: bool = …) -> tuple[HttpClient, bool]` | 303 | Create the HTTP client with token and disk cache |
+| function | `resolve_github_token(cfg: Config) -> tuple[Optional[str], bool]` | 319 | Find a GitHub token in the environment (never in the config file) |
+| function | `build_github_client(cfg: Config, state_root: Path, *, logger: Optional[logging.Logger] = …, no_cache: bool = …) -> tuple[GitHubClient, bool, HttpClient]` | 333 |  |
+| function | `run_check(cfg: Config, *, env: Optional[LocalEnv] = …, client: Optional[GitHubClient] = …, state_root: Optional[Path] = …, no_cache: bool = …, include_issues: Optional[bool] = …, logger: Optional[logging.Logger] = …) -> UpdateCheck` | 350 | Full check: local env -> releases -> compare -> issues -> risk assessment |
+| function | `collect_issue_signal(cfg: Config, client: GitHubClient, release: Release, *, provenance: Optional[CodeProvenance] = …, logger: Optional[logging.Logger] = …, use_cache: bool = …) -> IssueSignal` | 602 | Search GitHub issues filed after the release, plus a baseline window |
+| function | `issue_signal_confidence(signal: IssueSignal) -> int` | 781 | Issue Signal Confidence (0-100): how much should the issue data be trusted? |
+| function | `summarize_release_line(release: Release) -> str` | 809 | One-line label like ``v0.21.3 (v2026.9.14) - 0.6 days old`` |
+| function | `level_of(score: Optional[int]) -> str` | 817 |  |
+| function | `iso_now() -> str` | 821 |  |
+| function | `normalise_release_tag(tag: Optional[str]) -> Optional[str]` | 825 |  |
 
 ### `cli` — Command line interface
 
-`hermes_update_check/cli.py` (1015 lines)
+`hermes_update_check/cli.py` (1185 lines)
 
 | kind | symbol | line | purpose |
 |---|---|---|---|
-| function | `build_parser() -> argparse.ArgumentParser` | 71 |  |
-| function | `make_output_encoding_safe() -> None` | 168 | Never crash on a console that cannot represent the text we print |
-| function | `main(argv: Optional[Sequence[str]] = …) -> int` | 195 |  |
-| function | `cmd_check(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int` | 281 |  |
-| function | `cmd_report(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int` | 296 |  |
-| function | `cmd_watch(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int` | 322 | Cron entry point: stay silent unless something meaningful changed |
-| function | `cmd_update(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int` | 413 |  |
-| function | `cmd_rollback(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int` | 538 |  |
-| function | `cmd_health(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int` | 598 |  |
-| function | `cmd_preflight(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int` | 615 |  |
-| function | `cmd_config(args: argparse.Namespace, cfg: Config, console: Console) -> int` | 625 |  |
-| function | `cmd_notify_test(args: argparse.Namespace, cfg: Config, console: Console, logger: Any) -> int` | 647 |  |
+| function | `build_parser() -> argparse.ArgumentParser` | 77 |  |
+| function | `make_output_encoding_safe() -> None` | 182 | Never crash on a console that cannot represent the text we print |
+| function | `main(argv: Optional[Sequence[str]] = …) -> int` | 209 |  |
+| function | `cmd_check(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int` | 297 |  |
+| function | `cmd_report(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int` | 312 |  |
+| function | `cmd_watch(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int` | 338 | Cron entry point: stay silent unless something meaningful changed |
+| function | `cmd_update(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int` | 431 |  |
+| function | `cmd_rollback(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int` | 556 |  |
+| function | `cmd_health(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int` | 616 |  |
+| function | `cmd_preflight(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int` | 633 |  |
+| function | `cmd_profile(args: argparse.Namespace, cfg: Config, console: Console) -> int` | 643 | ``profile show|detect|edit`` - what this user actually depends on (phase 3) |
+| function | `cmd_config(args: argparse.Namespace, cfg: Config, console: Console) -> int` | 764 |  |
+| function | `cmd_notify_test(args: argparse.Namespace, cfg: Config, console: Console, logger: Any) -> int` | 786 |  |
 
 ### `clusters` — Regression clustering: turn raw issue hits into *credible* regression signals
 
-`hermes_update_check/clusters.py` (649 lines)
+`hermes_update_check/clusters.py` (805 lines)
 
 | kind | symbol | line | purpose |
 |---|---|---|---|
-| constant | `SEVERITY_CRITICAL` | 23 | 'CRITICAL' |
-| constant | `SEVERITY_HIGH` | 24 | 'HIGH' |
-| constant | `SEVERITY_MEDIUM` | 25 | 'MEDIUM' |
-| constant | `SEVERITY_LOW` | 26 | 'LOW' |
-| constant | `CONFIDENCE_HIGH` | 28 | 'HIGH' |
-| constant | `CONFIDENCE_MEDIUM` | 29 | 'MEDIUM' |
-| constant | `CONFIDENCE_LOW` | 30 | 'LOW' |
-| constant | `SEVERITY_WEIGHTS` | 32 | {SEVERITY_CRITICAL: 1.0, SEVERITY_HIGH: 0.75, SEVERITY_MEDIUM: 0.45, S… |
-| constant | `CONFIDENCE_WEIGHTS` | 38 | {CONFIDENCE_HIGH: 1.0, CONFIDENCE_MEDIUM: 0.6, CONFIDENCE_LOW: 0.3} |
-| constant | `SEVERITY_RANK` | 40 | {SEVERITY_CRITICAL: 3, SEVERITY_HIGH: 2, SEVERITY_MEDIUM: 1, SEVERITY_… |
-| constant | `UNKNOWN_REGRESSION_FLOOR` | 43 | 25 |
-| class | **ClusterSpec** | 47 |  |
-| constant | `DEFAULT_ENRICHMENT_LIMIT` | 190 | 3 |
-| class | **IssueEnrichment** — to_dict | 194 | Extra facts fetched for a single issue (comments / association) |
-| class | **RegressionCluster** — contribution, is_severe, is_active, headline_zh, headline_en, detail_zh | 219 | One graded regression cluster |
-| function | `cluster_keys_for(issue: Issue, *, include_body: bool = …) -> list[str]` | 311 | Which clusters an issue belongs to (title + labels first, then body) |
-| function | `severity_for(key: str, text: str) -> str` | 323 | Cluster severity, promoted to CRITICAL when the text says so |
-| function | `build_clusters(issues: Iterable[Issue], *, enrichment: Optional[dict[int, IssueEnrichment]] = …, release_version: Optional[str] = …, release_tag: Optional[str] = …) -> list[RegressionCluster]` | 382 | Grade every cluster found in the scanned issues |
-| function | `grade_confidence(*, reports: int, unique_reporters: int, open_count: int, maintainer_confirmed: int, linked_pr: int, with_reproduction: int, mentions_version: int, signature_groups: int) -> str` | 500 | Credibility of a cluster, 0..1, mapped to LOW/MEDIUM/HIGH |
-| class | **RegressionSignal** — display, to_dict | 545 | The Regression Signal (0-100) plus the floor used when data is missing |
-| constant | `CLUSTER_WEIGHT` | 579 | 0.6 |
-| constant | `EVIDENCE_FLOOR` | 583 | 0.55 |
-| function | `regression_signal(clusters: Iterable[RegressionCluster], *, volume_ratio: float = …, signal_confidence: Optional[int] = …, unavailable: bool = …, unavailable_reason: str = …) -> RegressionSignal` | 586 | Combine cluster evidence into the Regression Signal |
+| constant | `SEVERITY_CRITICAL` | 24 | 'CRITICAL' |
+| constant | `SEVERITY_HIGH` | 25 | 'HIGH' |
+| constant | `SEVERITY_MEDIUM` | 26 | 'MEDIUM' |
+| constant | `SEVERITY_LOW` | 27 | 'LOW' |
+| constant | `CONFIDENCE_HIGH` | 29 | 'HIGH' |
+| constant | `CONFIDENCE_MEDIUM` | 30 | 'MEDIUM' |
+| constant | `CONFIDENCE_LOW` | 31 | 'LOW' |
+| constant | `SEVERITY_WEIGHTS` | 33 | {SEVERITY_CRITICAL: 1.0, SEVERITY_HIGH: 0.75, SEVERITY_MEDIUM: 0.45, S… |
+| constant | `CONFIDENCE_WEIGHTS` | 39 | {CONFIDENCE_HIGH: 1.0, CONFIDENCE_MEDIUM: 0.6, CONFIDENCE_LOW: 0.3} |
+| constant | `SEVERITY_RANK` | 41 | {SEVERITY_CRITICAL: 3, SEVERITY_HIGH: 2, SEVERITY_MEDIUM: 1, SEVERITY_… |
+| constant | `UNKNOWN_REGRESSION_FLOOR` | 44 | 25 |
+| constant | `DUPLICATE_SIMILARITY` | 52 | 0.6 |
+| class | **ClusterSpec** | 56 |  |
+| constant | `DEFAULT_ENRICHMENT_LIMIT` | 210 | 3 |
+| class | **IssueEnrichment** — to_dict | 214 | Extra facts fetched for a single issue (comments / association) |
+| class | **RegressionCluster** — duplicate_reports, contribution, is_severe, is_active, headline_zh, headline_en | 239 | One graded regression cluster |
+| function | `cluster_keys_for(issue: Issue, *, include_body: bool = …) -> list[str]` | 353 | Which clusters an issue belongs to (title + labels first, then body) |
+| function | `severity_for(key: str, text: str) -> str` | 365 | Cluster severity, promoted to CRITICAL when the text says so |
+| function | `build_clusters(issues: Iterable[Issue], *, enrichment: Optional[dict[int, IssueEnrichment]] = …, release_version: Optional[str] = …, release_tag: Optional[str] = …) -> list[RegressionCluster]` | 493 | Grade every cluster found in the scanned issues |
+| function | `grade_confidence(*, reports: int, unique_reporters: int, open_count: int, maintainer_confirmed: int, linked_pr: int, with_reproduction: int, mentions_version: int, signature_groups: int) -> str` | 656 | Credibility of a cluster, 0..1, mapped to LOW/MEDIUM/HIGH |
+| class | **RegressionSignal** — display, to_dict | 701 | The Regression Signal (0-100) plus the floor used when data is missing |
+| constant | `CLUSTER_WEIGHT` | 735 | 0.6 |
+| constant | `EVIDENCE_FLOOR` | 739 | 0.55 |
+| function | `regression_signal(clusters: Iterable[RegressionCluster], *, volume_ratio: float = …, signal_confidence: Optional[int] = …, unavailable: bool = …, unavailable_reason: str = …) -> RegressionSignal` | 742 | Combine cluster evidence into the Regression Signal |
 
 ### `config` — Configuration loading, validation and path resolution
 
-`hermes_update_check/config.py` (616 lines)
+`hermes_update_check/config.py` (843 lines)
 
 | kind | symbol | line | purpose |
 |---|---|---|---|
-| constant | `ENV_PREFIX` | 31 | 'HERMES_UPDATE_CHECK_' |
-| class | **GitHubConfig** | 105 |  |
-| class | **HardGateConfig** | 115 | Rules that override the numeric risk score |
-| class | **NetworkConfig** | 131 |  |
-| class | **PathsConfig** | 137 |  |
-| class | **UpdateConfig** | 143 |  |
-| class | **WatchConfig** | 153 |  |
-| class | **TelegramConfig** | 162 |  |
-| class | **WebhookConfig** | 169 |  |
-| class | **NotifyConfig** | 176 |  |
-| class | **LoggingConfig** | 182 |  |
-| class | **RiskWeights** | 189 |  |
-| class | **Config** — repo, to_dict | 199 |  |
-| function | `default_config_path() -> Path` | 254 | `~/.config/hermes-update-check/config.yaml` (Windows: `%APPDATA%\...`) |
-| function | `default_state_dir() -> Path` | 269 | `~/.hermes-update-check` - state, cache, snapshots, logs, update_state.json |
-| function | `resolve_hermes_home(cfg: Config | None = …) -> Path` | 277 | Resolve $HERMES_HOME the way Hermes does, falling back to ~/.hermes |
-| function | `resolve_state_dir(cfg: Config | None = …) -> Path` | 290 |  |
-| function | `load_config(path: Path | str | None = …, *, env: Mapping[str, str] | None = …) -> Config` | 301 | Load, merge and validate configuration |
-| function | `deep_merge(base: Mapping[str, Any], override: Mapping[str, Any]) -> dict[str, Any]` | 366 | Recursive merge; `override` wins |
-| function | `write_default_config(path: Path | None = …, *, force: bool = …) -> Path` | 602 | Write a commented example config (used by `config init`) |
+| constant | `ENV_PREFIX` | 32 | 'HERMES_UPDATE_CHECK_' |
+| class | **GitHubConfig** | 152 |  |
+| class | **HardGateConfig** | 162 | Which rules may still stop an update (phase 3 keeps this list short) |
+| class | **ReleaseAgePolicy** — band, to_dict | 192 | Segmented release-age policy (doc section 9) |
+| class | **SmokeTestConfig** — enabled_tests, to_dict | 222 | Post-update smoke tests (doc section 20); all read-only by design |
+| class | **NetworkConfig** | 249 |  |
+| class | **PathsConfig** | 255 |  |
+| class | **UpdateConfig** | 261 |  |
+| class | **WatchConfig** | 271 |  |
+| class | **TelegramConfig** | 280 |  |
+| class | **WebhookConfig** | 287 |  |
+| class | **NotifyConfig** | 294 |  |
+| class | **LoggingConfig** | 300 |  |
+| class | **RiskWeights** | 307 |  |
+| class | **Config** — repo, to_dict | 317 |  |
+| function | `default_config_path() -> Path` | 377 | `~/.config/hermes-update-check/config.yaml` (Windows: `%APPDATA%\...`) |
+| function | `default_state_dir() -> Path` | 392 | `~/.hermes-update-check` - state, cache, snapshots, logs, update_state.json |
+| function | `resolve_hermes_home(cfg: Config | None = …) -> Path` | 400 | Resolve $HERMES_HOME the way Hermes does, falling back to ~/.hermes |
+| function | `resolve_state_dir(cfg: Config | None = …) -> Path` | 413 |  |
+| function | `load_config(path: Path | str | None = …, *, env: Mapping[str, str] | None = …) -> Config` | 424 | Load, merge and validate configuration |
+| function | `deep_merge(base: Mapping[str, Any], override: Mapping[str, Any]) -> dict[str, Any]` | 489 | Recursive merge; `override` wins |
+| function | `write_default_config(path: Path | None = …, *, force: bool = …) -> Path` | 829 | Write a commented example config (used by `config init`) |
 
 ### `console` — Terminal rendering: pretty with `rich`, correct with plain text
 
@@ -232,24 +243,25 @@ _no public symbols_
 | class | **AbortedError** | 111 | The user (or a non-interactive stdin) refused to continue |
 | class | **InsufficientDataError** | 117 | Not enough information to produce a trustworthy risk assessment |
 
-### `gates` — Hard gates: rules that override the risk score
+### `gates` — Gates: the few rules that can still stop an update
 
-`hermes_update_check/gates.py` (491 lines)
+`hermes_update_check/gates.py` (679 lines)
 
 | kind | symbol | line | purpose |
 |---|---|---|---|
-| constant | `GATE_BLOCK` | 47 | 'BLOCK' |
-| constant | `GATE_WARN` | 48 | 'WARN' |
-| constant | `GATE_PASS` | 49 | 'PASS' |
-| constant | `GATE_SKIP` | 50 | 'SKIP' |
-| class | **EnvironmentState** — abnormal, to_dict | 62 | Cheap, file-level sanity of the local install (no subprocesses) |
-| function | `probe_environment(env: LocalEnv, *, logger: Optional[logging.Logger] = …) -> EnvironmentState` | 88 | Check the local environment without touching the network or spawning work |
-| class | **GateResult** — blocking, to_dict | 127 |  |
-| class | **GateReport** — blocking, warnings, blocked, environment_abnormal, blocked_by, earliest_recheck | 159 |  |
-| function | `evaluate_gates(cfg: Config, *, provenance: CodeProvenance, decision: UpdateDecision, release: Optional[Release], assessment: Optional[RiskAssessment], clusters: list[RegressionCluster] = …, environment: Optional[EnvironmentState] = …, now: Optional[datetime] = …) -> GateReport` | 201 | Evaluate every configured gate |
-| function | `describe_gate_lines(report: GateReport, *, lang: str = …) -> list[str]` | 471 | Compact one-line-per-gate rendering used by the report and the CLI |
-| function | `severe_cluster_keys(clusters, *, threshold: str = …) -> list[str]` | 483 |  |
-| function | `critical_cluster_keys(clusters) -> list[str]` | 490 |  |
+| constant | `GATE_BLOCK` | 66 | 'BLOCK' |
+| constant | `GATE_WARN` | 67 | 'WARN' |
+| constant | `GATE_PASS` | 68 | 'PASS' |
+| constant | `GATE_SKIP` | 69 | 'SKIP' |
+| class | **EnvironmentState** — abnormal, to_dict | 82 | Cheap, file-level sanity of the local install (no subprocesses) |
+| function | `probe_environment(env: LocalEnv, *, logger: Optional[logging.Logger] = …) -> EnvironmentState` | 108 | Check the local environment without touching the network or spawning work |
+| class | **GateResult** — blocking, to_dict | 147 |  |
+| class | **GateReport** — blocking, warnings, cautions, blocked, environment_abnormal, blocked_by | 182 |  |
+| function | `evaluate_gates(cfg: Config, *, provenance: CodeProvenance, decision: UpdateDecision, release: Optional[Release], assessment: Optional[RiskAssessment], clusters: Sequence[RegressionCluster] = …, environment: Optional[EnvironmentState] = …, readiness: Optional[PersonalReadiness] = …, rollback_safety: Optional[RollbackSafety] = …, now: Optional[datetime] = …) -> GateReport` | 242 | Evaluate every configured gate |
+| constant | `_SYSTEMIC_FEATURE_KEYS` | 438 | {'config'} |
+| function | `describe_gate_lines(report: GateReport, *, lang: str = …) -> list[str]` | 659 | Compact one-line-per-gate rendering used by the report and the CLI |
+| function | `severe_cluster_keys(clusters, *, threshold: str = …) -> list[str]` | 671 |  |
+| function | `critical_cluster_keys(clusters) -> list[str]` | 678 |  |
 
 ### `github_api` — GitHub API access for the Hermes repository: releases, compares, issue searches
 
@@ -304,6 +316,32 @@ _no public symbols_
 | kind | symbol | line | purpose |
 |---|---|---|---|
 | class | **Translator** — is_zh, t, set_lang | 13 | Pick one of the two strings based on the configured language |
+
+### `impact` — Personal impact, core-feature readiness and systemic critical risk
+
+`hermes_update_check/impact.py` (718 lines)
+
+| kind | symbol | line | purpose |
+|---|---|---|---|
+| constant | `READINESS_DAMPING` | 63 | 1.6 |
+| constant | `READINESS_SAFE_MIN` | 66 | 85 |
+| constant | `READINESS_ACCEPTABLE_MIN` | 67 | 60 |
+| constant | `FEATURE_OK` | 72 | 'OK' |
+| constant | `FEATURE_WARN` | 73 | 'WARN' |
+| constant | `FEATURE_FAIL` | 74 | 'FAIL' |
+| constant | `FEATURE_UNUSED` | 75 | 'UNUSED' |
+| class | **SystemicSpec** | 79 |  |
+| constant | `_NEGATION_WINDOW` | 198 | 70 |
+| class | **SystemicRisk** — blocking, to_dict | 228 | One system-wide risk category and whether the evidence matches it |
+| constant | `_PROVIDER_VOCAB` | 313 | 'providers?|api key|endpoint' |
+| function | `feature_claims_unavailable(feature_key: str, text: str) -> bool` | 321 | Does this evidence claim *this feature* is unavailable? |
+| function | `claims_unavailability(text: str) -> bool` | 344 | Does this evidence contain any *unnegated* unavailability claim at all? |
+| class | **FeatureImpact** — is_unused, to_dict | 356 | One feature of the profile and what the candidate release does to it |
+| class | **PersonalReadiness** — active_systemic, blocking_systemic, critical_broken, critical_suspect, used_features, unused_with_issues | 390 | The phase-3 bundle: impact + readiness + systemic risk |
+| function | `cluster_text(cluster: RegressionCluster) -> str` | 454 | Evidence text for a cluster: every sample title plus a slice of each body |
+| function | `detect_systemic_risks(clusters: Iterable[RegressionCluster], *, cluster_source: Optional[dict[str, list[RegressionCluster]]] = …) -> list[SystemicRisk]` | 477 | Which system-wide risk categories the evidence actually supports |
+| function | `local_rollback_risk(status: str, *, detail_zh: str = …, detail_en: str = …) -> Optional[SystemicRisk]` | 545 | Turn a failing rollback-safety probe into a systemic risk entry |
+| function | `compute_personal_readiness(profile: UsageProfile, clusters: Sequence[RegressionCluster], *, extra_systemic: Sequence[SystemicRisk] = …, impact_feature_keys: Optional[dict[str, list[str]]] = …) -> PersonalReadiness` | 565 | Impact + readiness from clusters and the profile |
 
 ### `local_env` — Local environment detection: what Hermes is installed here, how, and in what state
 
@@ -416,12 +454,12 @@ _no public symbols_
 
 ### `report` — Report rendering: the human-readable answer, in Chinese or English
 
-`hermes_update_check/report.py` (685 lines)
+`hermes_update_check/report.py` (863 lines)
 
 | kind | symbol | line | purpose |
 |---|---|---|---|
-| constant | `REPORT_TITLE` | 35 | 'Hermes Update Advisor' |
-| class | **Reporter** — render, recommendation_lines, to_markdown | 49 | Renders an UpdateCheck for humans (rich) or machines (markdown/json) |
+| constant | `REPORT_TITLE` | 42 | 'Hermes Update Advisor' |
+| class | **Reporter** — render, recommendation_lines, to_markdown | 60 | Renders an UpdateCheck for humans (rich) or machines (markdown/json) |
 
 ### `risk` — The risk engine: everything that turns observations into an Update Risk Score
 
@@ -469,9 +507,24 @@ _no public symbols_
 | function | `assess(ctx: CheckContext) -> RiskAssessment` | 883 | Run every factor and combine them into the final assessment |
 | function | `risk_threshold_check(score: int, ctx: CheckContext) -> int` | 1127 | Applied risk used for the recommendation (currently identical to the score) |
 
+### `rollback_safety` — Can we actually get back if the update goes wrong?
+
+`hermes_update_check/rollback_safety.py` (327 lines)
+
+| kind | symbol | line | purpose |
+|---|---|---|---|
+| constant | `SAFETY_PASS` | 32 | 'PASS' |
+| constant | `SAFETY_WARN` | 33 | 'WARN' |
+| constant | `SAFETY_FAIL` | 34 | 'FAIL' |
+| constant | `SAFETY_UNKNOWN` | 35 | 'UNKNOWN' |
+| constant | `_RANK` | 37 | {SAFETY_PASS: 0, SAFETY_UNKNOWN: 1, SAFETY_WARN: 2, SAFETY_FAIL: 3} |
+| class | **SafetyCheck** — to_dict | 41 |  |
+| class | **RollbackSafety** — failed, unsafe, to_dict | 61 |  |
+| function | `assess_rollback_safety(cfg: Config, env: LocalEnv, provenance: CodeProvenance, *, state: Optional[UpdateState] = …, state_dir: Optional[Path] = …, git_probe: Optional[Callable[[str], bool]] = …, disk_free_gib: Optional[float] = …, logger: Optional[logging.Logger] = …) -> RollbackSafety` | 104 | Read-only assessment of whether `rollback` would work right now |
+
 ### `state` — State files: `update_state.json`, watch state, cache/snapshot directories
 
-`hermes_update_check/state.py` (266 lines)
+`hermes_update_check/state.py` (275 lines)
 
 | kind | symbol | line | purpose |
 |---|---|---|---|
@@ -484,8 +537,8 @@ _no public symbols_
 | constant | `STATUS_FAILED` | 27 | 'failed' |
 | class | **UpdateState** — to_dict, from_dict, mark, created_at, human_summary | 31 | Pre-update facts needed to undo an update, plus the outcome |
 | class | **WatchState** — record, mark_notified, to_dict, from_dict | 96 | What watch mode remembers between runs, so it can stay silent when nothing changed |
-| function | `confidence_bucket(confidence: int) -> str` | 177 | Coarse confidence bands - small numeric wobbles must not trigger notifications |
-| class | **StateStore** — cache_dir, logs_dir, snapshots_dir, reports_dir, log_file, update_state_path | 186 | Filesystem layout + read/write helpers for all persisted state |
+| function | `confidence_bucket(confidence: int) -> str` | 186 | Coarse confidence bands - small numeric wobbles must not trigger notifications |
+| class | **StateStore** — cache_dir, logs_dir, snapshots_dir, reports_dir, log_file, update_state_path | 195 | Filesystem layout + read/write helpers for all persisted state |
 
 ### `updater` — Update execution: snapshot -> update -> health check -> (rollback)
 
@@ -503,6 +556,29 @@ _no public symbols_
 | function | `pre_update_gateway_running(env: LocalEnv, *, logger: Optional[logging.Logger] = …) -> Optional[bool]` | 401 | Was the gateway running *before* we touched anything? |
 | function | `dependency_install_command(env: LocalEnv) -> list[str]` | 420 | How to reinstall Hermes' Python dependencies after a git checkout |
 | function | `run_rollback(cfg: Config, env: LocalEnv, *, store: Optional[StateStore] = …, state: Optional[UpdateState] = …, yes: bool = …, to_ref: Optional[str] = …, reinstall_deps: bool = …, restore_backup: Optional[str] = …, in_place_restore: bool = …, dry_run: bool = …, on_line: LineCallback = …, logger: Optional[logging.Logger] = …, timeout: float = …) -> RollbackOutcome` | 434 | Restore the pre-update version: git ref + dependencies (+ optional backup) |
+
+### `usage_profile` — Which parts of Hermes this user actually depends on
+
+`hermes_update_check/usage_profile.py` (604 lines)
+
+| kind | symbol | line | purpose |
+|---|---|---|---|
+| constant | `LEVEL_CRITICAL` | 28 | 'critical' |
+| constant | `LEVEL_IMPORTANT` | 29 | 'important' |
+| constant | `LEVEL_OPTIONAL` | 30 | 'optional' |
+| constant | `LEVEL_UNUSED` | 31 | 'unused' |
+| constant | `LEVEL_LABELS_ZH` | 43 | {LEVEL_CRITICAL: '关键', LEVEL_IMPORTANT: '重要', LEVEL_OPTIONAL: '可选', LE… |
+| constant | `LEVEL_LABELS_EN` | 49 | {LEVEL_CRITICAL: 'critical', LEVEL_IMPORTANT: 'important', LEVEL_OPTIO… |
+| constant | `PROVIDER_AGGREGATE_KEY` | 65 | 'providers' |
+| class | **FeatureSpec** | 69 | One row of the built-in feature catalogue |
+| function | `provider_names_in(text: str) -> list[str]` | 224 | Which providers an issue text names (never 'all providers') |
+| function | `mentions_all_providers(text: str) -> bool` | 235 |  |
+| function | `affected_features(cluster_key: str, text: str = …, *, titles: str = …) -> list[str]` | 239 | Map one regression cluster (with its evidence text) onto feature keys |
+| class | **UsageProfile** — level, weight, is_active, critical_keys, active_keys, label | 266 | The user's declaration of what matters (``usage_profile`` in the config) |
+| function | `builtin_default_profile(providers: Sequence[str] = …) -> UsageProfile` | 391 | The conservative default used when no ``usage_profile`` is configured |
+| class | **UsageDetection** | 430 | Detection result: the proposed profile plus why each row was proposed |
+| function | `detect_usage_profile(*, hermes_home: Path, config_data: Optional[Mapping[str, Any]] = …, env: Optional[Mapping[str, str]] = …, install_kind: str = …, extra_providers: Sequence[str] = …) -> UsageDetection` | 480 | Propose a profile from what is provably configured on this machine |
+| function | `resolve_profile(cfg: Any, *, hermes_home: Optional[Path] = …, env: Optional[Mapping[str, str]] = …, warnings: Optional[list[str]] = …) -> UsageProfile` | 579 | The profile to *use*: configured one, else detection, else built-in default |
 
 ### `util` — Small, dependency-free helpers: subprocess runner, JSON IO, time parsing, hashing
 
@@ -564,26 +640,29 @@ _no public symbols_
 
 | file | tests | lines | focus |
 |---|---|---|---|
-| [`tests/test_advisor.py`](../tests/test_advisor.py) | 15 | 234 | Advisor tests: priority order, recheck computation, and 'unknown is not safe' |
-| [`tests/test_checker.py`](../tests/test_checker.py) | 13 | 274 | Orchestration tests: run_check with an injected (fake) GitHub client |
-| [`tests/test_cli.py`](../tests/test_cli.py) | 13 | 210 | CLI-level tests: exit codes, JSON output, commands that never touch the network |
-| [`tests/test_cli_commands.py`](../tests/test_cli_commands.py) | 13 | 298 | End-to-end-ish command tests: every CLI handler, with the outside world stubbed |
+| [`tests/test_advisor.py`](../tests/test_advisor.py) | 19 | 361 | Advisor tests: priority order, recheck computation, and 'unknown is not safe' |
+| [`tests/test_checker.py`](../tests/test_checker.py) | 13 | 277 | Orchestration tests: run_check with an injected (fake) GitHub client |
+| [`tests/test_cli.py`](../tests/test_cli.py) | 13 | 211 | CLI-level tests: exit codes, JSON output, commands that never touch the network |
+| [`tests/test_cli_commands.py`](../tests/test_cli_commands.py) | 13 | 299 | End-to-end-ish command tests: every CLI handler, with the outside world stubbed |
 | [`tests/test_clusters.py`](../tests/test_clusters.py) | 16 | 274 | Regression-cluster tests: grading, independence and credibility |
-| [`tests/test_config.py`](../tests/test_config.py) | 19 | 218 | Config loading/validation tests |
+| [`tests/test_config.py`](../tests/test_config.py) | 19 | 230 | Config loading/validation tests |
 | [`tests/test_entrypoints.py`](../tests/test_entrypoints.py) | 10 | 122 | Smoke tests for the two entry points that had no direct coverage |
-| [`tests/test_gates.py`](../tests/test_gates.py) | 20 | 370 | Hard-gate tests: gates must override a low score and never be bypassed silently |
+| [`tests/test_gates.py`](../tests/test_gates.py) | 23 | 480 | Hard-gate tests: gates must override a low score and never be bypassed silently |
 | [`tests/test_github_api.py`](../tests/test_github_api.py) | 12 | 215 | GitHub payload parsing tests (fixtures only - no network) |
 | [`tests/test_http_cache.py`](../tests/test_http_cache.py) | 10 | 118 | HTTP layer tests: cache TTL, stale fallback, failure handling (no external network) |
+| [`tests/test_impact.py`](../tests/test_impact.py) | 20 | 340 | Personal Impact, Core Feature Readiness and Systemic Critical Risk |
 | [`tests/test_local_env.py`](../tests/test_local_env.py) | 19 | 280 | Environment-detection tests: the layer that reads the *real* machine |
 | [`tests/test_notify.py`](../tests/test_notify.py) | 14 | 262 | Notification-channel tests: payload shape, failure handling, no secret leakage |
 | [`tests/test_preflight_health.py`](../tests/test_preflight_health.py) | 13 | 184 | Preflight and health-check tests (local filesystem only) |
 | [`tests/test_provenance.py`](../tests/test_provenance.py) | 16 | 274 | Code provenance tests: the five cases from the design brief, plus the rest |
 | [`tests/test_repo_hygiene.py`](../tests/test_repo_hygiene.py) | 3 | 76 | Repository hygiene: nothing important may be silently ignored or stale |
-| [`tests/test_report.py`](../tests/test_report.py) | 9 | 138 | Report rendering tests (plain-text console, no network) |
+| [`tests/test_report.py`](../tests/test_report.py) | 10 | 159 | Report rendering tests (plain-text console, no network) |
 | [`tests/test_risk.py`](../tests/test_risk.py) | 33 | 564 | Risk-engine tests: the scoring rules are the product, so they are pinned here |
+| [`tests/test_rollback_safety.py`](../tests/test_rollback_safety.py) | 7 | 182 | Rollback safety: the pre-update check that can block *executing* an update |
 | [`tests/test_scan_secrets.py`](../tests/test_scan_secrets.py) | 14 | 220 | Tests for the secret/privacy scanner - the guard needs its own guard |
 | [`tests/test_state.py`](../tests/test_state.py) | 9 | 130 | State persistence tests: update_state.json and watch_state.json |
 | [`tests/test_updater.py`](../tests/test_updater.py) | 19 | 344 | Updater mechanics: command building, snapshots, dry runs (nothing is executed) |
+| [`tests/test_usage_profile.py`](../tests/test_usage_profile.py) | 20 | 235 | Usage profile: levels, weights, detection and cluster -> feature attribution |
 | [`tests/test_util.py`](../tests/test_util.py) | 28 | 272 | Unit tests for the shared helpers - the layer every other module leans on |
 | [`tests/test_versioning.py`](../tests/test_versioning.py) | 12 | 125 | Version parsing/comparison tests - the part that must never be wrong |
-| [`tests/test_watch.py`](../tests/test_watch.py) | 14 | 194 | Watch-mode delta tests: only meaningful transitions may notify |
+| [`tests/test_watch.py`](../tests/test_watch.py) | 16 | 235 | Watch-mode delta tests: only meaningful transitions may notify |

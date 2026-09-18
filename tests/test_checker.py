@@ -13,7 +13,7 @@ from hermes_update_check.checker import (
     run_check,
 )
 from hermes_update_check.local_env import GitState, LocalEnv
-from hermes_update_check.risk import RECOMMEND_UPDATE, RECOMMEND_WAIT
+from hermes_update_check.advisor import RECOMMEND_ACCEPTABLE, RECOMMEND_SAFE, RECOMMEND_WAIT
 
 
 def make_env(
@@ -82,7 +82,10 @@ def test_run_check_full_picture(cfg, hermes_home, state_root) -> None:
     assert check.gates is not None and check.gates.enabled
     assert check.recommendation is not None
     # the verdict must be actionable, i.e. not silently "update now"
-    assert check.action in {RECOMMEND_UPDATE, RECOMMEND_WAIT}
+    # phase 3: this fixture is a healthy release with no critical regressions
+    assert check.action in {RECOMMEND_SAFE, RECOMMEND_ACCEPTABLE, RECOMMEND_WAIT}
+    assert check.readiness is not None and check.rollback_safety is not None
+    assert check.profile is not None
 
 
 def test_run_check_up_to_date(cfg, hermes_home, state_root) -> None:
