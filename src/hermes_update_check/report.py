@@ -268,8 +268,11 @@ class Reporter:
             console.blank()
             console.print(
                 self._t(
-                    "硬门禁优先于风险评分：即使分数很低，门禁触发时也不会建议更新。",
-                    "hard gates override the score: a blocked gate means no update even at a low score.",
+                    "阻断类门禁（并只保留系统级风险、关键工作流、回滚路径、本地工作区、数据不足）优先于任何分数；"
+                    "提示类门禁只把结论限制在 ACCEPTABLE，不再阻止更新。",
+                    "blocking gates (systemic risk, critical workflow, rollback path, local worktree, "
+                    "insufficient data) outrank any score; the warning gates only cap the verdict at "
+                    "ACCEPTABLE instead of stopping the update.",
                 )
             )
         console.blank()
