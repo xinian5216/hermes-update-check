@@ -5,8 +5,8 @@ Read this before opening files: it is regenerated from the source by
 
 ## Quick facts
 
-- package: `hermes_update_check` - 32 modules, 16872 lines
-- tests: 471 test functions in 28 files (offline, no network)
+- package: `hermes_update_check` - 32 modules, 16894 lines
+- tests: 472 test functions in 28 files (offline, no network)
 - docs: `README.md` (user guide), `SECURITY.md` (privacy policy), `CHANGELOG.md`
 - invariants: never updates Hermes without an explicit `y`; unknown data is reported as
   UNKNOWN, never as safe; exit codes are a public contract (see `errors.py`)
@@ -49,7 +49,7 @@ Read this before opening files: it is regenerated from the source by
 | [`checker`](../hermes_update_check/checker.py) | 895 | Orchestration: gather every input, then hand it to the risk engine |
 | [`updater`](../hermes_update_check/updater.py) | 812 | Update execution: snapshot -> update -> health check -> (rollback) |
 | [`clusters`](../hermes_update_check/clusters.py) | 804 | Regression clustering: turn raw issue hits into *credible* regression signals |
-| [`provenance`](../hermes_update_check/provenance.py) | 775 | Code provenance: *what code is actually running*, not just what it calls itself |
+| [`provenance`](../hermes_update_check/provenance.py) | 797 | Code provenance: *what code is actually running*, not just what it calls itself |
 | [`gates`](../hermes_update_check/gates.py) | 731 | Gates: the few rules that can still stop an update |
 | [`impact`](../hermes_update_check/impact.py) | 711 | Personal impact, core-feature readiness and systemic critical risk |
 | [`advisor`](../hermes_update_check/advisor.py) | 659 | The advisor: turn provenance + risk + readiness + gates into one verdict |
@@ -505,7 +505,7 @@ _no public symbols_
 
 ### `provenance` — Code provenance: *what code is actually running*, not just what it calls itself
 
-`hermes_update_check/provenance.py` (775 lines)
+`hermes_update_check/provenance.py` (797 lines)
 
 | kind | symbol | line | purpose |
 |---|---|---|---|
@@ -536,8 +536,8 @@ _no public symbols_
 | function | `resolve_provenance(env: LocalEnv, releases: Sequence[Release] = …, *, latest: Optional[Release] = …, compare: Optional[CompareFn] = …, target_commit: Optional[str] = …, runner: Optional[Any] = …, official_repo: str = …, managed_overrides: int = …, unknown_changes: int = …, drifted_overrides: int = …) -> CodeProvenance` | 233 | Build the provenance model from the local environment plus GitHub data |
 | function | `local_git_relation(install_dir: Optional[Path], ref: str, *, runner: Optional[Any] = …) -> Optional[tuple[int, int]]` | 431 | (behind, ahead) between ``ref`` and HEAD, computed with the local git only |
 | function | `decide_update(prov: CodeProvenance, latest: Optional[Release], *, preferred_channel: str = …, allow_prerelease: bool = …) -> UpdateDecision` | 596 | Decide *whether* a newer release is the right thing to move to |
-| function | `channel_mismatch(prov: CodeProvenance, preferred_channel: str) -> Optional[tuple[str, str]]` | 746 | Warning text when the install does not track the preferred channel |
-| function | `now_version_age_days(published: Optional[datetime], *, now: Optional[datetime] = …) -> Optional[float]` | 770 |  |
+| function | `channel_mismatch(prov: CodeProvenance, preferred_channel: str) -> Optional[tuple[str, str]]` | 768 | Warning text when the install does not track the preferred channel |
+| function | `now_version_age_days(published: Optional[datetime], *, now: Optional[datetime] = …) -> Optional[float]` | 792 |  |
 
 ### `report` — Report rendering: the human-readable answer, in Chinese or English
 
@@ -749,7 +749,7 @@ _no public symbols_
 | [`tests/test_overrides.py`](../tests/test_overrides.py) | 44 | 644 | Managed local overrides: registry, classification, patches, prediction, apply |
 | [`tests/test_overrides_integration.py`](../tests/test_overrides_integration.py) | 23 | 599 | Phase-4 integration: gates, update transaction, rollback, watch, provenance |
 | [`tests/test_preflight_health.py`](../tests/test_preflight_health.py) | 13 | 184 | Preflight and health-check tests (local filesystem only) |
-| [`tests/test_provenance.py`](../tests/test_provenance.py) | 17 | 325 | Code provenance tests: the five cases from the design brief, plus the rest |
+| [`tests/test_provenance.py`](../tests/test_provenance.py) | 18 | 345 | Code provenance tests: the five cases from the design brief, plus the rest |
 | [`tests/test_repo_hygiene.py`](../tests/test_repo_hygiene.py) | 3 | 76 | Repository hygiene: nothing important may be silently ignored or stale |
 | [`tests/test_report.py`](../tests/test_report.py) | 10 | 159 | Report rendering tests (plain-text console, no network) |
 | [`tests/test_risk.py`](../tests/test_risk.py) | 33 | 564 | Risk-engine tests: the scoring rules are the product, so they are pinned here |

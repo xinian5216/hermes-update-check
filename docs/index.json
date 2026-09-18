@@ -2553,7 +2553,7 @@
     {
       "name": "provenance",
       "path": "hermes_update_check/provenance.py",
-      "lines": 775,
+      "lines": 797,
       "summary": "Code provenance: *what code is actually running*, not just what it calls itself",
       "symbols": [
         {
@@ -2786,7 +2786,7 @@
         {
           "kind": "function",
           "name": "channel_mismatch",
-          "line": 746,
+          "line": 768,
           "summary": "Warning text when the install does not track the preferred channel",
           "signature": "(prov: CodeProvenance, preferred_channel: str) -> Optional[tuple[str, str]]",
           "members": []
@@ -2794,7 +2794,7 @@
         {
           "kind": "function",
           "name": "now_version_age_days",
-          "line": 770,
+          "line": 792,
           "summary": "",
           "signature": "(published: Optional[datetime], *, now: Optional[datetime] = …) -> Optional[float]",
           "members": []
@@ -4488,13 +4488,14 @@
     },
     {
       "path": "tests/test_provenance.py",
-      "lines": 325,
+      "lines": 345,
       "summary": "Code provenance tests: the five cases from the design brief, plus the rest",
-      "tests": 17,
+      "tests": 18,
       "names": [
         "test_case1_main_ahead_of_latest_release",
         "test_main_behind_release_is_an_update_candidate",
-        "test_main_diverged_from_release_needs_manual_review",
+        "test_main_diverged_from_release_is_a_normal_update_path",
+        "test_detached_diverged_build_still_needs_manual_review",
         "test_case1_when_compare_is_unavailable_main_is_not_manual_review",
         "test_case1b_local_git_measures_the_distance_when_github_404s",
         "test_case2_stable_update_available",
@@ -4775,7 +4776,7 @@
   ],
   "totals": {
     "modules": 32,
-    "lines": 16872,
-    "tests": 471
+    "lines": 16894,
+    "tests": 472
   }
 }

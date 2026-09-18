@@ -116,14 +116,34 @@ def test_main_behind_release_is_an_update_candidate(hermes_home: Path) -> None:
     assert "125" in decision.message_en
 
 
-def test_main_diverged_from_release_needs_manual_review(hermes_home: Path) -> None:
+def test_main_diverged_from_release_is_a_normal_update_path(hermes_home: Path) -> None:
+    """Phase 4 (doc 29/34/36): main + local commits + upstream commits is normal.
+
+    The user's real shape: `main` with one unpushed commit and a release that has
+    moved on. `hermes update` merges the upstream work in and keeps the local
+    commit, so this is a candidate - the main-branch caution carries the warning,
+    not MANUAL_REVIEW. (A *detached*/custom build keeps MANUAL_REVIEW.)
+    """
     env = env_with(hermes_home, branch="main")
     prov = resolve_provenance(
         env, [LATEST], latest=LATEST, compare=lambda b, h: comparison("diverged", ahead=5, behind=9)
     )
     assert prov.ahead_of_stable is True and prov.commits_behind_target == 9
     decision = decide_update(prov, LATEST)
-    assert decision.status == UPDATE_STATUS_MANUAL_REVIEW  # ahead *and* behind: not a plain upgrade
+    assert decision.status == UPDATE_STATUS_AVAILABLE
+    assert decision.is_update_candidate is True
+    assert "本地提交保留" in decision.message_zh
+
+
+def test_detached_diverged_build_still_needs_manual_review(hermes_home: Path) -> None:
+    """The MANUAL_REVIEW case that remains: a detached build that maps to no release."""
+    env = env_with(hermes_home, branch="HEAD")
+    prov = resolve_provenance(
+        env, [LATEST], latest=LATEST, compare=lambda b, h: comparison("diverged", ahead=5, behind=9)
+    )
+    assert prov.channel == CHANNEL_DETACHED
+    decision = decide_update(prov, LATEST)
+    assert decision.status == UPDATE_STATUS_MANUAL_REVIEW
 
 
 def test_case1_when_compare_is_unavailable_main_is_not_manual_review(hermes_home: Path) -> None:

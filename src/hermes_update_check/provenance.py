@@ -614,6 +614,7 @@ def decide_update(
 
     decision.target_version = latest.display_version
     decision.target_tag = latest.tag
+    target_label = latest.tag or (latest.display_version or "the latest release")
 
     if prov.channel == CHANNEL_UNKNOWN:
         decision.status = UPDATE_STATUS_UNKNOWN
@@ -650,6 +651,27 @@ def decide_update(
             decision.message_en = (
                 f"on the main branch and {prov.commits_behind_target} commits behind the latest stable release: "
                 "the code can be brought forward, but you will end up on main, not on the tagged release."
+            )
+            return decision
+        if prov.channel == CHANNEL_MAIN and prov.ahead_of_stable and prov.commits_behind_target:
+            # Phase 4 (doc 29/34/36): main + local commits + upstream commits it does
+            # not have is the *normal* shape of a customized main-tracking checkout -
+            # `hermes update` brings the upstream work in and keeps the local commits.
+            # It is not "an abnormal installation state", so not MANUAL_REVIEW.
+            decision.status = UPDATE_STATUS_AVAILABLE
+            decision.is_update_candidate = True
+            local_note = ""
+            if prov.local_only_commits:
+                local_note = f"；其中 {prov.local_only_commits} 个提交未推送到远端（属正常本地定制）"
+            decision.message_zh = (
+                f"main 分支与 {target_label} 各有提交：本地领先 {prov.commits_ahead_of_tag} 个，"
+                f"落后 {prov.commits_behind_target} 个。更新会把上游的 {prov.commits_behind_target} 个提交合进来，"
+                "你的本地提交保留；结果是 main 而不是该 Release" + local_note + "。"
+            )
+            decision.message_en = (
+                f"main and {target_label} have each moved: {prov.commits_ahead_of_tag} local commit(s) ahead, "
+                f"{prov.commits_behind_target} behind. Updating merges the upstream commits in and keeps the "
+                "local ones; the result is main, not the tagged release."
             )
             return decision
         if prov.channel == CHANNEL_MAIN and not prov.compare_available:
