@@ -6,7 +6,7 @@ Read this before opening files: it is regenerated from the source by
 ## Quick facts
 
 - package: `hermes_update_check` - 31 modules, 14115 lines
-- tests: 401 test functions in 26 files (offline, no network)
+- tests: 403 test functions in 26 files (offline, no network)
 - docs: `README.md` (user guide), `SECURITY.md` (privacy policy), `CHANGELOG.md`
 - invariants: never updates Hermes without an explicit `y`; unknown data is reported as
   UNKNOWN, never as safe; exit codes are a public contract (see `errors.py`)
@@ -659,7 +659,7 @@ _no public symbols_
 | [`tests/test_report.py`](../tests/test_report.py) | 10 | 159 | Report rendering tests (plain-text console, no network) |
 | [`tests/test_risk.py`](../tests/test_risk.py) | 33 | 564 | Risk-engine tests: the scoring rules are the product, so they are pinned here |
 | [`tests/test_rollback_safety.py`](../tests/test_rollback_safety.py) | 7 | 182 | Rollback safety: the pre-update check that can block *executing* an update |
-| [`tests/test_scan_secrets.py`](../tests/test_scan_secrets.py) | 14 | 220 | Tests for the secret/privacy scanner - the guard needs its own guard |
+| [`tests/test_scan_secrets.py`](../tests/test_scan_secrets.py) | 16 | 273 | Tests for the secret/privacy scanner - the guard needs its own guard |
 | [`tests/test_state.py`](../tests/test_state.py) | 9 | 130 | State persistence tests: update_state.json and watch_state.json |
 | [`tests/test_updater.py`](../tests/test_updater.py) | 19 | 344 | Updater mechanics: command building, snapshots, dry runs (nothing is executed) |
 | [`tests/test_usage_profile.py`](../tests/test_usage_profile.py) | 20 | 232 | Usage profile: levels, weights, detection and cluster -> feature attribution |

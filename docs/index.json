@@ -3792,9 +3792,9 @@
     },
     {
       "path": "tests/test_scan_secrets.py",
-      "lines": 220,
+      "lines": 273,
       "summary": "Tests for the secret/privacy scanner - the guard needs its own guard",
-      "tests": 14,
+      "tests": 16,
       "names": [
         "test_credentials_are_detected",
         "test_private_data_is_detected",
@@ -3809,7 +3809,9 @@
         "test_installer_never_runs_hermes_update",
         "test_readme_documents_one_click_install_and_agent_prompt",
         "test_pre_commit_hook_is_wired_and_probes_the_interpreter",
-        "test_ci_workflow_runs_the_scan_on_full_history"
+        "test_ci_workflow_runs_the_scan_on_full_history",
+        "test_tree_objects_are_not_scanned",
+        "test_blob_contents_are_still_scanned"
       ]
     },
     {
@@ -3968,6 +3970,6 @@
   "totals": {
     "modules": 31,
     "lines": 14115,
-    "tests": 401
+    "tests": 403
   }
 }
