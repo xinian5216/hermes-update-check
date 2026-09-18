@@ -4,6 +4,61 @@ All notable changes to this project are documented here. The format loosely
 follows [Keep a Changelog](https://keepachangelog.com/) and the project uses
 semantic versioning.
 
+## [1.3.0] - 2026-09-18
+
+第四阶段：**Managed Local Overrides**（受管本地修改）+ GitHub compare 404 的本地 git 兜底。
+
+核心原则：`Intentional local customization is not corruption.`
+`Known dirty` 与 `unknown dirty` 不是一回事。
+
+### Added
+
+* **`overrides` 模块与命令**：`detect` / `status` / `list` / `diff` / `register` /
+  `unregister` / `refresh` / `export` / `doctor`。`detect` 只展示、绝不自动登记；
+  未跟踪文件必须显式指定。
+* **登记表**（`~/.hermes-update-check/overrides/registry.json`）：记录真正的基线
+  （base commit + base/current/patch 的 SHA256 + 策略），patch 用 `git diff --binary`
+  保存（文本 / 删除 / 改名 / 二进制 / CRLF / 非 ASCII 文件名均已测试）。
+* **分类**：`MANAGED/EXACT`、`MANAGED/DRIFTED`、`MISSING`、`UNKNOWN` 与
+  `Override Safety`（PASS/WARN/FAIL/UNKNOWN）。忽略文件永不阻断。
+* **冲突预测 Reapply Confidence**：比较 `base→你的定制` 与 `base→目标版本` 的 hunk，
+  HIGH（上游没动这些文件）/ MEDIUM（同文件不同区域）/ LOW（同区域，需人工合并）；
+  `overrides diff --target vX.Y.Z`（可选 `--fetch`）。
+* **事务式更新**：`update_state.json` 记录 `PREPARED → CLEANED → UPDATED →
+  OVERRIDES_REAPPLIED → VERIFIED → COMMITTED`，中断后下次运行能报出停在哪一步。
+* **更新保全流程**：快照 patch → 仅把登记路径还原为上游内容（`git restore`，
+  非 `reset --hard`）→ 更新 → `git apply --3way`（失败回退普通 apply）→ 健康检查；
+  更新失败时恢复定制；冲突时保存 patch 与冲突信息，绝不自动 ours/theirs。
+* **安装状态分类**：`STANDARD_RELEASE` / `MAIN_CLEAN` / `MAIN_WITH_MANAGED_OVERRIDES` /
+  `CUSTOM_COMMIT` / `FORK` / `DETACHED` / `UNKNOWN`；fork / 本地未推送提交不再被判为异常。
+* **本地 git 兜底**：GitHub compare 404（本地提交未推送 / tag 未 fetch / fork）时，
+  用 `git rev-list --left-right --count` 与 `origin/main` 对照给出 ahead/behind；
+  取不到发布 commit 时如实说明"距离未知"，但不再进入 MANUAL_REVIEW。
+* `report` / `check` 新增「本地定制」一节；JSON 契约新增 `local_overrides`、
+  `install_state`、`recommendation_detail` 的相关字段。
+* 配置新增 `local_overrides` 一节（`enabled` / `block_unknown_changes` /
+  `block_drifted_overrides` / `auto_preserve` / `reapply` / `backup`）。
+
+### Changed
+
+* **dirty worktree 门禁按"已知/未知"分流**：只有已登记且未变的定制不再阻断；
+  漂移与未登记修改仍然阻断（可配置）。登记表为空时保持第三阶段行为。
+* `rollback` 不再用 `git stash` 粗暴收起工作区：先收起已登记定制，回滚后重新应用 patch。
+* `preflight` / `health` 增加定制完整性、patch 哈希、patch 目录可写、事务状态检查。
+* `watch` 对稳定的受管定制保持安静，只在漂移 / 新增未登记修改 / 冲突预测变差时通知。
+* `update --dry-run` 输出本地定制保全计划。
+
+### Security
+
+* 保存与导出 patch 前跑密钥扫描；发现疑似密钥只告警并限制 `export` / 日志 / 报告输出，
+  **不删除** patch，也不把内容打印出来。导出是本机操作，永不自动上传。
+
+### Fixed
+
+* GitHub compare 404 不再把"本地提交未推送"翻译成"安装状态异常"。
+* `console.kv`（不存在的 API）导致 `overrides status` 与报告新节点崩溃。
+* 报告里超长路径会挤掉 rich 表格的值列（状态显示为空）。
+
 ## [1.2.0] - 2026-09-18
 
 第三阶段：决策模型从「全局风险驱动」改为「用户影响 + 核心功能可用性驱动」。

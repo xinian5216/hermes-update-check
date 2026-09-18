@@ -113,8 +113,11 @@ hard_gates:
   block_on_critical_workflow: true
   # Rollback is not available (unreachable commit, unwritable state dir, no disk).
   block_on_rollback_safety: true
-  # Local safety, not release quality: uncommitted changes in the git worktree.
+  # Local safety, not release quality. Phase 4 splits "dirty" in two:
+  # registered, unchanged local customization is manageable; anything else blocks.
   block_dirty_worktree: true
+  block_unknown_changes: true       # unregistered changes always block
+  block_drifted_overrides: true     # registered overrides edited again after registration
   # Never guess from gaps in the observation data.
   block_on_insufficient_data: true
   # --- what only warns (caps the verdict at ACCEPTABLE) ----------------------
@@ -226,3 +229,27 @@ risk:
   issues_cap: 30       # post-release issue signals (also the regression scale)
   context_cap: 12      # main-tracking / prerelease / dirty tree / unknown install
   bonus_cap: 15        # maximum stability bonus (negative points)
+
+# ── Managed local overrides (phase 4) ────────────────────────────────────────
+# Intentional local customization (you edit Hermes on purpose) is not corruption.
+# Register it once and the tool stops treating it as an accident:
+#
+#   huc overrides detect      # show what git sees (nothing is registered)
+#   huc overrides register    # record the selected changes as managed overrides
+#   huc overrides status      # may vary  exact / drifted / unknown
+local_overrides:
+  enabled: true
+  # Unregistered changes block the update (they may be leftovers, not intent).
+  block_unknown_changes: true
+  # Overrides edited again after registration are drift: refresh or confirm first.
+  block_drifted_overrides: true
+  # Snapshot patches before an update and reapply them afterwards.
+  auto_preserve: true
+  reapply:
+    # three_way -> `git apply --3way`, then plain `git apply` as a fallback
+    strategy: three_way
+    # LOW reapply confidence warns but does not block unless set to true
+    block_on_low_confidence: false
+  backup:
+    patches: true
+    keep_versions: 10

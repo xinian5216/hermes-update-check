@@ -124,6 +124,7 @@ class FakeGitHubClient:
         search: dict[str, tuple[int, list[Issue]]] | None = None,
         comments: dict[int, list] | None = None,
         token: str | None = None,
+        tag_commit: str | None = None,
     ) -> None:
         self.releases = releases or []
         self.compare_result = compare
@@ -133,6 +134,8 @@ class FakeGitHubClient:
         self.degradations: list[str] = []
         self.searches_used = 0
         self.comment_calls: list[int] = []
+        self.tag_commit_result = tag_commit
+        self.tag_commit_calls: list[str] = []
         self.http = type("FakeHttp", (), {"token": token})()
 
     def list_releases(self, *, per_page: int = 20, use_cache: bool = True):
@@ -152,6 +155,11 @@ class FakeGitHubClient:
         if head_tag in {"main", "master"}:
             return self.head_compare_result
         return self.compare_result
+
+    def tag_commit(self, tag: str, *, use_cache: bool = True):
+        """Release commit lookup used by the phase-4 local-git fallback."""
+        self.tag_commit_calls.append(tag)
+        return self.tag_commit_result
 
     def search_issues(
         self, query: str, *, per_page: int = 50, sort: str = "created", order: str = "desc", use_cache: bool = True

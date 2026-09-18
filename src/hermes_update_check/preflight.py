@@ -119,12 +119,161 @@ def run_preflight(
     report.checks.append(_check_venv(env))
     report.checks.append(_check_state_db(env))
     report.checks.append(_check_backup_support(env, update_help_text=update_help_text))
+    report.checks.extend(_check_overrides(cfg, env, root))
     if check_processes:
         report.checks.append(_check_running_processes(log))
         report.checks.append(_check_gateway(env))
 
     log.debug("preflight: %s", [f"{c.key}={c.status}" for c in report.checks])
     return report
+
+
+# --------------------------------------------------------------------------- #
+# phase 4: managed local overrides
+# --------------------------------------------------------------------------- #
+
+
+def _check_overrides(cfg: Config, env: LocalEnv, root: Path) -> list[CheckResult]:
+    """Local customization integrity: what an update will preserve.
+
+    Doc section 45: managed override integrity, unknown dirty files, patch
+    writability, git availability, base/target reachability.
+    """
+    from .overrides import (
+        SAFETY_FAIL,
+        git_available,
+        integrity_issues,
+        load_registry,
+        patches_dir,
+    )
+    from .overrides import (
+        classify as classify_overrides,
+    )
+
+    results: list[CheckResult] = []
+    registry = load_registry(root)
+    if registry.broken:
+        results.append(
+            CheckResult(
+                key="override_registry",
+                name_zh="本地定制登记表",
+                name_en="override registry",
+                status=STATUS_FAIL,
+                detail_zh=f"登记表损坏：{registry.broken_reason}",
+                detail_en=f"the registry is broken: {registry.broken_reason}",
+                remediation_zh="先修复或删除 overrides/registry.json（未登记修改会被视为意外改动）",
+                remediation_en="repair or remove overrides/registry.json (unregistered changes count as accidents)",
+            )
+        )
+        return results
+
+    if registry.empty:
+        results.append(
+            CheckResult(
+                key="override_registry",
+                name_zh="本地定制登记表",
+                name_en="override registry",
+                status=STATUS_PASS,
+                detail_zh="没有登记的本地定制",
+                detail_en="no managed local overrides",
+            )
+        )
+        return results
+
+    base = (registry.base_commit or "unknown")[:8]
+    results.append(
+        CheckResult(
+            key="override_registry",
+            name_zh="本地定制登记表",
+            name_en="override registry",
+            status=STATUS_PASS,
+            detail_zh=f"{len(registry.files)} 个已登记定制（base {base}）",
+            detail_en=f"{len(registry.files)} managed override(s) (base {base})",
+        )
+    )
+
+    if env.install_dir is None or not git_available(install_dir=env.install_dir):
+        results.append(
+            CheckResult(
+                key="override_git",
+                name_zh="git 可用性（定制保全）",
+                name_en="git availability (override preservation)",
+                status=STATUS_FAIL,
+                detail_zh="找不到可用的 git：无法保全/恢复本地定制",
+                detail_en="no working git executable: local overrides cannot be preserved or restored",
+                remediation_zh="安装 git 后再更新，或先手动备份你的定制",
+                remediation_en="install git before updating, or back up your customization manually",
+            )
+        )
+        return results
+
+    report = classify_overrides(env.install_dir, registry)
+    if report.unknown_count:
+        detail_zh = f"{report.unknown_count} 个未登记修改：更新会被阻断"
+        detail_en = f"{report.unknown_count} unregistered change(s): an update will be blocked"
+    else:
+        detail_zh = "没有未登记修改"
+        detail_en = "no unregistered changes"
+    results.append(
+        CheckResult(
+            key="override_unknown",
+            name_zh="未登记修改",
+            name_en="unregistered changes",
+            status=STATUS_FAIL if report.safety == SAFETY_FAIL else STATUS_PASS,
+            detail_zh=detail_zh,
+            detail_en=detail_en,
+            remediation_zh="登记（huc overrides register）或提交/stash/删除它们",
+            remediation_en="register them (`huc overrides register`) or commit/stash/remove them",
+        )
+    )
+    if report.drifted:
+        results.append(
+            CheckResult(
+                key="override_drift",
+                name_zh="定制漂移",
+                name_en="override drift",
+                status=STATUS_WARN,
+                detail_zh=f"{report.drifted_count} 个定制在登记后又被改过",
+                detail_en=f"{report.drifted_count} override(s) changed again after registration",
+                remediation_zh="确认后运行 huc overrides refresh",
+                remediation_en="review them, then run `huc overrides refresh`",
+            )
+        )
+    writable = True
+    try:
+        directory = patches_dir(root)
+        directory.mkdir(parents=True, exist_ok=True)
+        probe = directory / ".write-probe"
+        probe.write_text("ok", encoding="utf-8")
+        probe.unlink()
+    except OSError:
+        writable = False
+    results.append(
+        CheckResult(
+            key="override_patch_writable",
+            name_zh="patch 目录可写",
+            name_en="patch directory writable",
+            status=STATUS_PASS if writable else STATUS_FAIL,
+            detail_zh="可以写入 overrides/patches" if writable else "无法写入 overrides/patches",
+            detail_en="overrides/patches is writable" if writable else "overrides/patches is NOT writable",
+            remediation_zh="检查状态目录权限",
+            remediation_en="check the permissions of the state directory",
+        )
+    )
+    for issue in [i for i in integrity_issues(root, env.install_dir) if i.severity in {"fail", "unknown"}][:3]:
+        results.append(
+            CheckResult(
+                key=issue.key,
+                name_zh="定制完整性",
+                name_en="override integrity",
+                status=STATUS_FAIL if issue.severity == "fail" else STATUS_WARN,
+                detail_zh=issue.message_zh,
+                detail_en=issue.message_en,
+                remediation_zh="运行 huc overrides doctor 查看详情",
+                remediation_en="run `huc overrides doctor` for details",
+            )
+        )
+    return results
 
 
 # --------------------------------------------------------------------------- #
@@ -330,8 +479,9 @@ def _check_git_clean(env: LocalEnv) -> CheckResult:
             status=STATUS_WARN,
             detail_zh=f"{len(env.git.dirty_files)} 个未提交修改: {files}",
             detail_en=f"{len(env.git.dirty_files)} uncommitted change(s): {files}",
-            remediation_zh="先提交或 stash 本地修改（hermes update 会 stash，但本地改动可能与新版冲突）",
-            remediation_en="commit or stash local changes first (hermes update stashes them, but they may conflict)",
+            remediation_zh="先提交或 stash 本地修改；若是有意保留的定制，用 `huc overrides register` 登记（见下方本地定制检查）",
+            remediation_en="commit or stash them; if they are intentional customizations, register them with "
+            "`huc overrides register` (see the local-customization checks below)",
         )
     return CheckResult(
         key="git_clean",

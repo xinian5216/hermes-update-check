@@ -27,7 +27,7 @@ from .advisor import (
     RECOMMEND_SAFE,
     RECOMMEND_WAIT,
 )
-from .checker import UpdateCheck, run_check
+from .checker import UpdateCheck, build_github_client, run_check
 from .clusters import SEVERITY_CRITICAL
 from .config import (
     Config,
@@ -55,6 +55,23 @@ from .health import HealthReport, run_health_checks
 from .local_env import LocalEnv, detect_local_env
 from .logging_setup import setup_logging
 from .notify import NotificationMessage, build_notifiers, describe_notifiers, notify_all
+from .overrides import (
+    SAFETY_FAIL,
+    OverrideError,
+    detect_changes,
+    export_overrides,
+    integrity_issues,
+    load_registry,
+    predict_reapply,
+    read_patch,
+    refresh_overrides,
+    register_overrides,
+    split_changes,
+    unregister_overrides,
+)
+from .overrides import (
+    classify as classify_overrides,
+)
 from .preflight import STATUS_FAIL, PreflightReport, run_preflight
 from .report import Reporter
 from .risk import (
@@ -167,6 +184,26 @@ def build_parser() -> argparse.ArgumentParser:
     profile.add_argument("--write", action="store_true", help="write the result into the config file (a .bak is kept)")
     profile.add_argument("--json", dest="profile_json", action="store_true", help="machine readable output")
 
+    ov = sub.add_parser("overrides", help="managed local overrides: intentional customization (phase 4)")
+    ov.add_argument(
+        "action",
+        choices=["detect", "status", "list", "diff", "register", "unregister", "refresh", "export", "doctor"],
+        nargs="?",
+        default="status",
+        help="detect changes / show status / register or forget them / diff / export / doctor",
+    )
+    ov.add_argument("paths", nargs="*", help="files to operate on (default: all detected changes)")
+    ov.add_argument("--include-untracked", action="store_true", help="also register explicit untracked files")
+    ov.add_argument("--all", dest="all_entries", action="store_true", help="unregister: drop every entry")
+    ov.add_argument("--target", default=None, help="diff: a tag or commit to predict the reapply against")
+    ov.add_argument(
+        "--fetch",
+        action="store_true",
+        help="diff: fetch tags first when the target is not in the local object store",
+    )
+    ov.add_argument("--yes", action="store_true", help="skip the confirmation prompt")
+    ov.add_argument("--json", dest="overrides_json", action="store_true", help="machine readable output")
+
     notify_test = sub.add_parser("notify-test", help="send a test notification to every configured channel")
     notify_test.add_argument("--message", default="hermes-update-check test notification")
 
@@ -278,6 +315,8 @@ def _dispatch(
         return cmd_preflight(args, cfg, console, store, logger)
     if command == "profile":
         return cmd_profile(args, cfg, console)
+    if command == "overrides":
+        return cmd_overrides(args, cfg, console)
     if command == "config":
         return cmd_config(args, cfg, console)
     if command == "notify-test":
@@ -359,6 +398,12 @@ def cmd_watch(args: argparse.Namespace, cfg: Config, console: Console, store: St
     if notify_override:
         should_notify = True
 
+    if check.overrides is not None:
+        watch_state.last_override_unknown = check.overrides.unknown_count
+        watch_state.last_override_drifted = check.overrides.drifted_count
+        watch_state.last_reapply_confidence = (
+            check.overrides.prediction.confidence if check.overrides.prediction is not None else None
+        )
     watch_state.record(
         tag=current_tag,
         level=current_level,
@@ -545,6 +590,45 @@ def _update_dry_run(
     console.heading("hermes update --plan")
     console.print(outcome.result.output if outcome.result else "(no output)")
     console.blank()
+
+    # -- phase 4: what will happen to the local customization ---------------- #
+    registry = load_registry(store.root)
+    if not registry.empty:
+        report = classify_overrides(env.install_dir, registry) if env.install_dir else None
+        console.heading("本地定制保全计划" if cfg.language == "zh" else "LOCAL OVERRIDE PLAN")
+        steps_zh = [
+            "更新前快照 patch（overrides/patches/<时间>-preupdate.patch）",
+            "把已登记的定制暂时还原为上游内容（git restore，仅限登记路径；不使用 reset --hard）",
+            "执行 hermes update",
+            "用 git apply --3way 重新应用定制（失败则回退普通 apply，冲突不自动解决）",
+            "健康检查后再写入 update_state.json（事务式：PREPARED → CLEANED → UPDATED → OVERRIDES_REAPPLIED → VERIFIED → COMMITTED）",
+        ]
+        steps_en = [
+            "snapshot the override patch (overrides/patches/<stamp>-preupdate.patch)",
+            "set the registered paths back to upstream content (git restore, registered paths only; never reset --hard)",
+            "run hermes update",
+            "reapply the customization with git apply --3way (plain apply as fallback; conflicts are never auto-resolved)",
+            "health check, then commit update_state.json (transaction: PREPARED -> CLEANED -> UPDATED -> OVERRIDES_REAPPLIED -> VERIFIED -> COMMITTED)",
+        ]
+        for step in steps_zh if cfg.language == "zh" else steps_en:
+            console.print(f"  · {step}")
+        if report is not None:
+            console.kv_table(
+                [
+                    ("Managed", str(report.managed_count)),
+                    ("Unknown", str(report.unknown_count)),
+                    ("Drifted", str(report.drifted_count)),
+                    ("Safety", report.safety),
+                ]
+            )
+            if report.unknown_count or report.drifted_count:
+                console.warn(
+                    "存在未登记修改或漂移：真实更新会在执行前中止（不会动你的文件）"
+                    if cfg.language == "zh"
+                    else "unregistered changes or drift present: a real update would abort before touching anything"
+                )
+        console.blank()
+
     console.print(
         "演练结束：以上计划不会被执行。执行真实更新请运行 hermes-update-check update"
         if cfg.language == "zh"
@@ -765,6 +849,414 @@ def _write_profile(cfg: Config, profile, console: Console, *, lang: str = "zh") 
     console.blank()
 
 
+def _load_secret_scanner():
+    """The repo's own scanner when running from a checkout (absent in a wheel)."""
+    try:
+        import importlib.util
+
+        repo_root = Path(__file__).resolve().parents[2]
+        script = repo_root / "scripts" / "scan_secrets.py"
+        if not script.is_file():
+            return None
+        spec = importlib.util.spec_from_file_location("huc_scan_secrets", script)
+        if spec is None or spec.loader is None:
+            return None
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+    except Exception:  # pragma: no cover - the scan is a best-effort guard
+        return None
+
+
+def _patch_looks_sensitive(patch_text: str) -> bool:
+    """Section 41: warn about secrets in a patch, never delete it."""
+    scanner = _load_secret_scanner()
+    if scanner is None:
+        return False
+    try:
+        for line in patch_text.splitlines():
+            if scanner.scan_text(line):
+                return True
+    except Exception:  # pragma: no cover - defensive
+        return False
+    return False
+
+
+def _resolve_target_ref(cfg: Config, state_root: Path, install_dir: Path, target: str) -> Optional[str]:
+    """Resolve a tag/ref for the diff: local refs win, GitHub supplies the commit.
+
+    Local git is authoritative for the local repository; when a release tag was
+    never fetched, its commit can still be looked up and compared offline.
+    """
+    from .overrides import run_git
+
+    probe = run_git(install_dir, ["rev-parse", "--verify", "--quiet", f"{target}^{{commit}}"])
+    if probe.returncode == 0 and (probe.stdout or "").strip():
+        return target
+    try:
+        client, _token_used, _http = build_github_client(cfg, state_root)
+        commit = client.tag_commit(target)
+        if commit:
+            local = run_git(install_dir, ["cat-file", "-e", f"{commit}^{{commit}}"])
+            return commit if local.returncode == 0 else target
+    except Exception:  # pragma: no cover - offline / API failure: keep the raw target
+        return target
+    return target
+
+
+def cmd_overrides(args: argparse.Namespace, cfg: Config, console: Console) -> int:
+    """``overrides detect|status|list|diff|register|unregister|refresh|export|doctor``.
+
+    Intentional local customization is not corruption: this command separates
+    *known* dirty (registered, hashed, patchable) from *unknown* dirty (leftovers,
+    half-finished work) so that only the second kind blocks an update.
+    """
+    action = getattr(args, "action", "status") or "status"
+    as_json = bool(getattr(args, "overrides_json", False))
+    lang = cfg.language
+    store = StateStore(resolve_state_dir(cfg))
+    env = detect_local_env(cfg)
+    install_dir = env.install_dir
+    state_root = store.root
+    paths = [p for p in (getattr(args, "paths", None) or []) if p]
+
+    def t(zh: str, en: str) -> str:
+        return zh if lang == "zh" else en
+
+    if install_dir is None or env.git is None or not env.git.is_repo:
+        console.error(
+            t("本机 Hermes 不是 git 安装：无法管理本地定制", "Hermes is not a git install: overrides need git")
+        )
+        return EXIT_CONFIG
+
+    if not cfg.local_overrides.enabled and action != "detect":
+        console.error(t("配置里 local_overrides.enabled = false", "local_overrides.enabled is false in the config"))
+        return EXIT_CONFIG
+
+    if action == "detect":
+        changes = detect_changes(install_dir)
+        tracked, untracked, ignored = split_changes(changes)
+        registry = load_registry(state_root)
+        if as_json:
+            print(
+                json.dumps(
+                    {
+                        "tracked": [c.to_dict() for c in tracked],
+                        "untracked": [c.to_dict() for c in untracked],
+                        "ignored": ignored,
+                        "registered": registry.paths(),
+                    },
+                    indent=2,
+                    ensure_ascii=False,
+                )
+            )
+            return EXIT_OK
+        console.heading(t("检测到的本地修改", "DETECTED LOCAL CHANGES"))
+        registered = set(registry.paths())
+        if not changes:
+            console.print("  " + t("工作区干净，没有本地修改。", "clean working tree, nothing to register."))
+            console.blank()
+            return EXIT_OK
+        for change in tracked:
+            mark = t("[已登记]", "[registered]") if change.path in registered else ""
+            console.print(f"  {change.status[:1].upper()} {change.path} {mark}")
+        for change in untracked:
+            mark = t("[已登记]", "[registered]") if change.path in registered else ""
+            console.print(f"  ?? {change.path} {mark}")
+        if ignored:
+            console.print(f"  ({t('已忽略文件', 'ignored files')}: {len(ignored)})")
+        console.blank()
+        unmanaged = [c.path for c in tracked + untracked if c.path not in registered]
+        if unmanaged:
+            console.print("  " + t("这些修改目前未登记（unmanaged）。", "These changes are currently unmanaged."))
+            console.print(
+                "  "
+                + t(
+                    "把其中你确实想保留的登记为本地定制：huc overrides register <文件…>",
+                    "Register the ones you want to keep: huc overrides register <files...>",
+                )
+            )
+            console.print(
+                "  "
+                + t(
+                    "（不自动登记；未跟踪文件默认跳过，需显式 --include-untracked。）",
+                    "(Nothing is registered automatically; untracked files need --include-untracked.)",
+                )
+            )
+        else:
+            console.print("  " + t("全部已登记。", "Everything is registered."))
+        console.blank()
+        return EXIT_OK
+
+    if action in {"status", "list"}:
+        registry = load_registry(state_root)
+        report = classify_overrides(install_dir, registry)
+        if registry.files and action == "status":
+            target = getattr(args, "target", None) or (env.git.tags_at_head[0] if env.git.tags_at_head else None)
+            report.prediction = predict_reapply(install_dir, registry, target)
+        if as_json:
+            print(json.dumps(report.to_dict(), indent=2, ensure_ascii=False))
+            return EXIT_OK if report.safety != SAFETY_FAIL else EXIT_WAIT
+        console.heading(t("本地定制管理", "MANAGED LOCAL OVERRIDES"))
+        console.kv_table([(t("登记表 Base Commit", "Base Commit"), (registry.base_commit or "-")[:12])])
+        console.kv_table([(t("登记时间", "Registered"), registry.registered_at or "-")])
+        console.blank()
+        console.kv_table([(t("已登记 Managed", "Managed"), str(report.managed_count))])
+        console.kv_table([(t("未登记 Unknown", "Unknown"), str(report.unknown_count))])
+        console.kv_table([(t("已漂移 Drifted", "Drifted"), str(report.drifted_count))])
+        if report.missing_count:
+            console.kv_table([(t("已消失 Missing", "Missing"), str(report.missing_count))])
+        if report.ignored:
+            console.kv_table([(t("已忽略 Ignored", "Ignored"), str(len(report.ignored)))])
+        console.blank()
+        if action == "status" and registry.files:
+            console.heading(t("定制文件", "FILES"))
+            for entry in registry.files:
+                console.print(f"  {entry.status[:1].upper()} {entry.path}  {entry.match.upper()}")
+            console.blank()
+        if action == "list":
+            console.heading(t("文件清单", "FILES"))
+            for entry in registry.files:
+                console.print(f"  {entry.path}  {entry.status}  {entry.match.upper()}  {entry.policy}")
+            console.blank()
+        console.heading(t("Override Safety", "OVERRIDE SAFETY"))
+        console.print(f"  {report.safety}")
+        for line in report.reasons_zh if lang == "zh" else report.reasons_en:
+            console.print(f"  · {line}")
+        if report.prediction is not None and report.prediction.confidence:
+            console.blank()
+            console.heading(t("重新应用把握", "REAPPLY CONFIDENCE"))
+            console.print(f"  {report.prediction.confidence}  ({report.prediction.target or '-'})")
+            for line in report.prediction.reasons_zh if lang == "zh" else report.prediction.reasons_en:
+                console.print(f"  · {line}")
+            if report.prediction.manual_merge_likely:
+                console.print(
+                    "  "
+                    + t(
+                        "！很可能需要人工合并；update 前请先备份并准备好手动解决冲突。",
+                        "! manual merge likely required: back up and be ready to resolve conflicts.",
+                    )
+                )
+        console.blank()
+        return EXIT_OK if report.safety != SAFETY_FAIL else EXIT_WAIT
+
+    if action == "diff":
+        registry = load_registry(state_root)
+        if not registry.files:
+            console.error(
+                t(
+                    "没有已登记的定制。先用 overrides register。",
+                    "no registered overrides; run overrides register first.",
+                )
+            )
+            return EXIT_CONFIG
+        target = getattr(args, "target", None)
+        if target and getattr(args, "fetch", False):
+            # Explicit opt-in: fetching tags touches the user's repository, so it
+            # never happens silently during a check.
+            from .overrides import run_git
+
+            fetched = run_git(install_dir, ["fetch", "--tags", "--quiet"], timeout=300.0)
+            console.print(
+                "  "
+                + t(
+                    f"已 fetch tags（exit={fetched.returncode}）",
+                    f"fetched tags (exit={fetched.returncode})",
+                )
+            )
+        if target:
+            # The tag may exist only upstream (or the local tag was never fetched):
+            # ask GitHub for the release *commit* and let local git do the diff.
+            resolved = _resolve_target_ref(cfg, state_root, install_dir, target)
+            if resolved and resolved != target:
+                console.print(
+                    "  "
+                    + t(
+                        f"目标 {target} 不在本机对象库，改用其 commit {resolved[:12]}（取自 GitHub）",
+                        f"{target} is not in the local object store; using its commit {resolved[:12]} (from GitHub)",
+                    )
+                )
+            target = resolved or target
+        wanted = paths or registry.paths()
+        patch_text = ""
+        for entry in registry.files:
+            if entry.path in wanted and entry.patch_file:
+                patch_text += read_patch(Path(entry.patch_file))
+        if _patch_looks_sensitive(patch_text):
+            console.print(
+                "  "
+                + t(
+                    "！patch 里可能有密钥/隐私内容：只显示文件名，不显示内容（用 overrides export 自行处理）。",
+                    "! the patch may contain secrets: showing file names only (use overrides export to handle it yourself).",
+                )
+            )
+            patch_text = ""
+        console.heading(t("本地定制内容", "LOCAL CUSTOMIZATION"))
+        if patch_text:
+            for line in patch_text.splitlines()[:400]:
+                console.print(f"  {line}")
+        else:
+            for entry in registry.files:
+                if entry.path in wanted:
+                    console.print(f"  {entry.path}  {entry.status}")
+        if target:
+            prediction = predict_reapply(install_dir, registry, target)
+            console.blank()
+            if prediction.confidence == "UNKNOWN":
+                console.print(
+                    "  "
+                    + t(
+                        "目标不在本机对象库，无法预测冲突。加 --fetch（或先 git fetch --tags）再试。",
+                        "the target is not in the local object store, so no prediction is possible. "
+                        "Add --fetch (or run git fetch --tags first).",
+                    )
+                )
+            console.heading(t(f"与 {target} 的冲突预测", f"CONFLICT PREDICTION vs {target}"))
+            high = sum(1 for v in prediction.per_file.values() if v == "HIGH")
+            medium = sum(1 for v in prediction.per_file.values() if v == "MEDIUM")
+            low = sum(1 for v in prediction.per_file.values() if v == "LOW")
+            console.print(f"  {high} HIGH / {medium} MEDIUM / {low} LOW")
+            console.kv_table([(t("总体把握", "overall"), prediction.confidence)])
+            if prediction.conflicts:
+                console.print("  " + t("冲突文件：", "conflicting files: ") + ", ".join(prediction.conflicts))
+        console.blank()
+        return EXIT_OK
+
+    if action == "register":
+        registry = load_registry(state_root)
+        report = classify_overrides(install_dir, registry)
+        wanted = paths or [c.path for c in report.unknown]
+        if not wanted:
+            console.print("  " + t("没有需要登记的修改。", "nothing to register."))
+            return EXIT_OK
+        if not getattr(args, "yes", False):
+            console.print(
+                "  " + t("即将登记以下修改为本地定制：", "about to register these changes as local overrides:")
+            )
+            for path in wanted:
+                console.print(f"    - {path}")
+            console.print(
+                "  "
+                + t(
+                    "它们会在更新前被快照、更新后尝试重新应用（只保存在本机，不会上传）。",
+                    "they are snapshotted before an update and reapplied afterwards (local only, never uploaded).",
+                )
+            )
+            if not _confirm(
+                console,
+                lang,
+                zh="确认把以上文件登记为本地定制？",
+                en="Register these changes as local overrides?",
+                assume_yes=False,
+            ):
+                console.print("  " + t("已取消（未登记）。", "cancelled (nothing registered)."))
+                return EXIT_ABORTED
+        try:
+            result = register_overrides(
+                install_dir,
+                state_root,
+                paths=wanted,
+                include_untracked=bool(getattr(args, "include_untracked", False)),
+                base_release=env.release_tag or "",
+            )
+        except OverrideError as exc:
+            console.error(str(exc))
+            return EXIT_CONFIG
+        console.heading(t("登记结果", "REGISTERED"))
+        for path in result.registered:
+            console.print("  + " + path)
+        for path in result.refreshed:
+            console.print("  ~ " + path)
+        for path in result.refused:
+            console.print(
+                "  ! " + t(f"{path}（未跟踪文件需要 --include-untracked）", f"{path} (needs --include-untracked)")
+            )
+        if result.patch_file:
+            console.kv_table([("patch", result.patch_file)])
+        console.blank()
+        return EXIT_OK
+
+    if action == "unregister":
+        try:
+            removed = unregister_overrides(state_root, paths, all_entries=bool(getattr(args, "all_entries", False)))
+        except OverrideError as exc:
+            console.error(str(exc))
+            return EXIT_CONFIG
+        console.heading(t("已取消登记", "UNREGISTERED"))
+        for path in removed:
+            console.print("  - " + path)
+        console.print(
+            "  " + t("（文件内容未被改动，只是不再受管。）", "(files untouched: they are simply no longer managed.)")
+        )
+        console.blank()
+        return EXIT_OK
+
+    if action == "refresh":
+        try:
+            result = refresh_overrides(install_dir, state_root, paths=paths or None)
+        except OverrideError as exc:
+            console.error(str(exc))
+            return EXIT_CONFIG
+        console.heading(t("已刷新基线", "REFRESHED"))
+        for path in result.refreshed:
+            console.print("  ~ " + path)
+        console.print(
+            "  "
+            + t(
+                "（当前内容成为新的比对基线；patch 与哈希已更新。）",
+                "(the current content is the new baseline; patch and hashes updated.)",
+            )
+        )
+        console.blank()
+        return EXIT_OK
+
+    if action == "export":
+        if not paths:
+            console.error(t("用法：overrides export <输出.zip>", "usage: overrides export <out.zip>"))
+            return EXIT_USAGE
+        out = Path(paths[0])
+        registry = load_registry(state_root)
+        patch_text = "".join(read_patch(Path(e.patch_file)) for e in registry.files if e.patch_file)
+        if _patch_looks_sensitive(patch_text) and not getattr(args, "yes", False):
+            console.print(
+                "  "
+                + t(
+                    "！patch 里可能有密钥；导出是本机操作、不会上传。加 --yes 继续。",
+                    "! the patch may contain secrets; exporting is local and never uploads. Add --yes to continue.",
+                )
+            )
+            return EXIT_ABORTED
+        path = export_overrides(state_root, out)
+        console.heading(t("已导出", "EXPORTED"))
+        console.kv_table([("file", str(path))])
+        console.print(
+            "  "
+            + t(
+                "（包含登记表、patch 与快照；不会自动上传。）",
+                "(registry, patches and snapshots; nothing is uploaded.)",
+            )
+        )
+        console.blank()
+        return EXIT_OK
+
+    if action == "doctor":
+        issues = integrity_issues(state_root, install_dir)
+        if as_json:
+            print(json.dumps([issue.to_dict() for issue in issues], indent=2, ensure_ascii=False))
+            return EXIT_OK
+        console.heading(t("本地定制自检", "OVERRIDES DOCTOR"))
+        worst = EXIT_OK
+        for issue in issues:
+            console.print(f"  [{issue.severity.upper()}] {issue.message_zh if lang == 'zh' else issue.message_en}")
+            if issue.severity == "fail":
+                worst = EXIT_WAIT
+        console.blank()
+        return worst
+
+    console.error(t(f"未知的 overrides 动作：{action}", f"unknown overrides action: {action}"))
+    return EXIT_USAGE
+
+
 def cmd_config(args: argparse.Namespace, cfg: Config, console: Console) -> int:
     if args.action == "path":
         path = cfg.source_path or default_config_path()
@@ -860,6 +1352,14 @@ def _one_line_status(check: UpdateCheck, cfg: Config) -> str:
     )
 
 
+def _worse_confidence(current: str, previous: str) -> bool:
+    """HIGH > MEDIUM > LOW > UNKNOWN (an unknown is not treated as worse)."""
+    order = {"HIGH": 3, "MEDIUM": 2, "LOW": 1}
+    if current not in order or previous not in order:
+        return False
+    return order[current] < order[previous]
+
+
 def _watch_signal(cfg: Config, watch_state, check: UpdateCheck) -> tuple[str, str, bool]:
     """Decide whether this run deserves a notification, and why.
 
@@ -909,6 +1409,39 @@ def _watch_signal(cfg: Config, watch_state, check: UpdateCheck) -> tuple[str, st
             "first run: state recorded (notify_on_first_run is false)",
             False,
         )
+
+    # 0. local overrides (phase 4): stable managed overrides must stay quiet.
+    # Only drift, new unknown changes, or a worse conflict prediction notify.
+    overrides = check.overrides
+    if overrides is not None:
+        previous_unknown = watch_state.last_override_unknown
+        previous_drifted = watch_state.last_override_drifted
+        previous_confidence = watch_state.last_reapply_confidence
+        current_confidence_level = overrides.prediction.confidence if overrides.prediction is not None else None
+        unknown_now = overrides.unknown_count
+        drifted_now = overrides.drifted_count
+        if unknown_now and (previous_unknown is None or unknown_now > previous_unknown):
+            return (
+                f"出现 {unknown_now} 个未登记的本地修改",
+                f"{unknown_now} unregistered local change(s) appeared",
+                True,
+            )
+        if drifted_now and (previous_drifted is None or drifted_now > previous_drifted):
+            return (
+                f"本地定制出现漂移：{drifted_now} 个（先 refresh 或确认）",
+                f"local override drift detected: {drifted_now} (refresh or confirm)",
+                True,
+            )
+        if (
+            current_confidence_level
+            and previous_confidence
+            and _worse_confidence(current_confidence_level, previous_confidence)
+        ):
+            return (
+                f"本地定制与新版本的冲突预测变差：{previous_confidence} -> {current_confidence_level}",
+                f"reapply confidence dropped: {previous_confidence} -> {current_confidence_level}",
+                True,
+            )
 
     # 1. a new release appeared
     if cfg.watch.notify_on_new_release and current_tag and current_tag != previous_tag:
@@ -1066,19 +1599,6 @@ def _confirm_update(
 
 
 _LAST_ASSESSMENT: dict[str, Any] = {}
-
-
-def _confirm(console: Console, lang: str, *, zh: str, en: str, assume_yes: bool) -> bool:
-    if assume_yes:
-        return True
-    question = zh if lang == "zh" else en
-    prompt = f"\n{question} [y/N] "
-    try:
-        answer = input(prompt).strip().lower()
-    except (EOFError, KeyboardInterrupt):
-        console.print("")
-        return False
-    return answer in {"y", "yes", "是", "确认"}
 
 
 def _render_preflight(report: PreflightReport, console: Console, lang: str) -> None:

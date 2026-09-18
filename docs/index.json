@@ -153,13 +153,13 @@
     {
       "name": "checker",
       "path": "hermes_update_check/checker.py",
-      "lines": 826,
+      "lines": 895,
       "summary": "Orchestration: gather every input, then hand it to the risk engine",
       "symbols": [
         {
           "kind": "constant",
           "name": "ISSUE_FALLBACK_QUERY",
-          "line": 67,
+          "line": 75,
           "summary": "'label:bug'",
           "signature": "",
           "members": []
@@ -167,7 +167,7 @@
         {
           "kind": "constant",
           "name": "BASELINE_MIN_DAYS",
-          "line": 69,
+          "line": 77,
           "summary": "3.0",
           "signature": "",
           "members": []
@@ -175,7 +175,7 @@
         {
           "kind": "constant",
           "name": "BASELINE_MAX_DAYS",
-          "line": 70,
+          "line": 78,
           "summary": "14.0",
           "signature": "",
           "members": []
@@ -183,7 +183,7 @@
         {
           "kind": "class",
           "name": "UpdateCheck",
-          "line": 74,
+          "line": 107,
           "summary": "The complete result of one check - everything the report needs",
           "signature": "",
           "members": [
@@ -200,7 +200,7 @@
         {
           "kind": "function",
           "name": "build_http_client",
-          "line": 303,
+          "line": 338,
           "summary": "Create the HTTP client with token and disk cache",
           "signature": "(cfg: Config, state_root: Path, *, logger: Optional[logging.Logger] = …, no_cache: bool = …) -> tuple[HttpClient, bool]",
           "members": []
@@ -208,7 +208,7 @@
         {
           "kind": "function",
           "name": "resolve_github_token",
-          "line": 319,
+          "line": 354,
           "summary": "Find a GitHub token in the environment (never in the config file)",
           "signature": "(cfg: Config) -> tuple[Optional[str], bool]",
           "members": []
@@ -216,7 +216,7 @@
         {
           "kind": "function",
           "name": "build_github_client",
-          "line": 333,
+          "line": 368,
           "summary": "",
           "signature": "(cfg: Config, state_root: Path, *, logger: Optional[logging.Logger] = …, no_cache: bool = …) -> tuple[GitHubClient, bool, HttpClient]",
           "members": []
@@ -224,7 +224,7 @@
         {
           "kind": "function",
           "name": "run_check",
-          "line": 350,
+          "line": 385,
           "summary": "Full check: local env -> releases -> compare -> issues -> risk assessment",
           "signature": "(cfg: Config, *, env: Optional[LocalEnv] = …, client: Optional[GitHubClient] = …, state_root: Optional[Path] = …, no_cache: bool = …, include_issues: Optional[bool] = …, logger: Optional[logging.Logger] = …) -> UpdateCheck",
           "members": []
@@ -232,7 +232,7 @@
         {
           "kind": "function",
           "name": "collect_issue_signal",
-          "line": 602,
+          "line": 671,
           "summary": "Search GitHub issues filed after the release, plus a baseline window",
           "signature": "(cfg: Config, client: GitHubClient, release: Release, *, provenance: Optional[CodeProvenance] = …, logger: Optional[logging.Logger] = …, use_cache: bool = …) -> IssueSignal",
           "members": []
@@ -240,7 +240,7 @@
         {
           "kind": "function",
           "name": "issue_signal_confidence",
-          "line": 781,
+          "line": 850,
           "summary": "Issue Signal Confidence (0-100): how much should the issue data be trusted?",
           "signature": "(signal: IssueSignal) -> int",
           "members": []
@@ -248,7 +248,7 @@
         {
           "kind": "function",
           "name": "summarize_release_line",
-          "line": 809,
+          "line": 878,
           "summary": "One-line label like ``v0.21.3 (v2026.9.14) - 0.6 days old``",
           "signature": "(release: Release) -> str",
           "members": []
@@ -256,7 +256,7 @@
         {
           "kind": "function",
           "name": "level_of",
-          "line": 817,
+          "line": 886,
           "summary": "",
           "signature": "(score: Optional[int]) -> str",
           "members": []
@@ -264,7 +264,7 @@
         {
           "kind": "function",
           "name": "iso_now",
-          "line": 821,
+          "line": 890,
           "summary": "",
           "signature": "() -> str",
           "members": []
@@ -272,7 +272,7 @@
         {
           "kind": "function",
           "name": "normalise_release_tag",
-          "line": 825,
+          "line": 894,
           "summary": "",
           "signature": "(tag: Optional[str]) -> Optional[str]",
           "members": []
@@ -282,13 +282,13 @@
     {
       "name": "cli",
       "path": "hermes_update_check/cli.py",
-      "lines": 1187,
+      "lines": 1707,
       "summary": "Command line interface",
       "symbols": [
         {
           "kind": "function",
           "name": "build_parser",
-          "line": 74,
+          "line": 91,
           "summary": "",
           "signature": "() -> argparse.ArgumentParser",
           "members": []
@@ -296,7 +296,7 @@
         {
           "kind": "function",
           "name": "make_output_encoding_safe",
-          "line": 182,
+          "line": 219,
           "summary": "Never crash on a console that cannot represent the text we print",
           "signature": "() -> None",
           "members": []
@@ -304,7 +304,7 @@
         {
           "kind": "function",
           "name": "main",
-          "line": 209,
+          "line": 246,
           "summary": "",
           "signature": "(argv: Optional[Sequence[str]] = …) -> int",
           "members": []
@@ -312,7 +312,7 @@
         {
           "kind": "function",
           "name": "cmd_check",
-          "line": 297,
+          "line": 336,
           "summary": "",
           "signature": "(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int",
           "members": []
@@ -320,7 +320,7 @@
         {
           "kind": "function",
           "name": "cmd_report",
-          "line": 312,
+          "line": 351,
           "summary": "",
           "signature": "(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int",
           "members": []
@@ -328,7 +328,7 @@
         {
           "kind": "function",
           "name": "cmd_watch",
-          "line": 338,
+          "line": 377,
           "summary": "Cron entry point: stay silent unless something meaningful changed",
           "signature": "(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int",
           "members": []
@@ -336,7 +336,7 @@
         {
           "kind": "function",
           "name": "cmd_update",
-          "line": 431,
+          "line": 476,
           "summary": "",
           "signature": "(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int",
           "members": []
@@ -344,7 +344,7 @@
         {
           "kind": "function",
           "name": "cmd_rollback",
-          "line": 556,
+          "line": 640,
           "summary": "",
           "signature": "(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int",
           "members": []
@@ -352,7 +352,7 @@
         {
           "kind": "function",
           "name": "cmd_health",
-          "line": 616,
+          "line": 700,
           "summary": "",
           "signature": "(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int",
           "members": []
@@ -360,7 +360,7 @@
         {
           "kind": "function",
           "name": "cmd_preflight",
-          "line": 633,
+          "line": 717,
           "summary": "",
           "signature": "(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int",
           "members": []
@@ -368,15 +368,23 @@
         {
           "kind": "function",
           "name": "cmd_profile",
-          "line": 643,
+          "line": 727,
           "summary": "``profile show|detect|edit`` - what this user actually depends on (phase 3)",
           "signature": "(args: argparse.Namespace, cfg: Config, console: Console) -> int",
           "members": []
         },
         {
           "kind": "function",
+          "name": "cmd_overrides",
+          "line": 907,
+          "summary": "``overrides detect|status|list|diff|register|unregister|refresh|export|doctor``",
+          "signature": "(args: argparse.Namespace, cfg: Config, console: Console) -> int",
+          "members": []
+        },
+        {
+          "kind": "function",
           "name": "cmd_config",
-          "line": 768,
+          "line": 1260,
           "summary": "",
           "signature": "(args: argparse.Namespace, cfg: Config, console: Console) -> int",
           "members": []
@@ -384,7 +392,7 @@
         {
           "kind": "function",
           "name": "cmd_notify_test",
-          "line": 790,
+          "line": 1282,
           "summary": "",
           "signature": "(args: argparse.Namespace, cfg: Config, console: Console, logger: Any) -> int",
           "members": []
@@ -609,7 +617,7 @@
     {
       "name": "config",
       "path": "hermes_update_check/config.py",
-      "lines": 843,
+      "lines": 897,
       "summary": "Configuration loading, validation and path resolution",
       "symbols": [
         {
@@ -623,7 +631,7 @@
         {
           "kind": "class",
           "name": "GitHubConfig",
-          "line": 152,
+          "line": 160,
           "summary": "",
           "signature": "",
           "members": []
@@ -631,15 +639,25 @@
         {
           "kind": "class",
           "name": "HardGateConfig",
-          "line": 162,
+          "line": 170,
           "summary": "Which rules may still stop an update (phase 3 keeps this list short)",
           "signature": "",
           "members": []
         },
         {
           "kind": "class",
+          "name": "LocalOverridesConfig",
+          "line": 204,
+          "summary": "Managed local overrides (phase 4): intentional customization is not corruption",
+          "signature": "",
+          "members": [
+            "to_dict"
+          ]
+        },
+        {
+          "kind": "class",
           "name": "ReleaseAgePolicy",
-          "line": 192,
+          "line": 228,
           "summary": "Segmented release-age policy (doc section 9)",
           "signature": "",
           "members": [
@@ -650,7 +668,7 @@
         {
           "kind": "class",
           "name": "SmokeTestConfig",
-          "line": 222,
+          "line": 258,
           "summary": "Post-update smoke tests (doc section 20); all read-only by design",
           "signature": "",
           "members": [
@@ -661,7 +679,7 @@
         {
           "kind": "class",
           "name": "NetworkConfig",
-          "line": 249,
+          "line": 285,
           "summary": "",
           "signature": "",
           "members": []
@@ -669,7 +687,7 @@
         {
           "kind": "class",
           "name": "PathsConfig",
-          "line": 255,
+          "line": 291,
           "summary": "",
           "signature": "",
           "members": []
@@ -677,7 +695,7 @@
         {
           "kind": "class",
           "name": "UpdateConfig",
-          "line": 261,
+          "line": 297,
           "summary": "",
           "signature": "",
           "members": []
@@ -685,46 +703,6 @@
         {
           "kind": "class",
           "name": "WatchConfig",
-          "line": 271,
-          "summary": "",
-          "signature": "",
-          "members": []
-        },
-        {
-          "kind": "class",
-          "name": "TelegramConfig",
-          "line": 280,
-          "summary": "",
-          "signature": "",
-          "members": []
-        },
-        {
-          "kind": "class",
-          "name": "WebhookConfig",
-          "line": 287,
-          "summary": "",
-          "signature": "",
-          "members": []
-        },
-        {
-          "kind": "class",
-          "name": "NotifyConfig",
-          "line": 294,
-          "summary": "",
-          "signature": "",
-          "members": []
-        },
-        {
-          "kind": "class",
-          "name": "LoggingConfig",
-          "line": 300,
-          "summary": "",
-          "signature": "",
-          "members": []
-        },
-        {
-          "kind": "class",
-          "name": "RiskWeights",
           "line": 307,
           "summary": "",
           "signature": "",
@@ -732,8 +710,48 @@
         },
         {
           "kind": "class",
+          "name": "TelegramConfig",
+          "line": 316,
+          "summary": "",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "WebhookConfig",
+          "line": 323,
+          "summary": "",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "NotifyConfig",
+          "line": 330,
+          "summary": "",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "LoggingConfig",
+          "line": 336,
+          "summary": "",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "RiskWeights",
+          "line": 343,
+          "summary": "",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
           "name": "Config",
-          "line": 317,
+          "line": 353,
           "summary": "",
           "signature": "",
           "members": [
@@ -744,7 +762,7 @@
         {
           "kind": "function",
           "name": "default_config_path",
-          "line": 377,
+          "line": 414,
           "summary": "`~/.config/hermes-update-check/config.yaml` (Windows: `%APPDATA%\\...`)",
           "signature": "() -> Path",
           "members": []
@@ -752,7 +770,7 @@
         {
           "kind": "function",
           "name": "default_state_dir",
-          "line": 392,
+          "line": 429,
           "summary": "`~/.hermes-update-check` - state, cache, snapshots, logs, update_state.json",
           "signature": "() -> Path",
           "members": []
@@ -760,7 +778,7 @@
         {
           "kind": "function",
           "name": "resolve_hermes_home",
-          "line": 400,
+          "line": 437,
           "summary": "Resolve $HERMES_HOME the way Hermes does, falling back to ~/.hermes",
           "signature": "(cfg: Config | None = …) -> Path",
           "members": []
@@ -768,7 +786,7 @@
         {
           "kind": "function",
           "name": "resolve_state_dir",
-          "line": 413,
+          "line": 450,
           "summary": "",
           "signature": "(cfg: Config | None = …) -> Path",
           "members": []
@@ -776,7 +794,7 @@
         {
           "kind": "function",
           "name": "load_config",
-          "line": 424,
+          "line": 461,
           "summary": "Load, merge and validate configuration",
           "signature": "(path: Path | str | None = …, *, env: Mapping[str, str] | None = …) -> Config",
           "members": []
@@ -784,7 +802,7 @@
         {
           "kind": "function",
           "name": "deep_merge",
-          "line": 489,
+          "line": 526,
           "summary": "Recursive merge; `override` wins",
           "signature": "(base: Mapping[str, Any], override: Mapping[str, Any]) -> dict[str, Any]",
           "members": []
@@ -792,7 +810,7 @@
         {
           "kind": "function",
           "name": "write_default_config",
-          "line": 829,
+          "line": 883,
           "summary": "Write a commented example config (used by `config init`)",
           "signature": "(path: Path | None = …, *, force: bool = …) -> Path",
           "members": []
@@ -1001,13 +1019,13 @@
     {
       "name": "gates",
       "path": "hermes_update_check/gates.py",
-      "lines": 667,
+      "lines": 731,
       "summary": "Gates: the few rules that can still stop an update",
       "symbols": [
         {
           "kind": "constant",
           "name": "GATE_BLOCK",
-          "line": 61,
+          "line": 62,
           "summary": "'BLOCK'",
           "signature": "",
           "members": []
@@ -1015,7 +1033,7 @@
         {
           "kind": "constant",
           "name": "GATE_WARN",
-          "line": 62,
+          "line": 63,
           "summary": "'WARN'",
           "signature": "",
           "members": []
@@ -1023,7 +1041,7 @@
         {
           "kind": "constant",
           "name": "GATE_PASS",
-          "line": 63,
+          "line": 64,
           "summary": "'PASS'",
           "signature": "",
           "members": []
@@ -1031,7 +1049,7 @@
         {
           "kind": "constant",
           "name": "GATE_SKIP",
-          "line": 64,
+          "line": 65,
           "summary": "'SKIP'",
           "signature": "",
           "members": []
@@ -1039,7 +1057,7 @@
         {
           "kind": "class",
           "name": "EnvironmentState",
-          "line": 77,
+          "line": 78,
           "summary": "Cheap, file-level sanity of the local install (no subprocesses)",
           "signature": "",
           "members": [
@@ -1050,7 +1068,7 @@
         {
           "kind": "function",
           "name": "probe_environment",
-          "line": 103,
+          "line": 104,
           "summary": "Check the local environment without touching the network or spawning work",
           "signature": "(env: LocalEnv, *, logger: Optional[logging.Logger] = …) -> EnvironmentState",
           "members": []
@@ -1058,7 +1076,7 @@
         {
           "kind": "class",
           "name": "GateResult",
-          "line": 142,
+          "line": 143,
           "summary": "",
           "signature": "",
           "members": [
@@ -1069,7 +1087,7 @@
         {
           "kind": "class",
           "name": "GateReport",
-          "line": 177,
+          "line": 178,
           "summary": "",
           "signature": "",
           "members": [
@@ -1087,15 +1105,15 @@
         {
           "kind": "function",
           "name": "evaluate_gates",
-          "line": 237,
+          "line": 238,
           "summary": "Evaluate every configured gate",
-          "signature": "(cfg: Config, *, provenance: CodeProvenance, decision: UpdateDecision, release: Optional[Release], assessment: Optional[RiskAssessment], clusters: Sequence[RegressionCluster] = …, environment: Optional[EnvironmentState] = …, readiness: Optional[PersonalReadiness] = …, rollback_safety: Optional[RollbackSafety] = …, now: Optional[datetime] = …) -> GateReport",
+          "signature": "(cfg: Config, *, provenance: CodeProvenance, decision: UpdateDecision, release: Optional[Release], assessment: Optional[RiskAssessment], clusters: Sequence[RegressionCluster] = …, environment: Optional[EnvironmentState] = …, readiness: Optional[PersonalReadiness] = …, rollback_safety: Optional[RollbackSafety] = …, overrides: Optional[OverrideReport] = …, now: Optional[datetime] = …) -> GateReport",
           "members": []
         },
         {
           "kind": "constant",
           "name": "_SYSTEMIC_FEATURE_KEYS",
-          "line": 428,
+          "line": 430,
           "summary": "{'config'}",
           "signature": "",
           "members": []
@@ -1103,7 +1121,7 @@
         {
           "kind": "function",
           "name": "describe_gate_lines",
-          "line": 647,
+          "line": 711,
           "summary": "Compact one-line-per-gate rendering used by the report and the CLI",
           "signature": "(report: GateReport, *, lang: str = …) -> list[str]",
           "members": []
@@ -1111,7 +1129,7 @@
         {
           "kind": "function",
           "name": "severe_cluster_keys",
-          "line": 659,
+          "line": 723,
           "summary": "",
           "signature": "(clusters, *, threshold: str = …) -> list[str]",
           "members": []
@@ -1119,7 +1137,7 @@
         {
           "kind": "function",
           "name": "critical_cluster_keys",
-          "line": 666,
+          "line": 730,
           "summary": "",
           "signature": "(clusters) -> list[str]",
           "members": []
@@ -1129,7 +1147,7 @@
     {
       "name": "github_api",
       "path": "hermes_update_check/github_api.py",
-      "lines": 546,
+      "lines": 573,
       "summary": "GitHub API access for the Hermes repository: releases, compares, issue searches",
       "symbols": [
         {
@@ -1258,6 +1276,7 @@
             "list_releases",
             "latest_release",
             "compare",
+            "tag_commit",
             "search_issues",
             "get_rate_limit",
             "get_issue_comments"
@@ -1266,7 +1285,7 @@
         {
           "kind": "function",
           "name": "extract_display_version",
-          "line": 443,
+          "line": 470,
           "summary": "Find the SemVer-ish display version behind a date tag",
           "signature": "(name: str, body: str, tag: str) -> Optional[str]",
           "members": []
@@ -1274,7 +1293,7 @@
         {
           "kind": "function",
           "name": "extract_pr_count",
-          "line": 482,
+          "line": 509,
           "summary": "Estimate the number of PRs a release bundles, from its own release notes",
           "signature": "(text: str | None) -> Optional[int]",
           "members": []
@@ -1282,7 +1301,7 @@
         {
           "kind": "function",
           "name": "build_issue_query",
-          "line": 506,
+          "line": 533,
           "summary": "Compose a GitHub issue-search query string",
           "signature": "(repo: str, *, created_after: Optional[datetime] = …, created_before: Optional[datetime] = …, keywords: Sequence[str] = …, label: Optional[str] = …, state: Optional[str] = …) -> str",
           "members": []
@@ -1290,7 +1309,7 @@
         {
           "kind": "function",
           "name": "parse_repo_slug",
-          "line": 542,
+          "line": 569,
           "summary": "",
           "signature": "(slug: str) -> tuple[str, str]",
           "members": []
@@ -1300,7 +1319,7 @@
     {
       "name": "health",
       "path": "hermes_update_check/health.py",
-      "lines": 511,
+      "lines": 555,
       "summary": "Post-update health checks: did the update actually leave a working install?",
       "symbols": [
         {
@@ -1895,9 +1914,568 @@
       ]
     },
     {
+      "name": "overrides",
+      "path": "hermes_update_check/overrides.py",
+      "lines": 1324,
+      "summary": "Managed Local Overrides: intentional local customization is not corruption",
+      "symbols": [
+        {
+          "kind": "constant",
+          "name": "OVERRIDES_DIRNAME",
+          "line": 43,
+          "summary": "'overrides'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "REGISTRY_NAME",
+          "line": 44,
+          "summary": "'registry.json'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "PATCHES_DIRNAME",
+          "line": 45,
+          "summary": "'patches'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "SNAPSHOTS_DIRNAME",
+          "line": 46,
+          "summary": "'snapshots'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "REGISTRY_VERSION",
+          "line": 47,
+          "summary": "1",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "POLICY_PRESERVE",
+          "line": 49,
+          "summary": "'preserve'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "STATUS_MODIFIED",
+          "line": 51,
+          "summary": "'modified'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "STATUS_ADDED",
+          "line": 52,
+          "summary": "'added'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "STATUS_DELETED",
+          "line": 53,
+          "summary": "'deleted'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "STATUS_RENAMED",
+          "line": 54,
+          "summary": "'renamed'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "STATUS_UNTRACKED",
+          "line": 55,
+          "summary": "'untracked'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "STATUS_IGNORED",
+          "line": 56,
+          "summary": "'ignored'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "STATUS_UNKNOWN",
+          "line": 57,
+          "summary": "'unknown'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "MATCH_EXACT",
+          "line": 60,
+          "summary": "'exact'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "MATCH_DRIFTED",
+          "line": 61,
+          "summary": "'drifted'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "MATCH_MISSING",
+          "line": 62,
+          "summary": "'missing'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "MATCH_UNKNOWN",
+          "line": 63,
+          "summary": "'unknown'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "SAFETY_PASS",
+          "line": 65,
+          "summary": "'PASS'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "SAFETY_WARN",
+          "line": 66,
+          "summary": "'WARN'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "SAFETY_FAIL",
+          "line": 67,
+          "summary": "'FAIL'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "SAFETY_UNKNOWN",
+          "line": 68,
+          "summary": "'UNKNOWN'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "CONFIDENCE_HIGH",
+          "line": 70,
+          "summary": "'HIGH'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "CONFIDENCE_MEDIUM",
+          "line": 71,
+          "summary": "'MEDIUM'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "CONFIDENCE_LOW",
+          "line": 72,
+          "summary": "'LOW'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "CONFIDENCE_UNKNOWN",
+          "line": 73,
+          "summary": "'UNKNOWN'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "REGISTERABLE_STATUSES",
+          "line": 76,
+          "summary": "{STATUS_MODIFIED, STATUS_ADDED, STATUS_DELETED, STATUS_RENAMED}",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "OverrideError",
+          "line": 82,
+          "summary": "Raised for refused operations (never for a mere detection problem)",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "run_git",
+          "line": 108,
+          "summary": "Public wrapper so other modules share one git invocation path",
+          "signature": "(install_dir: Path, args: Sequence[str], *, runner: Optional[RunFn] = …, timeout: float = …) -> ProcResult",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "git_available",
+          "line": 126,
+          "summary": "Probe git by *running* it - `command -v` lies on Windows",
+          "signature": "(*, runner: Optional[RunFn] = …, install_dir: Optional[Path] = …) -> bool",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "LocalChange",
+          "line": 139,
+          "summary": "One line of ``git status --porcelain``",
+          "signature": "",
+          "members": [
+            "registerable",
+            "to_dict"
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "OverrideEntry",
+          "line": 165,
+          "summary": "One registered local customization",
+          "signature": "",
+          "members": [
+            "exact",
+            "to_dict",
+            "from_dict"
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "OverrideRegistry",
+          "line": 217,
+          "summary": "The local override registry (``~/.hermes-update-check/overrides/registry.json``)",
+          "signature": "",
+          "members": [
+            "empty",
+            "paths",
+            "entry",
+            "to_dict",
+            "from_dict"
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "ReapplyPrediction",
+          "line": 273,
+          "summary": "How likely a registered override survives the trip to ``target``",
+          "signature": "",
+          "members": [
+            "manual_merge_likely",
+            "to_dict"
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "OverrideReport",
+          "line": 300,
+          "summary": "Classification of the working tree against the registry",
+          "signature": "",
+          "members": [
+            "managed_count",
+            "unknown_count",
+            "drifted_count",
+            "missing_count",
+            "clean",
+            "blocks_update",
+            "to_dict"
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "RegisterResult",
+          "line": 360,
+          "summary": "",
+          "signature": "",
+          "members": [
+            "to_dict"
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "ApplyResult",
+          "line": 382,
+          "summary": "",
+          "signature": "",
+          "members": [
+            "ok",
+            "to_dict"
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "overrides_root",
+          "line": 410,
+          "summary": "",
+          "signature": "(state_root: Path) -> Path",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "patches_dir",
+          "line": 414,
+          "summary": "",
+          "signature": "(state_root: Path) -> Path",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "snapshots_dir",
+          "line": 418,
+          "summary": "",
+          "signature": "(state_root: Path) -> Path",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "registry_path",
+          "line": 422,
+          "summary": "",
+          "signature": "(state_root: Path) -> Path",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "load_registry",
+          "line": 426,
+          "summary": "Read the registry; a corrupt file yields a *broken* registry, never a crash",
+          "signature": "(state_root: Path) -> OverrideRegistry",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "save_registry",
+          "line": 446,
+          "summary": "",
+          "signature": "(state_root: Path, registry: OverrideRegistry) -> Path",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "sha256_bytes",
+          "line": 456,
+          "summary": "",
+          "signature": "(data: bytes) -> str",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "working_tree_sha256",
+          "line": 471,
+          "summary": "sha256 of the file as it is on disk (\"\" when it does not exist)",
+          "signature": "(install_dir: Path, path: str) -> str",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "blob_sha256",
+          "line": 477,
+          "summary": "sha256 of the file *content* at ``rev`` (\"\" when it does not exist there)",
+          "signature": "(install_dir: Path, path: str, rev: str = …, *, runner: Optional[RunFn] = …) -> str",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "snapshot_path",
+          "line": 488,
+          "summary": "",
+          "signature": "(state_root: Path, stamp: str, path: str) -> Path",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "write_patch",
+          "line": 492,
+          "summary": "``git diff --binary`` for the tracked paths; returns (sha256, file)",
+          "signature": "(state_root: Path, stamp: str, install_dir: Path, paths: Sequence[str], *, runner: Optional[RunFn] = …) -> tuple[str, Path]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "read_patch",
+          "line": 507,
+          "summary": "",
+          "signature": "(path: Path) -> str",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "parse_porcelain",
+          "line": 519,
+          "summary": "Parse ``git status --porcelain -uall --ignored=matching`` output",
+          "signature": "(text: str) -> list[LocalChange]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "detect_changes",
+          "line": 573,
+          "summary": "Every local change git can see (tracked, untracked, ignored)",
+          "signature": "(install_dir: Path, *, runner: Optional[RunFn] = …) -> list[LocalChange]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "split_changes",
+          "line": 582,
+          "summary": "(tracked modifications, untracked files, ignored files)",
+          "signature": "(changes: Iterable[LocalChange]) -> tuple[list[LocalChange], list[LocalChange], list[str]]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "head_commit",
+          "line": 597,
+          "summary": "",
+          "signature": "(install_dir: Path, *, runner: Optional[RunFn] = …) -> str",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "current_branch",
+          "line": 602,
+          "summary": "",
+          "signature": "(install_dir: Path, *, runner: Optional[RunFn] = …) -> str",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "upstream_commit",
+          "line": 607,
+          "summary": "",
+          "signature": "(install_dir: Path, ref: str = …, *, runner: Optional[RunFn] = …) -> str",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "classify",
+          "line": 617,
+          "summary": "Compare the working tree with the registry: managed / unknown / drifted / missing",
+          "signature": "(install_dir: Path, registry: OverrideRegistry, *, runner: Optional[RunFn] = …) -> OverrideReport",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "register_overrides",
+          "line": 725,
+          "summary": "Register local changes as managed overrides (never automatic)",
+          "signature": "(install_dir: Path, state_root: Path, *, paths: Optional[Sequence[str]] = …, include_untracked: bool = …, base_release: str = …, runner: Optional[RunFn] = …, stamp: Optional[str] = …) -> RegisterResult",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "snapshot_file_for",
+          "line": 820,
+          "summary": "Copy the current bytes of ``path`` into the override snapshots directory",
+          "signature": "(state_root: Path, stamp: str, install_dir: Path, path: str) -> Path",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "unregister_overrides",
+          "line": 846,
+          "summary": "Forget registrations",
+          "signature": "(state_root: Path, paths: Optional[Sequence[str]] = …, *, all_entries: bool = …, keep_patches: bool = …) -> list[str]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "refresh_overrides",
+          "line": 870,
+          "summary": "Re-baseline registered overrides: new base commit, new hashes, new patch",
+          "signature": "(install_dir: Path, state_root: Path, *, paths: Optional[Sequence[str]] = …, runner: Optional[RunFn] = …) -> RegisterResult",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "predict_reapply",
+          "line": 968,
+          "summary": "Will the registered overrides survive the jump from base to ``target``?",
+          "signature": "(install_dir: Path, registry: OverrideRegistry, target: Optional[str], *, runner: Optional[RunFn] = …) -> ReapplyPrediction",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "apply_overrides",
+          "line": 1074,
+          "summary": "Reapply registered patches onto the current checkout",
+          "signature": "(install_dir: Path, state_root: Path, registry: Optional[OverrideRegistry] = …, *, paths: Optional[Sequence[str]] = …, strategy: str = …, dry_run: bool = …, runner: Optional[RunFn] = …) -> ApplyResult",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "restore_clean_state",
+          "line": 1143,
+          "summary": "Return the working tree to upstream state *for the registered paths only*",
+          "signature": "(install_dir: Path, report: OverrideReport, *, runner: Optional[RunFn] = …, allow_unknown: bool = …) -> bool",
+          "members": []
+        },
+        {
+          "kind": "class",
+          "name": "IntegrityIssue",
+          "line": 1183,
+          "summary": "",
+          "signature": "",
+          "members": [
+            "to_dict"
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "integrity_issues",
+          "line": 1198,
+          "summary": "Registry + patch integrity for health/preflight/doctor",
+          "signature": "(state_root: Path, install_dir: Optional[Path] = …, *, runner: Optional[RunFn] = …) -> list[IntegrityIssue]",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "export_overrides",
+          "line": 1293,
+          "summary": "Bundle registry + patches + snapshots into a zip",
+          "signature": "(state_root: Path, out_path: Path) -> Path",
+          "members": []
+        }
+      ]
+    },
+    {
       "name": "preflight",
       "path": "hermes_update_check/preflight.py",
-      "lines": 485,
+      "lines": 635,
       "summary": "Pre-update checks: is this machine actually in a state where an update is safe to start?",
       "symbols": [
         {
@@ -1975,13 +2553,13 @@
     {
       "name": "provenance",
       "path": "hermes_update_check/provenance.py",
-      "lines": 564,
+      "lines": 775,
       "summary": "Code provenance: *what code is actually running*, not just what it calls itself",
       "symbols": [
         {
           "kind": "constant",
           "name": "CHANNEL_STABLE",
-          "line": 43,
+          "line": 45,
           "summary": "'STABLE'",
           "signature": "",
           "members": []
@@ -1989,7 +2567,7 @@
         {
           "kind": "constant",
           "name": "CHANNEL_MAIN",
-          "line": 44,
+          "line": 46,
           "summary": "'MAIN'",
           "signature": "",
           "members": []
@@ -1997,7 +2575,7 @@
         {
           "kind": "constant",
           "name": "CHANNEL_PRERELEASE",
-          "line": 45,
+          "line": 47,
           "summary": "'PRERELEASE'",
           "signature": "",
           "members": []
@@ -2005,7 +2583,7 @@
         {
           "kind": "constant",
           "name": "CHANNEL_DETACHED",
-          "line": 46,
+          "line": 48,
           "summary": "'DETACHED'",
           "signature": "",
           "members": []
@@ -2013,7 +2591,7 @@
         {
           "kind": "constant",
           "name": "CHANNEL_CUSTOM",
-          "line": 47,
+          "line": 49,
           "summary": "'CUSTOM'",
           "signature": "",
           "members": []
@@ -2021,15 +2599,95 @@
         {
           "kind": "constant",
           "name": "CHANNEL_UNKNOWN",
-          "line": 48,
+          "line": 50,
           "summary": "'UNKNOWN'",
           "signature": "",
           "members": []
         },
         {
           "kind": "constant",
-          "name": "DEV_BRANCHES",
+          "name": "INSTALL_STANDARD_RELEASE",
+          "line": 54,
+          "summary": "'STANDARD_RELEASE'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "INSTALL_MAIN_CLEAN",
+          "line": 55,
+          "summary": "'MAIN_CLEAN'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "INSTALL_MAIN_WITH_MANAGED_OVERRIDES",
+          "line": 56,
+          "summary": "'MAIN_WITH_MANAGED_OVERRIDES'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "INSTALL_CUSTOM_COMMIT",
+          "line": 57,
+          "summary": "'CUSTOM_COMMIT'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "INSTALL_FORK",
+          "line": 58,
+          "summary": "'FORK'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "INSTALL_DETACHED",
           "line": 59,
+          "summary": "'DETACHED'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "INSTALL_UNKNOWN",
+          "line": 60,
+          "summary": "'UNKNOWN'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "COMPARE_SOURCE_GITHUB",
+          "line": 63,
+          "summary": "'github'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "COMPARE_SOURCE_LOCAL_GIT",
+          "line": 64,
+          "summary": "'local_git'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "COMPARE_SOURCE_NONE",
+          "line": 65,
+          "summary": "'none'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "DEV_BRANCHES",
+          "line": 76,
           "summary": "{'main', 'master', 'develop', 'development', 'dev'}",
           "signature": "",
           "members": []
@@ -2037,7 +2695,7 @@
         {
           "kind": "constant",
           "name": "UPDATE_STATUS_UP_TO_DATE",
-          "line": 62,
+          "line": 79,
           "summary": "'up_to_date'",
           "signature": "",
           "members": []
@@ -2045,7 +2703,7 @@
         {
           "kind": "constant",
           "name": "UPDATE_STATUS_AVAILABLE",
-          "line": 63,
+          "line": 80,
           "summary": "'update_available'",
           "signature": "",
           "members": []
@@ -2053,7 +2711,7 @@
         {
           "kind": "constant",
           "name": "UPDATE_STATUS_AHEAD",
-          "line": 64,
+          "line": 81,
           "summary": "'ahead_of_stable'",
           "signature": "",
           "members": []
@@ -2061,7 +2719,7 @@
         {
           "kind": "constant",
           "name": "UPDATE_STATUS_MANUAL_REVIEW",
-          "line": 65,
+          "line": 82,
           "summary": "'manual_review'",
           "signature": "",
           "members": []
@@ -2069,7 +2727,7 @@
         {
           "kind": "constant",
           "name": "UPDATE_STATUS_UNKNOWN",
-          "line": 66,
+          "line": 83,
           "summary": "'unknown'",
           "signature": "",
           "members": []
@@ -2077,7 +2735,7 @@
         {
           "kind": "class",
           "name": "CodeProvenance",
-          "line": 72,
+          "line": 89,
           "summary": "Where the running code actually sits relative to the release tags",
           "signature": "",
           "members": [
@@ -2092,7 +2750,7 @@
         {
           "kind": "class",
           "name": "UpdateDecision",
-          "line": 152,
+          "line": 187,
           "summary": "Is an update even the right question to ask?",
           "signature": "",
           "members": [
@@ -2104,15 +2762,23 @@
         {
           "kind": "function",
           "name": "resolve_provenance",
-          "line": 198,
+          "line": 233,
           "summary": "Build the provenance model from the local environment plus GitHub data",
-          "signature": "(env: LocalEnv, releases: Sequence[Release] = …, *, latest: Optional[Release] = …, compare: Optional[CompareFn] = …) -> CodeProvenance",
+          "signature": "(env: LocalEnv, releases: Sequence[Release] = …, *, latest: Optional[Release] = …, compare: Optional[CompareFn] = …, target_commit: Optional[str] = …, runner: Optional[Any] = …, official_repo: str = …, managed_overrides: int = …, unknown_changes: int = …, drifted_overrides: int = …) -> CodeProvenance",
+          "members": []
+        },
+        {
+          "kind": "function",
+          "name": "local_git_relation",
+          "line": 431,
+          "summary": "(behind, ahead) between ``ref`` and HEAD, computed with the local git only",
+          "signature": "(install_dir: Optional[Path], ref: str, *, runner: Optional[Any] = …) -> Optional[tuple[int, int]]",
           "members": []
         },
         {
           "kind": "function",
           "name": "decide_update",
-          "line": 405,
+          "line": 596,
           "summary": "Decide *whether* a newer release is the right thing to move to",
           "signature": "(prov: CodeProvenance, latest: Optional[Release], *, preferred_channel: str = …, allow_prerelease: bool = …) -> UpdateDecision",
           "members": []
@@ -2120,7 +2786,7 @@
         {
           "kind": "function",
           "name": "channel_mismatch",
-          "line": 535,
+          "line": 746,
           "summary": "Warning text when the install does not track the preferred channel",
           "signature": "(prov: CodeProvenance, preferred_channel: str) -> Optional[tuple[str, str]]",
           "members": []
@@ -2128,7 +2794,7 @@
         {
           "kind": "function",
           "name": "now_version_age_days",
-          "line": 559,
+          "line": 770,
           "summary": "",
           "signature": "(published: Optional[datetime], *, now: Optional[datetime] = …) -> Optional[float]",
           "members": []
@@ -2138,13 +2804,13 @@
     {
       "name": "report",
       "path": "hermes_update_check/report.py",
-      "lines": 867,
+      "lines": 901,
       "summary": "Report rendering: the human-readable answer, in Chinese or English",
       "symbols": [
         {
           "kind": "constant",
           "name": "REPORT_TITLE",
-          "line": 42,
+          "line": 43,
           "summary": "'Hermes Update Advisor'",
           "signature": "",
           "members": []
@@ -2152,7 +2818,7 @@
         {
           "kind": "class",
           "name": "Reporter",
-          "line": 60,
+          "line": 62,
           "summary": "Renders an UpdateCheck for humans (rich) or machines (markdown/json)",
           "signature": "",
           "members": [
@@ -2583,7 +3249,7 @@
     {
       "name": "state",
       "path": "hermes_update_check/state.py",
-      "lines": 275,
+      "lines": 327,
       "summary": "State files: `update_state.json`, watch state, cache/snapshot directories",
       "symbols": [
         {
@@ -2643,15 +3309,66 @@
           "members": []
         },
         {
+          "kind": "constant",
+          "name": "STAGE_PREPARED",
+          "line": 31,
+          "summary": "'PREPARED'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "STAGE_CLEANED",
+          "line": 32,
+          "summary": "'CLEANED'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "STAGE_UPDATED",
+          "line": 33,
+          "summary": "'UPDATED'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "STAGE_OVERRIDES_REAPPLIED",
+          "line": 34,
+          "summary": "'OVERRIDES_REAPPLIED'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "STAGE_VERIFIED",
+          "line": 35,
+          "summary": "'VERIFIED'",
+          "signature": "",
+          "members": []
+        },
+        {
+          "kind": "constant",
+          "name": "STAGE_COMMITTED",
+          "line": 36,
+          "summary": "'COMMITTED'",
+          "signature": "",
+          "members": []
+        },
+        {
           "kind": "class",
           "name": "UpdateState",
-          "line": 31,
+          "line": 52,
           "summary": "Pre-update facts needed to undo an update, plus the outcome",
           "signature": "",
           "members": [
             "to_dict",
             "from_dict",
             "mark",
+            "advance",
+            "interrupted",
+            "interrupted_summary",
             "created_at",
             "human_summary"
           ]
@@ -2659,7 +3376,7 @@
         {
           "kind": "class",
           "name": "WatchState",
-          "line": 96,
+          "line": 144,
           "summary": "What watch mode remembers between runs, so it can stay silent when nothing changed",
           "signature": "",
           "members": [
@@ -2672,7 +3389,7 @@
         {
           "kind": "function",
           "name": "confidence_bucket",
-          "line": 186,
+          "line": 238,
           "summary": "Coarse confidence bands - small numeric wobbles must not trigger notifications",
           "signature": "(confidence: int) -> str",
           "members": []
@@ -2680,7 +3397,7 @@
         {
           "kind": "class",
           "name": "StateStore",
-          "line": 195,
+          "line": 247,
           "summary": "Filesystem layout + read/write helpers for all persisted state",
           "signature": "",
           "members": [
@@ -2705,13 +3422,13 @@
     {
       "name": "updater",
       "path": "hermes_update_check/updater.py",
-      "lines": 604,
+      "lines": 812,
       "summary": "Update execution: snapshot -> update -> health check -> (rollback)",
       "symbols": [
         {
           "kind": "class",
           "name": "SnapshotEntry",
-          "line": 53,
+          "line": 68,
           "summary": "",
           "signature": "",
           "members": [
@@ -2721,7 +3438,7 @@
         {
           "kind": "class",
           "name": "Snapshot",
-          "line": 75,
+          "line": 90,
           "summary": "",
           "signature": "",
           "members": [
@@ -2731,17 +3448,18 @@
         {
           "kind": "class",
           "name": "UpdateOutcome",
-          "line": 91,
+          "line": 106,
           "summary": "",
           "signature": "",
           "members": [
+            "overrides_conflict",
             "to_dict"
           ]
         },
         {
           "kind": "class",
           "name": "RollbackOutcome",
-          "line": 121,
+          "line": 151,
           "summary": "",
           "signature": "",
           "members": [
@@ -2751,7 +3469,7 @@
         {
           "kind": "function",
           "name": "create_snapshot",
-          "line": 147,
+          "line": 177,
           "summary": "Fingerprint (and partially copy) the Hermes home before an update",
           "signature": "(env: LocalEnv, state_root: Path, *, logger: Optional[logging.Logger] = …) -> Snapshot",
           "members": []
@@ -2759,7 +3477,7 @@
         {
           "kind": "function",
           "name": "build_update_command",
-          "line": 223,
+          "line": 253,
           "summary": "Compose the ``hermes update`` invocation (nothing is executed here)",
           "signature": "(cfg: Config, env: LocalEnv, *, backup: bool, yes: bool, branch: Optional[str] = …, extra_args: Sequence[str] = …) -> list[str]",
           "members": []
@@ -2767,7 +3485,7 @@
         {
           "kind": "function",
           "name": "run_update",
-          "line": 245,
+          "line": 275,
           "summary": "Execute the update",
           "signature": "(cfg: Config, env: LocalEnv, *, state_root: Optional[Path] = …, backup: bool = …, yes: bool = …, branch: Optional[str] = …, extra_args: Sequence[str] = …, dry_run: bool = …, skip_health_check: bool = …, auto_rollback: bool = …, on_line: LineCallback = …, logger: Optional[logging.Logger] = …, timeout: float = …) -> UpdateOutcome",
           "members": []
@@ -2775,7 +3493,7 @@
         {
           "kind": "function",
           "name": "pre_update_gateway_running",
-          "line": 401,
+          "line": 579,
           "summary": "Was the gateway running *before* we touched anything?",
           "signature": "(env: LocalEnv, *, logger: Optional[logging.Logger] = …) -> Optional[bool]",
           "members": []
@@ -2783,7 +3501,7 @@
         {
           "kind": "function",
           "name": "dependency_install_command",
-          "line": 420,
+          "line": 598,
           "summary": "How to reinstall Hermes' Python dependencies after a git checkout",
           "signature": "(env: LocalEnv) -> list[str]",
           "members": []
@@ -2791,7 +3509,7 @@
         {
           "kind": "function",
           "name": "run_rollback",
-          "line": 434,
+          "line": 612,
           "summary": "Restore the pre-update version: git ref + dependencies (+ optional backup)",
           "signature": "(cfg: Config, env: LocalEnv, *, store: Optional[StateStore] = …, state: Optional[UpdateState] = …, yes: bool = …, to_ref: Optional[str] = …, reinstall_deps: bool = …, restore_backup: Optional[str] = …, in_place_restore: bool = …, dry_run: bool = …, on_line: LineCallback = …, logger: Optional[logging.Logger] = …, timeout: float = …) -> RollbackOutcome",
           "members": []
@@ -3346,6 +4064,10 @@
       "help": "usage profile: what *you* depend on (phase 3)"
     },
     {
+      "command": "overrides",
+      "help": "managed local overrides: intentional customization (phase 4)"
+    },
+    {
       "command": "notify-test",
       "help": "send a test notification to every configured channel"
     },
@@ -3661,6 +4383,89 @@
       ]
     },
     {
+      "path": "tests/test_overrides.py",
+      "lines": 644,
+      "summary": "Managed local overrides: registry, classification, patches, prediction, apply",
+      "tests": 44,
+      "names": [
+        "test_parse_porcelain_all_statuses",
+        "test_registry_round_trip",
+        "test_corrupted_registry_is_reported_not_raised",
+        "test_hunk_ranges_and_overlap",
+        "test_sanitise_keeps_snapshot_paths_tame",
+        "test_detect_lists_tracked_untracked_and_ignored",
+        "test_clean_repo_has_no_changes",
+        "test_register_records_real_baseline",
+        "test_register_refuses_untracked_by_default",
+        "test_register_untracked_only_with_explicit_request",
+        "test_register_twice_refreshes",
+        "test_classify_exact_after_register",
+        "test_classify_drift_when_edited_again",
+        "test_classify_missing_when_reverted",
+        "test_classify_unknown_for_unregistered_change",
+        "test_classify_unknown_untracked_file",
+        "test_classify_ignored_files_never_block",
+        "test_managed_deleted_file",
+        "test_managed_added_file",
+        "test_managed_renamed_file",
+        "test_unknown_dirty_makes_status_fail",
+        "test_unicode_filename_and_spaces",
+        "test_crlf_content_patch_round_trip",
+        "test_binary_file_patch_is_binary",
+        "test_predict_high_when_upstream_untouched",
+        "test_predict_medium_when_upstream_touches_other_region",
+        "test_predict_low_on_overlapping_region",
+        "test_predict_unknown_without_target",
+        "test_predict_unknown_without_registry",
+        "test_apply_three_way_success",
+        "test_apply_reports_conflict_without_resolving",
+        "test_restore_clean_state_refuses_unknown",
+        "test_restore_clean_state_only_touches_managed_paths",
+        "test_refresh_moves_the_baseline",
+        "test_unregister_is_forget_only",
+        "test_export_bundle_contains_registry_and_patch",
+        "test_integrity_issues_clean_and_broken",
+        "test_integrity_reports_fail_for_unknown_changes",
+        "test_integrity_without_registry_is_ok",
+        "test_integrity_flags_missing_patch_file",
+        "test_detect_without_git_returns_empty",
+        "test_classify_without_git_is_unknown",
+        "test_classify_with_broken_registry_is_unknown",
+        "test_register_without_git_raises"
+      ]
+    },
+    {
+      "path": "tests/test_overrides_integration.py",
+      "lines": 599,
+      "summary": "Phase-4 integration: gates, update transaction, rollback, watch, provenance",
+      "tests": 23,
+      "names": [
+        "test_gate_passes_with_only_managed_overrides",
+        "test_gate_blocks_unknown_changes",
+        "test_gate_blocks_drift_but_can_be_relaxed",
+        "test_gate_without_registry_keeps_the_phase3_behaviour",
+        "test_gate_clean_tree_is_unchanged",
+        "test_update_state_transaction_stages_and_interruption",
+        "test_update_state_round_trips_the_new_fields",
+        "test_looks_like_fork_and_official_remote",
+        "test_install_state_classification",
+        "test_local_only_commit_on_main_is_not_manual_review",
+        "test_fork_with_upstream_remote_is_not_anomalous",
+        "test_local_git_relation_measures_ahead_and_behind",
+        "test_behind_release_is_an_update_candidate_via_local_git",
+        "test_update_aborts_on_unknown_changes",
+        "test_update_aborts_on_drift",
+        "test_rollback_refuses_with_unknown_changes",
+        "test_rollback_reapplies_overrides_after_checkout",
+        "test_watch_stays_silent_for_stable_managed_overrides",
+        "test_watch_alerts_on_drift",
+        "test_watch_alerts_on_new_unknown_changes",
+        "test_watch_alerts_when_reapply_confidence_drops",
+        "test_override_report_to_dict_is_json_serialisable",
+        "test_patch_sensitivity_guard"
+      ]
+    },
+    {
       "path": "tests/test_preflight_health.py",
       "lines": 184,
       "summary": "Preflight and health-check tests (local filesystem only)",
@@ -3683,14 +4488,15 @@
     },
     {
       "path": "tests/test_provenance.py",
-      "lines": 274,
+      "lines": 325,
       "summary": "Code provenance tests: the five cases from the design brief, plus the rest",
-      "tests": 16,
+      "tests": 17,
       "names": [
         "test_case1_main_ahead_of_latest_release",
         "test_main_behind_release_is_an_update_candidate",
         "test_main_diverged_from_release_needs_manual_review",
-        "test_case1_when_compare_is_unavailable_main_is_not_a_candidate",
+        "test_case1_when_compare_is_unavailable_main_is_not_manual_review",
+        "test_case1b_local_git_measures_the_distance_when_github_404s",
         "test_case2_stable_update_available",
         "test_case3_stable_up_to_date",
         "test_case4_detached_head_requires_manual_review",
@@ -3968,8 +4774,8 @@
     }
   ],
   "totals": {
-    "modules": 31,
-    "lines": 14115,
-    "tests": 403
+    "modules": 32,
+    "lines": 16872,
+    "tests": 471
   }
 }

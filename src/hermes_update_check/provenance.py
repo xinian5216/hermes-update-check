@@ -34,10 +34,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Callable, Optional, Sequence
+from pathlib import Path
+from typing import Any, Callable, Optional, Sequence
 
 from .github_api import CompareResult, Release
 from .local_env import GitState, LocalEnv
+from .overrides import run_git
 from .versioning import compare_versions, normalise_tag, parse_version
 
 CHANNEL_STABLE = "STABLE"
@@ -46,6 +48,21 @@ CHANNEL_PRERELEASE = "PRERELEASE"
 CHANNEL_DETACHED = "DETACHED"
 CHANNEL_CUSTOM = "CUSTOM"
 CHANNEL_UNKNOWN = "UNKNOWN"
+
+#: Install-state classification (phase 4). Coarser than the channel and meant for
+#: humans: what kind of installation is this, and does it need special handling?
+INSTALL_STANDARD_RELEASE = "STANDARD_RELEASE"
+INSTALL_MAIN_CLEAN = "MAIN_CLEAN"
+INSTALL_MAIN_WITH_MANAGED_OVERRIDES = "MAIN_WITH_MANAGED_OVERRIDES"
+INSTALL_CUSTOM_COMMIT = "CUSTOM_COMMIT"
+INSTALL_FORK = "FORK"
+INSTALL_DETACHED = "DETACHED"
+INSTALL_UNKNOWN = "UNKNOWN"
+
+#: where the ahead/behind numbers came from
+COMPARE_SOURCE_GITHUB = "github"
+COMPARE_SOURCE_LOCAL_GIT = "local_git"
+COMPARE_SOURCE_NONE = "none"
 
 ALL_CHANNELS = (
     CHANNEL_STABLE,
@@ -86,7 +103,16 @@ class CodeProvenance:
     dirty_files: int = 0
     tag_matched: bool = False
     compare_available: bool = False
+    compare_source: str = COMPARE_SOURCE_NONE
     is_git_install: bool = False
+    install_state: str = INSTALL_UNKNOWN
+    remote_url: Optional[str] = None
+    fork_detected: bool = False
+    upstream_remote: Optional[str] = None
+    local_only_commits: Optional[int] = None
+    managed_overrides: int = 0
+    unknown_changes: int = 0
+    override_drifted: int = 0
     evidence: list[tuple[str, str]] = field(default_factory=list)
 
     # -- derived ------------------------------------------------------------- #
@@ -143,6 +169,15 @@ class CodeProvenance:
             "tag_matched": self.tag_matched,
             "is_git_install": self.is_git_install,
             "compare_available": self.compare_available,
+            "compare_source": self.compare_source,
+            "install_state": self.install_state,
+            "remote_url": self.remote_url,
+            "fork_detected": self.fork_detected,
+            "upstream_remote": self.upstream_remote,
+            "local_only_commits": self.local_only_commits,
+            "managed_overrides": self.managed_overrides,
+            "unknown_changes": self.unknown_changes,
+            "override_drifted": self.override_drifted,
             "dirty_files": self.dirty_files,
             "evidence": [{"zh": zh, "en": en} for zh, en in self.evidence],
         }
@@ -201,12 +236,19 @@ def resolve_provenance(
     *,
     latest: Optional[Release] = None,
     compare: Optional[CompareFn] = None,
+    target_commit: Optional[str] = None,
+    runner: Optional[Any] = None,
+    official_repo: str = "NousResearch/hermes-agent",
+    managed_overrides: int = 0,
+    unknown_changes: int = 0,
+    drifted_overrides: int = 0,
 ) -> CodeProvenance:
     """Build the provenance model from the local environment plus GitHub data.
 
     ``compare`` is an optional ``compare(base, head) -> CompareResult|None``
-    callable (the GitHub client's); when it is unavailable the model still
-    resolves, but says so instead of guessing (``compare_available=False``).
+    callable (the GitHub client's); when it is unavailable the model falls back to
+    the *local* git (phase 4) instead of declaring the install unknown, and says
+    which source produced the numbers (``compare_source``).
     """
     git: Optional[GitState] = env.git if env.git and env.git.is_repo else None
     prov = CodeProvenance(
@@ -250,6 +292,7 @@ def resolve_provenance(
         relation = compare(target_tag, git.full_commit or git.commit or target_tag)
         if relation is not None:
             prov.compare_available = True
+            prov.compare_source = COMPARE_SOURCE_GITHUB
             if relation.status == "identical":
                 prov.tag_matched = True
                 prov.nearest_tag = normalise_tag(target_tag)
@@ -261,6 +304,55 @@ def resolve_provenance(
             elif relation.status == "diverged":
                 prov.commits_ahead_of_tag = relation.ahead_by
                 prov.commits_behind_target = relation.behind_by
+
+    # -- local git fallback (phase 4) ---------------------------------------- #
+    # GitHub compare can 404 when the local commit was never pushed, came from
+    # another remote or the tag is not fetched. Local git answers the same
+    # question, so the install is *not* unknown just because GitHub is.
+    if not prov.compare_available and target_tag:
+        local = local_git_relation(env.install_dir, target_tag, runner=runner)
+        local_ref = target_tag
+        if local is None and target_commit:
+            local = local_git_relation(env.install_dir, target_commit, runner=runner)
+            local_ref = target_commit[:12]
+        if local is not None:
+            behind, ahead = local
+            prov.compare_available = True
+            prov.compare_source = COMPARE_SOURCE_LOCAL_GIT
+            if ahead and not behind:
+                prov.nearest_tag = normalise_tag(target_tag)
+                prov.commits_ahead_of_tag = ahead
+            elif behind and not ahead:
+                prov.commits_behind_target = behind
+            elif ahead and behind:
+                prov.commits_ahead_of_tag = ahead
+                prov.commits_behind_target = behind
+            prov.evidence.append(
+                (
+                    f"GitHub compare 不可用，改用本机 git 计算（对照 {local_ref}）：领先 {ahead} / 落后 {behind}",
+                    f"GitHub compare unavailable, computed with local git (against {local_ref}): {ahead} ahead / {behind} behind",
+                )
+            )
+        else:
+            upstream = git.upstream_commit or local_git_relation(env.install_dir, "origin/main", runner=runner)
+            origin_rel = local_git_relation(env.install_dir, "origin/main", runner=runner)
+            if origin_rel is not None:
+                behind_main, ahead_main = origin_rel
+                prov.local_only_commits = ahead_main
+                prov.evidence.append(
+                    (
+                        f"与本机记录的 origin/main 相比：领先 {ahead_main} / 落后 {behind_main}（发布 tag 不在本地对象库）",
+                        f"vs the locally recorded origin/main: {ahead_main} ahead / {behind_main} behind (release tag not in the local object store)",
+                    )
+                )
+            elif upstream:
+                prov.evidence.append(("本机 git 无法给出与上游的关系", "local git cannot relate HEAD to upstream"))
+            prov.evidence.append(
+                (
+                    "GitHub compare 不可用，且本机 git 也算不出距离：不据此断定安装异常",
+                    "GitHub compare unavailable and local git cannot measure the distance either: this alone is not an install anomaly",
+                )
+            )
     if prov.nearest_tag is None and prov.tag_matched and head_tags:
         prov.nearest_tag = head_tags[0]
     if prov.nearest_tag is None and prov.reported_tag:
@@ -273,6 +365,29 @@ def resolve_provenance(
 
     # -- channel ------------------------------------------------------------ #
     prov.channel = _classify_channel(prov, git, env)
+
+    # -- install state (phase 4) --------------------------------------------- #
+    prov.remote_url = git.remote_url
+    prov.fork_detected = _looks_like_fork(git.remote_url, official_repo)
+    prov.managed_overrides = managed_overrides
+    prov.unknown_changes = unknown_changes
+    prov.override_drifted = drifted_overrides
+    prov.install_state = _install_state(prov, git, managed_overrides, unknown_changes)
+    if prov.fork_detected:
+        prov.evidence.append(
+            (
+                f"origin 不是官方仓库（{git.remote_url}）：按 fork 场景处理，不用官方 compare 判定异常",
+                f"origin is not the official repository ({git.remote_url}): treated as a fork, "
+                "the official compare is not used to call it anomalous",
+            )
+        )
+    if prov.local_only_commits:
+        prov.evidence.append(
+            (
+                f"本地有 {prov.local_only_commits} 个未推送的提交（GitHub 上不存在，属正常本地定制）",
+                f"{prov.local_only_commits} local-only commit(s) that GitHub does not have (normal local customization)",
+            )
+        )
 
     if prov.detached:
         prov.evidence.append(
@@ -298,8 +413,9 @@ def resolve_provenance(
     if prov.channel != CHANNEL_UNKNOWN and not prov.compare_available:
         prov.evidence.append(
             (
-                "GitHub compare 不可用：与 tag 的距离无法精确计算",
-                "GitHub compare unavailable: exact distance to the tag is unknown",
+                "GitHub compare 不可用，本机 git 也算不出与发布版本的距离：不据此断定安装异常",
+                "GitHub compare unavailable and local git cannot measure the distance to the release either: "
+                "this alone is not an install anomaly",
             )
         )
     if prov.reported_tag and prov.nearest_tag and prov.reported_tag != prov.nearest_tag:
@@ -312,9 +428,84 @@ def resolve_provenance(
     return prov
 
 
+def local_git_relation(
+    install_dir: Optional[Path], ref: str, *, runner: Optional[Any] = None
+) -> Optional[tuple[int, int]]:
+    """(behind, ahead) between ``ref`` and HEAD, computed with the local git only.
+
+    Local git is authoritative for the local repository: a GitHub compare that
+    returns 404 (the commit was never pushed, comes from another remote, or the
+    tag is not fetched) must not turn the install into "unknown".
+    """
+    if install_dir is None or not ref:
+        return None
+    result = run_git(install_dir, ["rev-list", "--left-right", "--count", f"{ref}...HEAD"], runner=runner)
+    if result.returncode != 0:
+        return None
+    parts = (result.stdout or "").split()
+    if len(parts) != 2:
+        return None
+    try:
+        behind, ahead = int(parts[0]), int(parts[1])
+    except ValueError:
+        return None
+    return behind, ahead
+
+
+def _looks_like_fork(remote_url: Optional[str], official_repo: str) -> bool:
+    """A fork's origin is not the official repository (upstream usually is)."""
+    if not remote_url:
+        return False
+    slug = remote_url.rstrip("/").removesuffix(".git")
+    slug = slug.rsplit(":", 1)[-1] if "://" not in slug else slug
+    parts = slug.split("/")
+    if len(parts) < 2:
+        return False
+    return f"{parts[-2]}/{parts[-1]}".lower() != official_repo.lower()
+
+
 def _is_detached(git: GitState) -> bool:
     branch = (git.branch or "").strip()
     return branch in {"", "HEAD", "(no branch)"} or branch.startswith("(HEAD detached")
+
+
+def _install_state(prov: CodeProvenance, git: GitState, managed: int, unknown: int) -> str:
+    """Classify the installation shape (phase 4).
+
+    This is deliberately coarse and never *by itself* means "review manually":
+    a customized checkout is a normal, supported state.
+    """
+    if not prov.is_git_install:
+        return INSTALL_STANDARD_RELEASE if prov.channel == CHANNEL_STABLE else INSTALL_UNKNOWN
+    if prov.fork_detected:
+        return INSTALL_FORK
+    if prov.detached or prov.channel == CHANNEL_DETACHED:
+        return INSTALL_DETACHED
+    if prov.channel == CHANNEL_STABLE or prov.channel == CHANNEL_PRERELEASE:
+        return INSTALL_STANDARD_RELEASE
+    if prov.channel == CHANNEL_MAIN:
+        if managed or prov.local_only_commits:
+            return INSTALL_MAIN_WITH_MANAGED_OVERRIDES
+        if unknown or prov.dirty_worktree:
+            return INSTALL_MAIN_CLEAN
+        return INSTALL_MAIN_CLEAN
+    if prov.channel == CHANNEL_CUSTOM:
+        return INSTALL_CUSTOM_COMMIT
+    return INSTALL_UNKNOWN
+
+
+#: The only conditions that justify MANUAL_REVIEW (phase 4, doc section 36).
+MANUAL_REVIEW_REASONS: dict[str, tuple[str, str]] = {
+    "unknown_repo": ("无法识别这个仓库（不是 git 安装，也不是已知发行版）", "the repository cannot be identified"),
+    "override_drift": ("本地定制在登记之后又被改过（drift）", "a registered override drifted since registration"),
+    "unknown_dirty": ("工作区有未登记的修改", "the working tree has unregistered changes"),
+    "conflict_low": (
+        "预测到本地定制与新版本冲突（需要人工合并）",
+        "a local override is predicted to conflict (manual merge needed)",
+    ),
+    "git_graph": ("本机 git 历史无法解析", "the local git history cannot be parsed"),
+    "interrupted_transaction": ("上次更新事务中断，尚未收尾", "the previous update transaction was interrupted"),
+}
 
 
 def _classify_channel(prov: CodeProvenance, git: GitState, env: LocalEnv) -> str:
@@ -461,6 +652,27 @@ def decide_update(
                 "the code can be brought forward, but you will end up on main, not on the tagged release."
             )
             return decision
+        if prov.channel == CHANNEL_MAIN and not prov.compare_available:
+            # Phase 4: a main-tracking checkout whose distance to the release cannot
+            # be measured (GitHub compare 404, tag not fetched locally) is *not* a
+            # manual-review case. The release exists and the code does not contain
+            # it; whether the local commits are ahead is unproven, so say that.
+            decision.status = UPDATE_STATUS_AVAILABLE
+            decision.is_update_candidate = True
+            local_note = ""
+            if prov.local_only_commits:
+                local_note = f"；本地有 {prov.local_only_commits} 个未推送提交（属正常本地定制）"
+            decision.message_zh = (
+                "存在可用的正式版本更新。与发布版本的距离无法精确计算"
+                "（GitHub compare 与本地 tag 都没给出），但可以同步 main；"
+                "更新后拿到的是 main 而不是该 Release" + local_note + "。"
+            )
+            decision.message_en = (
+                "a newer stable release exists. The exact distance could not be measured "
+                "(neither GitHub compare nor a local tag answered), but main can be brought forward; "
+                "the result is main, not the tagged release."
+            )
+            return decision
         decision.status = UPDATE_STATUS_MANUAL_REVIEW
         decision.is_update_candidate = False
         if prov.channel == CHANNEL_DETACHED:
@@ -470,7 +682,6 @@ def decide_update(
             decision.message_zh = "当前分支/构建不是标准 Release 状态：请人工确认后再决定是否更新。"
             decision.message_en = "the current branch/build is not a standard release state: review manually."
         return decision
-
     if prov.channel == CHANNEL_PRERELEASE:
         decision.status = UPDATE_STATUS_MANUAL_REVIEW
         decision.is_update_candidate = bool(allow_prerelease)

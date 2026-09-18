@@ -27,10 +27,11 @@ from .advisor import (
     RECOMMEND_SAFE,
     RECOMMEND_WAIT,
 )
-from .checker import UpdateCheck
+from .checker import UpdateCheck, _working_tree_label
 from .clusters import RegressionCluster
 from .console import Console
 from .gates import GATE_PASS, GATE_SKIP, GateReport
+from .overrides import OverrideReport
 from .provenance import UPDATE_STATUS_AHEAD
 from .risk import (
     RECOMMEND_UNKNOWN,
@@ -49,6 +50,7 @@ SECTION_PERSONAL = ("个人就绪度", "PERSONAL READINESS")
 SECTION_FEATURES = ("你的核心功能", "YOUR CORE FEATURES")
 SECTION_ISSUES = ("已知问题", "KNOWN ISSUES")
 SECTION_SYSTEMIC = ("系统级风险", "SYSTEMIC RISKS")
+SECTION_OVERRIDES = ("本地定制", "LOCAL CUSTOMIZATION")
 SECTION_GATES = ("门禁与提示", "GATES & CAUTIONS")
 SECTION_REGRESSIONS = ("回归信号", "REGRESSION SIGNALS")
 SECTION_FACTORS = ("风险因子明细", "RISK FACTOR BREAKDOWN")
@@ -89,6 +91,7 @@ class Reporter:
         self._render_features(check.readiness)
         self._render_known_issues(check.readiness)
         self._render_systemic(check.readiness)
+        self._render_overrides(check.overrides)
         self._render_gates(check.gates)
         self._render_regressions(check.clusters, detailed=detailed)
         if check.assessment is not None:
@@ -131,15 +134,7 @@ class Reporter:
         if prov.commits_behind_target is not None:
             rows.append(("Behind Latest", f"{prov.commits_behind_target} commits"))
         if prov.is_git_install:
-            rows.append(
-                (
-                    "Working Tree",
-                    self._t(
-                        f"dirty（{prov.dirty_files} 个未提交修改）" if prov.dirty_worktree else "clean",
-                        f"dirty ({prov.dirty_files} uncommitted change(s))" if prov.dirty_worktree else "clean",
-                    ),
-                )
-            )
+            rows.append(("Working Tree", _working_tree_label(prov, lang=self.lang)))
         console.kv_table(rows)
         console.blank()
 
@@ -238,6 +233,45 @@ class Reporter:
                     f"(scanned {check.issues.scanned_items}, clusters {len(check.clusters)})",
                 )
             )
+        console.blank()
+
+    def _render_overrides(self, report: Optional[OverrideReport]) -> None:
+        """Managed local overrides: only shown when there is something to show."""
+        if report is None:
+            return
+        has_registry = bool(report.registry and not report.registry.empty)
+        # no registry and a clean tree: one line would be noise, the gate says it
+        if not has_registry and not report.managed_count and not report.unknown_count:
+            return
+        console = self.console
+        console.heading(self._section(SECTION_OVERRIDES))
+        rows = [
+            ("Managed Overrides", str(report.managed_count)),
+            ("Unknown Changes", str(report.unknown_count)),
+            ("Drifted Overrides", str(report.drifted_count)),
+        ]
+        if report.missing_count:
+            rows.append(("Missing Overrides", str(report.missing_count)))
+        rows.append(("Override Safety", report.safety))
+        if report.prediction is not None and report.prediction.confidence:
+            target = report.prediction.target or "-"
+            rows.append(
+                (
+                    self._t("重新应用把握 Reapply Confidence", "Reapply Confidence"),
+                    f"{report.prediction.confidence} ({target})",
+                )
+            )
+        console.kv_table(rows)
+        # File rows go through console.print: a long path in a rich table squeezes
+        # the value column to nothing (the status disappeared when redirected).
+        for entry in report.registry.files[:12] if report.registry else []:
+            path = entry.path if len(entry.path) <= 74 else "..." + entry.path[-71:]
+            console.print(f"  {entry.match.upper():8} {path}")
+        if has_registry:
+            for line in report.reasons_zh if self.lang == "zh" else report.reasons_en:
+                console.print(f"  · {line}")
+            if report.prediction is not None and report.prediction.manual_merge_likely:
+                console.print(self._t("  ！很可能需要人工合并（LOW）", "  ! manual merge likely required (LOW)"))
         console.blank()
 
     def _render_gates(self, gates: Optional[GateReport]) -> None:

@@ -26,6 +26,27 @@ STATUS_HEALTH_FAILED = "health_check_failed"
 STATUS_ROLLED_BACK = "rolled_back"
 STATUS_FAILED = "failed"
 
+# Update transaction stages (phase 4). An update is a transaction: if the process
+# dies mid-way the next run can say exactly where it stopped instead of guessing.
+STAGE_PREPARED = "PREPARED"
+STAGE_CLEANED = "CLEANED"
+STAGE_UPDATED = "UPDATED"
+STAGE_OVERRIDES_REAPPLIED = "OVERRIDES_REAPPLIED"
+STAGE_VERIFIED = "VERIFIED"
+STAGE_COMMITTED = "COMMITTED"
+
+TRANSACTION_STAGES = (
+    STAGE_PREPARED,
+    STAGE_CLEANED,
+    STAGE_UPDATED,
+    STAGE_OVERRIDES_REAPPLIED,
+    STAGE_VERIFIED,
+    STAGE_COMMITTED,
+)
+
+#: stages that mean "this transaction never finished"
+UNFINISHED_STAGES = (STAGE_PREPARED, STAGE_CLEANED, STAGE_UPDATED, STAGE_OVERRIDES_REAPPLIED, STAGE_VERIFIED)
+
 
 @dataclass
 class UpdateState:
@@ -54,6 +75,13 @@ class UpdateState:
     target_tag: Optional[str] = None
     command: Optional[str] = None
     status: str = STATUS_IN_PROGRESS
+    stage: Optional[str] = None
+    stage_history: list[str] = field(default_factory=list)
+    overrides_before: list[str] = field(default_factory=list)
+    overrides_patch_file: Optional[str] = None
+    overrides_patch_sha256: Optional[str] = None
+    overrides_reapplied: list[str] = field(default_factory=list)
+    overrides_conflicts: list[str] = field(default_factory=list)
     new_version: Optional[str] = None
     new_commit: Optional[str] = None
     health_summary: Optional[str] = None
@@ -72,6 +100,26 @@ class UpdateState:
         self.status = status
         if note:
             self.notes.append(note)
+
+    def advance(self, stage: str, *, note: Optional[str] = None) -> None:
+        """Record one transaction stage (phase 4: an update is a transaction)."""
+        self.stage = stage
+        self.stage_history.append(stage)
+        if note:
+            self.notes.append(note)
+
+    @property
+    def interrupted(self) -> bool:
+        """True when a transaction was started but never committed."""
+        return bool(self.stage) and self.stage in UNFINISHED_STAGES
+
+    def interrupted_summary(self, *, lang: str = "zh") -> Optional[str]:
+        if not self.interrupted:
+            return None
+        at = self.stage or "?"
+        if lang == "zh":
+            return f"上次更新事务没有走完，停在 {at}（可能是中断或崩溃）"
+        return f"the previous update transaction never finished: stopped at {at} (interrupted or crashed)"
 
     @property
     def created_at(self) -> Optional[str]:
@@ -116,6 +164,10 @@ class WatchState:
     # -- phase 3 -------------------------------------------------------------- #
     last_critical_features: list[str] = field(default_factory=list)
     last_personal_action: Optional[str] = None
+    # -- phase 4: managed overrides (stable ones must stay silent in watch mode) #
+    last_override_unknown: Optional[int] = None
+    last_override_drifted: Optional[int] = None
+    last_reapply_confidence: Optional[str] = None
 
     MAX_HISTORY = 60
 

@@ -7,10 +7,11 @@ then `docs/CODE_MAP.md`; only open source files once you know which ones you nee
 
 A safety-first **advisor** for updating Hermes Agent: it inspects the local install and
 the published releases, weighs what *you* actually use (usage profile), checks whether
-your critical workflows are still usable, applies the few blocking rules and then says
-`SAFE` / `ACCEPTABLE` / `WAIT` / `BLOCKED` (plus `AHEAD_OF_STABLE` / `MANUAL_REVIEW` /
-`INSUFFICIENT_DATA`). It also backs up, updates (only after an explicit `y`) and can
-roll back. Global risk is background information, never the decision.
+your critical workflows are still usable, protects intentional local customization
+(managed overrides), applies the few blocking rules and then says `SAFE` / `ACCEPTABLE` /
+`WAIT` / `BLOCKED` (plus `AHEAD_OF_STABLE` / `MANUAL_REVIEW` / `INSUFFICIENT_DATA`).
+It also backs up, updates (only after an explicit `y`) and can roll back. Global risk is
+background information, never the decision.
 
 ### Invariants — do not break these
 
@@ -27,13 +28,23 @@ roll back. Global risk is background information, never the decision.
 4. **No plaintext secrets anywhere.** Configuration carries environment-variable
    *names*; values come from the environment at runtime. See `SECURITY.md`.
 5. **The test suite never touches the network** and never runs `hermes update`.
+6. **User modifications are never destroyed to make an update succeed.** No
+   `git reset --hard`, no `git clean -fd`, no automatic ours/theirs conflict
+   resolution. Only paths the user registered are ever set aside, and only after
+   every dirty path is known (unregistered changes abort instead).
+7. **Known dirty != unknown dirty.** Registered overrides (hashed, patchable,
+   restorable) don't block; anything unregistered does. An empty registry keeps the
+   old behaviour.
+8. **Local git is authoritative for the local repository.** A GitHub compare that
+   404s (unpushed commit, fetchless tag, fork) must never turn the install into
+   "unknown" - answer from `git rev-list --left-right --count` instead.
 
 ## Layout
 
 | path | what lives there |
 |---|---|
 | `src/hermes_update_check/` | the package (see `docs/CODE_MAP.md` for every module) |
-| `tests/` | 467 offline tests; fake GitHub client in `tests/conftest.py` |
+| `tests/` | 537 offline tests; fake GitHub client in `tests/conftest.py` |
 | `docs/CODE_MAP.md`, `docs/index.json` | generated code map for agents (see below) |
 | `scripts/build_index.py` | regenerates `docs/CODE_MAP.md` + `docs/index.json` |
 | `scripts/scan_secrets.py` | secret/privacy scanner (pre-commit hook + CI) |
@@ -59,8 +70,8 @@ Windows: the interpreter is at `.venv\Scripts\python.exe` and the command at
 ## The loop
 
 ```bash
-.venv/bin/python -m pytest -q                         # 467 tests, must stay green, offline
-.venv/bin/python -m pytest --cov --cov-fail-under=80  # coverage gate (currently 84%)
+.venv/bin/python -m pytest -q                         # 537 tests, must stay green, offline
+.venv/bin/python -m pytest --cov --cov-fail-under=80  # coverage gate (currently 82%)
 .venv/bin/python -m ruff check .                      # lint gate (0 findings)
 .venv/bin/python -m ruff format --check .             # formatting gate
 .venv/bin/python scripts/build_index.py               # after touching the public surface
@@ -98,6 +109,10 @@ Currently released: **v1.2.0** (wheel + sdist attached; phase-3 decision model).
   that caps the verdict at `ACCEPTABLE` - add a `warn_*` rule instead of a blocker, and
   give it a config key in `gates.py` + `config.example.yaml` + README + tests
   (blocking, warning and pass paths).
+- **Local customization is a first-class state, not noise.** Registry entries store
+  the real baseline (base commit + content hashes + a `git diff --binary` patch);
+  `git stash` is never the durable format. Anything that touches the working tree
+  goes through `overrides.py` so the "never destroy user work" rule holds.
 - **A new usage-profile feature/provider** = an entry in `usage_profile.py`'s catalogue
   (zh/en name, detection evidence) + a mapping in the cluster -> feature attribution +
   tests. Unknown entries must resolve to `important` (features) or the group default

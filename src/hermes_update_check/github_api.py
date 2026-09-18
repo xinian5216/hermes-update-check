@@ -304,6 +304,33 @@ class GitHubClient:
             self.log.debug("compare truncated: %d of %d commits in payload", len(commits), compare.total_commits)
         return compare
 
+    def tag_commit(self, tag: str, *, use_cache: bool = True) -> Optional[str]:
+        """The commit a release tag points at (annotated tags are dereferenced).
+
+        Phase-4 local-git fallback: when GitHub cannot *compare* (404 - the local
+        commit was never pushed, or the tag was not fetched), the release *commit*
+        can still be compared with the local object store. None when unknown.
+        """
+        if not tag:
+            return None
+        url = f"{API_ROOT}/repos/{self.repo}/git/ref/tags/{quote_plus(tag)}"
+        result = self.http.get_json(url, use_cache=use_cache)
+        if not result.ok or not isinstance(result.data, dict):
+            return None
+        obj = result.data.get("object")
+        if not isinstance(obj, dict):
+            return None
+        sha = str(obj.get("sha", ""))
+        kind = str(obj.get("type", ""))
+        if kind == "tag" and sha:
+            # annotated tag: the ref points at a tag object, not at the commit
+            deref = self.http.get_json(f"{API_ROOT}/repos/{self.repo}/git/tags/{sha}", use_cache=use_cache)
+            if deref.ok and isinstance(deref.data, dict):
+                inner = deref.data.get("object")
+                if isinstance(inner, dict) and inner.get("sha"):
+                    return str(inner["sha"])
+        return sha or None
+
     def search_issues(
         self,
         query: str,

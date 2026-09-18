@@ -108,6 +108,14 @@ DEFAULTS: dict[str, Any] = {
         "webhook": {"enabled": False, "url": "", "bearer_token_env": ENV_PREFIX + "WEBHOOK_TOKEN"},
     },
     "logging": {"level": "INFO", "file": None, "console": False},
+    "local_overrides": {
+        "enabled": True,
+        "block_unknown_changes": True,
+        "block_drifted_overrides": True,
+        "auto_preserve": True,
+        "reapply": {"strategy": "three_way", "block_on_low_confidence": False},
+        "backup": {"patches": True, "keep_versions": 10},
+    },
     "risk": {
         "keyword_cap": 40,
         "age_cap": 18,
@@ -169,6 +177,10 @@ class HardGateConfig:
     block_on_rollback_safety: bool = True
     block_on_insufficient_data: bool = True
     block_dirty_worktree: bool = True
+    # phase 4: unregistered/drifted changes are what actually blocks; changes
+    # registered as managed overrides and unchanged since registration do not.
+    block_unknown_changes: bool = True
+    block_drifted_overrides: bool = True
     # warnings (caps the verdict at ACCEPTABLE)
     block_main_branch_update: bool = False
     block_prerelease: bool = False
@@ -186,6 +198,30 @@ class HardGateConfig:
     block_active_session_regression: Optional[bool] = None
     block_active_gateway_regression: Optional[bool] = None
     block_active_update_failure: Optional[bool] = None
+
+
+@dataclass
+class LocalOverridesConfig:
+    """Managed local overrides (phase 4): intentional customization is not corruption."""
+
+    enabled: bool = True
+    block_unknown_changes: bool = True
+    block_drifted_overrides: bool = True
+    auto_preserve: bool = True
+    reapply_strategy: str = "three_way"
+    block_on_low_confidence: bool = False
+    backup_patches: bool = True
+    keep_versions: int = 10
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "enabled": self.enabled,
+            "block_unknown_changes": self.block_unknown_changes,
+            "block_drifted_overrides": self.block_drifted_overrides,
+            "auto_preserve": self.auto_preserve,
+            "reapply": {"strategy": self.reapply_strategy, "block_on_low_confidence": self.block_on_low_confidence},
+            "backup": {"patches": self.backup_patches, "keep_versions": self.keep_versions},
+        }
 
 
 @dataclass
@@ -336,6 +372,7 @@ class Config:
     hard_gates: HardGateConfig = field(default_factory=HardGateConfig)
     release_age_policy: ReleaseAgePolicy = field(default_factory=ReleaseAgePolicy)
     smoke_tests: SmokeTestConfig = field(default_factory=SmokeTestConfig)
+    local_overrides: LocalOverridesConfig = field(default_factory=LocalOverridesConfig)
     usage_profile: UsageProfile = field(default_factory=UsageProfile)
     #: deprecation notices produced while loading (shown by `config show`)
     deprecated: list[str] = field(default_factory=list)
@@ -578,6 +615,10 @@ def _build_config(data: Mapping[str, Any], warnings: list[str]) -> Config:
         issue_enrichment_limit=_as_int(gh.get("issue_enrichment_limit"), 3),
     )
 
+    overrides_cfg = data.get("local_overrides") or {}
+    reapply_cfg = overrides_cfg.get("reapply") or {}
+    backup_cfg = overrides_cfg.get("backup") or {}
+
     hg = data.get("hard_gates") or {}
     cfg.hard_gates = HardGateConfig(
         enabled=bool(hg.get("enabled", True)),
@@ -585,6 +626,8 @@ def _build_config(data: Mapping[str, Any], warnings: list[str]) -> Config:
         block_on_critical_workflow=bool(hg.get("block_on_critical_workflow", True)),
         block_on_rollback_safety=bool(hg.get("block_on_rollback_safety", True)),
         block_dirty_worktree=bool(hg.get("block_dirty_worktree", True)),
+        block_unknown_changes=bool(overrides_cfg.get("block_unknown_changes", True)),
+        block_drifted_overrides=bool(overrides_cfg.get("block_drifted_overrides", True)),
         block_main_branch_update=bool(hg.get("block_main_branch_update", False)),
         block_prerelease=bool(hg.get("block_prerelease", False)),
         warn_active_gateway_regression=bool(hg.get("warn_active_gateway_regression", True)),
@@ -624,6 +667,17 @@ def _build_config(data: Mapping[str, Any], warnings: list[str]) -> Config:
         config_load=bool(smoke.get("config_load", True)),
         gateway=bool(smoke.get("gateway", False)),
         mcp_load=bool(smoke.get("mcp_load", False)),
+    )
+
+    cfg.local_overrides = LocalOverridesConfig(
+        enabled=bool(overrides_cfg.get("enabled", True)),
+        block_unknown_changes=bool(overrides_cfg.get("block_unknown_changes", True)),
+        block_drifted_overrides=bool(overrides_cfg.get("block_drifted_overrides", True)),
+        auto_preserve=bool(overrides_cfg.get("auto_preserve", True)),
+        reapply_strategy=str(reapply_cfg.get("strategy", "three_way")),
+        block_on_low_confidence=bool(reapply_cfg.get("block_on_low_confidence", False)),
+        backup_patches=bool(backup_cfg.get("patches", True)),
+        keep_versions=_as_int(backup_cfg.get("keep_versions"), 10),
     )
 
     profile = data.get("usage_profile")

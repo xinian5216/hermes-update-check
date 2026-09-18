@@ -37,6 +37,14 @@ from .http import DiskCache, HttpClient
 from .impact import PersonalReadiness, compute_personal_readiness, local_rollback_risk
 from .local_env import LocalEnv, detect_local_env
 from .logging_setup import get_logger
+from .overrides import (
+    SAFETY_UNKNOWN,
+    OverrideReport,
+    load_registry,
+)
+from .overrides import (
+    classify as classify_overrides,
+)
 from .provenance import (
     CHANNEL_STABLE,
     UPDATE_STATUS_UP_TO_DATE,
@@ -68,6 +76,31 @@ ISSUE_FALLBACK_QUERY = "label:bug"
 
 BASELINE_MIN_DAYS = 3.0
 BASELINE_MAX_DAYS = 14.0
+
+
+def _working_tree_label(prov, *, lang: str) -> str:
+    """Phase 4: never call a checkout "dirty" when all of it is registered.
+
+    ``known dirty != unknown dirty`` - the header says which kind it is.
+    """
+    if not prov.dirty_worktree:
+        return "clean" if lang == "en" else "干净"
+    managed = int(getattr(prov, "managed_overrides", 0) or 0)
+    unknown = int(getattr(prov, "unknown_changes", 0) or 0)
+    drifted = int(getattr(prov, "override_drifted", 0) or 0)
+    if managed or unknown or drifted:
+        if lang == "en":
+            parts = [f"{managed} managed"]
+            if drifted:
+                parts.append(f"{drifted} drifted")
+            parts.append(f"{unknown} unknown")
+            return f"modified ({', '.join(parts)})"
+        parts = [f"已登记 {managed}"]
+        if drifted:
+            parts.append(f"漂移 {drifted}")
+        parts.append(f"未登记 {unknown}")
+        return f"有本地修改（{'，'.join(parts)}）"
+    return "dirty" if lang == "en" else f"有 {prov.dirty_files} 个未提交修改"
 
 
 @dataclass
@@ -104,6 +137,8 @@ class UpdateCheck:
     profile: Optional[UsageProfile] = None
     readiness: Optional[PersonalReadiness] = None
     rollback_safety: Optional[RollbackSafety] = None
+    # -- phase 4 additions --------------------------------------------------- #
+    overrides: Optional[OverrideReport] = None
 
     @property
     def degraded(self) -> bool:
@@ -166,9 +201,7 @@ class UpdateCheck:
                 rows.append(
                     (
                         "Working Tree",
-                        ("dirty" if prov.dirty_worktree else "clean")
-                        if lang == "en"
-                        else (f"有 {prov.dirty_files} 个未提交修改" if prov.dirty_worktree else "干净"),
+                        _working_tree_label(prov, lang=lang),
                     )
                 )
         else:
@@ -274,6 +307,8 @@ class UpdateCheck:
             # -- phase 3 ------------------------------------------------------- #
             "personal_readiness": self.readiness.to_dict() if self.readiness else None,
             "rollback_safety": self.rollback_safety.to_dict() if self.rollback_safety else None,
+            "local_overrides": self.overrides.to_dict() if self.overrides else None,
+            "install_state": self.provenance.install_state if self.provenance else None,
             "usage_profile": self.profile.to_dict() if self.profile else None,
             "recommendation": self.action,
             "recommendation_detail": self.recommendation.to_dict() if self.recommendation else None,
@@ -407,15 +442,48 @@ def run_check(
     check.previous = _pick_previous(releases, latest)
     check.versions_behind = _releases_behind(releases, local.version)
 
+    # -- phase 4: managed local overrides (before provenance: the counts feed it) -- #
+    override_registry = load_registry(root)
+    if local.install_dir is not None:
+        check.overrides = classify_overrides(local.install_dir, override_registry)
+    elif not override_registry.empty:
+        check.overrides = OverrideReport(
+            registry=override_registry,
+            safety=SAFETY_UNKNOWN,
+            reasons_zh=["不是 git 安装：无法核对本地定制"],
+            reasons_en=["not a git install: managed overrides cannot be verified"],
+        )
+
     # -- code provenance: what is actually running? ------------------------ #
     provenance = resolve_provenance(
         local,
         releases,
         latest=latest,
         compare=lambda base, head: client.compare(base, head, use_cache=not no_cache),
+        managed_overrides=check.overrides.managed_count if check.overrides else 0,
+        unknown_changes=check.overrides.unknown_count if check.overrides else 0,
+        drifted_overrides=check.overrides.drifted_count if check.overrides else 0,
     )
     check.degradation.extend(client.degradations)
     client.degradations.clear()
+    if not provenance.compare_available and latest is not None:
+        # GitHub compare refused (404: local-only commit / unfetched tag). Ask for
+        # the release *commit* and let local git answer the same question.
+        lookup = getattr(client, "tag_commit", None)
+        release_commit = lookup(latest.tag, use_cache=not no_cache) if callable(lookup) else None
+        if release_commit:
+            provenance = resolve_provenance(
+                local,
+                releases,
+                latest=latest,
+                compare=None,
+                target_commit=release_commit,
+                managed_overrides=check.overrides.managed_count if check.overrides else 0,
+                unknown_changes=check.overrides.unknown_count if check.overrides else 0,
+                drifted_overrides=check.overrides.drifted_count if check.overrides else 0,
+            )
+            check.degradation.extend(client.degradations)
+            client.degradations.clear()
     check.provenance = provenance
     decision = decide_update(
         provenance,
@@ -520,6 +588,7 @@ def run_check(
         environment=check.environment,
         readiness=check.readiness,
         rollback_safety=check.rollback_safety,
+        overrides=check.overrides,
     )
     check.recommendation = advise(
         cfg,

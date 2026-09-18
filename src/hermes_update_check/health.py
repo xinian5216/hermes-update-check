@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
 
-from .config import Config
+from .config import Config, resolve_state_dir
 from .local_env import LocalEnv, gateway_status, parse_gateway_status
 from .logging_setup import get_logger
 from .preflight import STATUS_FAIL, STATUS_PASS, STATUS_SKIP, STATUS_WARN, CheckResult
@@ -99,11 +99,55 @@ def run_health_checks(
     report.checks.append(_check_gateway(env, timeout=gateway_timeout, was_running=gateway_was_running))
     report.checks.append(_check_doctor(env, timeout=max(timeout, 180.0)))
     report.checks.append(_check_mcp_tools(env, timeout=timeout))
+    report.checks.extend(_check_overrides(env, state_root or resolve_state_dir(cfg)))
     if smoke_test:
         report.checks.append(_check_smoke(env, timeout=180.0))
 
     log.debug("health: %s", [f"{c.key}={c.status}" for c in report.checks])
     return report
+
+
+def _check_overrides(env: LocalEnv, root: Path) -> list[CheckResult]:
+    """Phase 4: registry integrity, patch hashes, managed file status, transaction."""
+    from .overrides import integrity_issues, load_registry
+    from .state import StateStore
+
+    results: list[CheckResult] = []
+    for issue in integrity_issues(root, env.install_dir):
+        if issue.key == "override_registry" and issue.severity == "ok":
+            continue  # "no overrides" is not a health finding
+        status = {"ok": STATUS_PASS, "warn": STATUS_WARN, "fail": STATUS_FAIL, "unknown": STATUS_WARN}[issue.severity]
+        results.append(
+            CheckResult(
+                key=f"health_{issue.key}",
+                name_zh="本地定制",
+                name_en="local overrides",
+                status=status,
+                detail_zh=issue.message_zh,
+                detail_en=issue.message_en,
+                remediation_zh="运行 huc overrides doctor / huc overrides status 查看详情",
+                remediation_en="run `huc overrides doctor` / `huc overrides status` for details",
+            )
+        )
+    if not load_registry(root).empty:
+        try:
+            state = StateStore(root).load_update_state()
+        except Exception:  # pragma: no cover - defensive
+            state = None
+        if state is not None and state.interrupted:
+            results.append(
+                CheckResult(
+                    key="health_update_transaction",
+                    name_zh="更新事务",
+                    name_en="update transaction",
+                    status=STATUS_WARN,
+                    detail_zh=state.interrupted_summary(lang="zh") or "事务未完成",
+                    detail_en=state.interrupted_summary(lang="en") or "transaction unfinished",
+                    remediation_zh="查看 update_state.json 的 stage_history，确认工作区后重新运行",
+                    remediation_en="inspect stage_history in update_state.json, then re-run",
+                )
+            )
+    return results
 
 
 # --------------------------------------------------------------------------- #

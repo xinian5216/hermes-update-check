@@ -21,7 +21,22 @@ from .errors import AbortedError, CommandError
 from .health import HealthReport, run_health_checks
 from .local_env import LocalEnv, detect_local_env
 from .logging_setup import get_logger
+from .overrides import (
+    ApplyResult,
+    OverrideReport,
+    apply_overrides,
+    classify,
+    load_registry,
+    patches_dir,
+    restore_clean_state,
+)
 from .state import (
+    STAGE_CLEANED,
+    STAGE_COMMITTED,
+    STAGE_OVERRIDES_REAPPLIED,
+    STAGE_PREPARED,
+    STAGE_UPDATED,
+    STAGE_VERIFIED,
     STATUS_FAILED,
     STATUS_HEALTH_FAILED,
     STATUS_IN_PROGRESS,
@@ -30,7 +45,7 @@ from .state import (
     StateStore,
     UpdateState,
 )
-from .util import ProcResult, run_process, run_streaming, sha256_file, utcnow, write_json
+from .util import ProcResult, ensure_dir, run_process, run_streaming, sha256_file, utcnow, write_json
 
 LineCallback = Optional[Callable[[str], None]]
 
@@ -98,14 +113,29 @@ class UpdateOutcome:
     snapshot: Optional[Snapshot] = None
     dry_run: bool = False
     rolled_back: bool = False
+    overrides: Optional[OverrideReport] = None
+    overrides_apply: Optional[ApplyResult] = None
+    overrides_blocked: bool = False
     message_zh: str = ""
     message_en: str = ""
+
+    @property
+    def overrides_conflict(self) -> bool:
+        """The update itself finished, but the local overrides could not be reapplied."""
+        return bool(self.overrides_apply and self.overrides_apply.failed)
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "ok": self.ok,
             "dry_run": self.dry_run,
             "rolled_back": self.rolled_back,
+            "overrides_blocked": self.overrides_blocked,
+            "overrides": self.overrides.to_dict() if self.overrides else None,
+            "overrides_apply": self.overrides_apply.to_dict() if self.overrides_apply else None,
+            "overrides_conflict": self.overrides_conflict,
+            "transaction_stage": self.state.stage,
+            "stage_history": list(self.state.stage_history),
+            "interrupted": self.state.interrupted,
             "state": self.state.to_dict(),
             "command": self.result.cmd if self.result else None,
             "returncode": self.result.returncode if self.result else None,
@@ -294,13 +324,97 @@ def run_update(
             message_en="dry-run: nothing was changed",
         )
 
+    # -- phase 4: managed local overrides ---------------------------------- #
+    # Unknown dirty aborts before anything is touched; registered overrides are
+    # snapshotted, temporarily removed, and reapplied after the update.
+    overrides_report: Optional[OverrideReport] = None
+    if env.install_dir is not None:
+        registry = load_registry(store.root)
+        if not registry.empty:
+            overrides_report = classify(env.install_dir, registry)
+            state.overrides_before = [entry.path for entry in registry.files]
+            state.overrides_patch_file = next((entry.patch_file for entry in registry.files if entry.patch_file), None)
+            state.overrides_patch_sha256 = next(
+                (entry.patch_sha256 for entry in registry.files if entry.patch_sha256), None
+            )
+            if overrides_report.unknown and cfg.local_overrides.block_unknown_changes:
+                state.advance(STAGE_PREPARED, note="aborted: unregistered changes")
+                state.mark(STATUS_FAILED, note=f"{overrides_report.unknown_count} unregistered change(s)")
+                store.save_update_state(state)
+                return UpdateOutcome(
+                    ok=False,
+                    state=state,
+                    env_before=env,
+                    overrides=overrides_report,
+                    overrides_blocked=True,
+                    message_zh=(
+                        f"中止：工作区有 {overrides_report.unknown_count} 个未登记的修改。"
+                        "先登记为本地定制（huc overrides register）或提交/暂存它们。"
+                    ),
+                    message_en=(
+                        f"aborted: {overrides_report.unknown_count} unregistered change(s). "
+                        "Register them (`huc overrides register`) or commit/stash them first."
+                    ),
+                )
+            if overrides_report.drifted and cfg.local_overrides.block_drifted_overrides:
+                state.advance(STAGE_PREPARED, note="aborted: drifted overrides")
+                state.mark(STATUS_FAILED, note="drifted local overrides")
+                store.save_update_state(state)
+                return UpdateOutcome(
+                    ok=False,
+                    state=state,
+                    env_before=env,
+                    overrides=overrides_report,
+                    overrides_blocked=True,
+                    message_zh=(
+                        f"中止：{overrides_report.drifted_count} 个本地定制在登记之后又被改过（drift）。"
+                        "先运行 huc overrides refresh 或确认改动。"
+                    ),
+                    message_en=(
+                        f"aborted: {overrides_report.drifted_count} override(s) drifted since registration. "
+                        "Run `huc overrides refresh` or review them first."
+                    ),
+                )
+
     # -- snapshot + state before touching anything ------------------------- #
     snapshot = create_snapshot(env, store.root, logger=log)
     state.snapshot_path = str(snapshot.root)
     cmd = build_update_command(cfg, env, backup=backup, yes=yes, branch=branch, extra_args=extra_args)
     state.command = " ".join(cmd)
     state.target_version = getattr(state, "target_version", None) or None
+    state.advance(STAGE_PREPARED, note="snapshot + update command recorded")
     store.save_update_state(state)
+
+    # Override patches were written at registration time; take a fresh copy so a
+    # later refresh cannot invalidate what this transaction is about to use.
+    if overrides_report is not None and overrides_report.managed_count:
+        for entry in overrides_report.registry.files:
+            if entry.patch_file and Path(entry.patch_file).is_file():
+                stamp = utcnow().strftime("%Y-%m-%dT%H-%M-%SZ")
+                backup = patches_dir(store.root) / f"{stamp}-preupdate.patch"
+                try:
+                    ensure_dir(backup.parent)
+                    shutil.copy2(entry.patch_file, backup)
+                except OSError as exc:  # pragma: no cover - defensive
+                    log.warning("could not back up override patch: %s", exc)
+
+    # -- CLEANED: return the registered paths to upstream before updating --- #
+    if overrides_report is not None and overrides_report.managed_count:
+        if not restore_clean_state(env.install_dir, overrides_report, runner=None):
+            state.advance(STAGE_CLEANED, note="could not restore the upstream state")
+            state.mark(STATUS_FAILED, note="override restore refused")
+            store.save_update_state(state)
+            return UpdateOutcome(
+                ok=False,
+                state=state,
+                env_before=env,
+                snapshot=snapshot,
+                overrides=overrides_report,
+                overrides_blocked=True,
+                message_zh="中止：无法安全地把已登记的定制暂时还原（有未登记改动或 git 报错），未执行更新。",
+                message_en="aborted: the registered overrides could not be safely set aside - nothing was updated.",
+            )
+        state.advance(STAGE_CLEANED, note="registered overrides set aside")
 
     log.info("running: %s", " ".join(cmd))
     result = run_streaming(cmd, timeout=timeout, cwd=env.install_dir, on_line=on_line)
@@ -312,7 +426,23 @@ def run_update(
         state.mark(STATUS_FAILED, note=f"hermes update exit={result.returncode} {result.error or ''}".strip())
         state.new_version = env_after.version
         state.new_commit = env_after.git.commit if env_after.git else None
+        # Section 19: an update that fails must give the user their checkout back.
+        restore = None
+        if overrides_report is not None and overrides_report.managed_count and env.install_dir is not None:
+            restore = apply_overrides(env.install_dir, store.root, overrides_report.registry)
+            state.overrides_reapplied = list(restore.applied)
+            state.overrides_conflicts = list(restore.conflicts)
+            state.advance(STAGE_OVERRIDES_REAPPLIED, note="restored after a failed update")
         store.save_update_state(state)
+        message_zh = "更新命令执行失败（未完成），可用 rollback 恢复"
+        message_en = "the update command failed; `rollback` is available"
+        if restore is not None:
+            if restore.ok:
+                message_zh += "；本地定制已恢复"
+                message_en += "; local overrides were restored"
+            else:
+                message_zh += "；本地定制恢复失败，patch 已保留在 overrides/patches"
+                message_en += "; restoring local overrides FAILED - the patch is kept in overrides/patches"
         return UpdateOutcome(
             ok=False,
             state=state,
@@ -320,12 +450,58 @@ def run_update(
             env_after=env_after,
             result=result,
             snapshot=snapshot,
-            message_zh="更新命令执行失败（未完成），可用 rollback 恢复",
-            message_en="the update command failed; `rollback` is available",
+            overrides=overrides_report,
+            overrides_apply=restore,
+            message_zh=message_zh,
+            message_en=message_en,
         )
 
+    state.advance(STAGE_UPDATED, note=f"hermes update exit={result.returncode}")
     state.new_version = env_after.version
     state.new_commit = env_after.git.commit if env_after.git else None
+
+    # -- OVERRIDES_REAPPLIED: put the local customization back ------------- #
+    apply_result: Optional[ApplyResult] = None
+    if overrides_report is not None and overrides_report.managed_count and env.install_dir is not None:
+        apply_result = apply_overrides(
+            env.install_dir,
+            store.root,
+            overrides_report.registry,
+            strategy=cfg.local_overrides.reapply_strategy,
+        )
+        state.overrides_reapplied = list(apply_result.applied)
+        state.overrides_conflicts = list(apply_result.conflicts)
+        state.advance(
+            STAGE_OVERRIDES_REAPPLIED, note=f"applied={len(apply_result.applied)} failed={len(apply_result.failed)}"
+        )
+        store.save_update_state(state)
+        if not apply_result.ok:
+            # Section 18: the update itself is done, but the customization could
+            # not be reapplied. Stop here, keep the patch, and hand over to the user.
+            state.mark(
+                STATUS_FAILED,
+                note="update ok, local overrides could not be reapplied safely",
+            )
+            store.save_update_state(state)
+            return UpdateOutcome(
+                ok=False,
+                state=state,
+                env_before=env,
+                env_after=env_after,
+                result=result,
+                snapshot=snapshot,
+                overrides=overrides_report,
+                overrides_apply=apply_result,
+                message_zh=(
+                    "LOCAL OVERRIDE CONFLICT：更新本身已完成，但本地定制无法安全地重新应用。"
+                    "patch 与冲突信息已保留在 overrides/ 下，请人工合并（未丢弃任何修改）。"
+                ),
+                message_en=(
+                    "LOCAL OVERRIDE CONFLICT: the update itself completed, but the local overrides could not be "
+                    "reapplied safely. The patch and conflict details are kept under overrides/ - resolve manually "
+                    "(nothing was discarded)."
+                ),
+            )
 
     # -- health check ------------------------------------------------------- #
     health: Optional[HealthReport] = None
@@ -371,7 +547,9 @@ def run_update(
             )
         return outcome
 
+    state.advance(STAGE_VERIFIED, note=state.health_summary or "no health check configured")
     state.status = STATUS_SUCCEEDED
+    state.advance(STAGE_COMMITTED, note="transaction finished")
     if health is not None:
         state.health_summary = health.summary_line(lang="en")
     store.save_update_state(state)
@@ -496,12 +674,32 @@ def run_rollback(
         fetch = run_process(["git", "-C", str(install_dir), "fetch", "--tags", "--quiet"], timeout=180.0)
         steps.append(f"git fetch --tags: exit={fetch.returncode}" + (f" ({fetch.error})" if fetch.error else ""))
 
+        # -- phase 4: the local overrides come along (doc section 43) ------- #
+        # A global `git stash` would sweep a user's registered customization out
+        # of sight; set the registered paths aside with git restore instead, then
+        # reapply them after the checkout.
+        registry = load_registry(store.root)
+        override_report = None
+        if not registry.empty:
+            override_report = classify(install_dir, registry)
+            if override_report.unknown and cfg.local_overrides.block_unknown_changes:
+                raise CommandError(
+                    f"rollback refused: {override_report.unknown_count} unregistered change(s) in the working tree",
+                    hint="register them (huc overrides register) or commit/stash them first",
+                )
+
         if state.previous_dirty or _is_dirty(install_dir):
-            stash = run_process(
-                ["git", "-C", str(install_dir), "stash", "push", "-u", "-m", "hermes-update-check rollback"],
-                timeout=120.0,
-            )
-            steps.append(f"git stash push: exit={stash.returncode}")
+            set_aside = False
+            if override_report is not None and override_report.managed_count and not override_report.unknown:
+                set_aside = restore_clean_state(install_dir, override_report)
+                if set_aside:
+                    steps.append("registered overrides set aside with git restore (not stashed)")
+            if not set_aside:
+                stash = run_process(
+                    ["git", "-C", str(install_dir), "stash", "push", "-u", "-m", "hermes-update-check rollback"],
+                    timeout=120.0,
+                )
+                steps.append(f"git stash push: exit={stash.returncode}")
 
         checkout = run_process(["git", "-C", str(install_dir), "checkout", str(target_ref)], timeout=180.0)
         steps.append(f"git checkout {target_ref}: exit={checkout.returncode}")
@@ -510,6 +708,16 @@ def run_rollback(
                 f"git checkout {target_ref} failed: {checkout.output.strip()[:400]}",
                 hint="resolve the conflict manually, then re-run rollback",
             )
+
+        # The patches are the durable record: after checking out the old base they
+        # should apply cleanly again, even if the update had removed the changes.
+        if not registry.empty and any(entry.patch_file or entry.snapshot_file for entry in registry.files):
+            reapplied = apply_overrides(install_dir, store.root, registry)
+            state.overrides_reapplied = list(reapplied.applied)
+            state.overrides_conflicts = list(reapplied.conflicts)
+            steps.append(f"local overrides reapplied: {len(reapplied.applied)} ok, {len(reapplied.failed)} failed")
+            if not reapplied.ok:
+                steps.append("LOCAL OVERRIDE CONFLICT: resolve manually (patches kept under overrides/)")
 
     # -- dependency part ---------------------------------------------------- #
     if reinstall_deps and install_dir:

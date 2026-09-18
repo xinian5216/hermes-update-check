@@ -5,8 +5,8 @@ Read this before opening files: it is regenerated from the source by
 
 ## Quick facts
 
-- package: `hermes_update_check` - 31 modules, 14115 lines
-- tests: 403 test functions in 26 files (offline, no network)
+- package: `hermes_update_check` - 32 modules, 16872 lines
+- tests: 471 test functions in 28 files (offline, no network)
 - docs: `README.md` (user guide), `SECURITY.md` (privacy policy), `CHANGELOG.md`
 - invariants: never updates Hermes without an explicit `y`; unknown data is reported as
   UNKNOWN, never as safe; exit codes are a public contract (see `errors.py`)
@@ -33,6 +33,7 @@ Read this before opening files: it is regenerated from the source by
 | `preflight` | run the pre-update checks only |
 | `config` | show / locate / create the configuration |
 | `profile` | usage profile: what *you* depend on (phase 3) |
+| `overrides` | managed local overrides: intentional customization (phase 4) |
 | `notify-test` | send a test notification to every configured channel |
 | `version` | print the tool version |
 
@@ -40,27 +41,28 @@ Read this before opening files: it is regenerated from the source by
 
 | module | lines | what it is for |
 |---|---|---|
+| [`cli`](../hermes_update_check/cli.py) | 1707 | Command line interface |
+| [`overrides`](../hermes_update_check/overrides.py) | 1324 | Managed Local Overrides: intentional local customization is not corruption |
 | [`risk`](../hermes_update_check/risk.py) | 1195 | The risk engine: everything that turns observations into an Update Risk Score |
-| [`cli`](../hermes_update_check/cli.py) | 1187 | Command line interface |
-| [`report`](../hermes_update_check/report.py) | 867 | Report rendering: the human-readable answer, in Chinese or English |
-| [`config`](../hermes_update_check/config.py) | 843 | Configuration loading, validation and path resolution |
-| [`checker`](../hermes_update_check/checker.py) | 826 | Orchestration: gather every input, then hand it to the risk engine |
+| [`report`](../hermes_update_check/report.py) | 901 | Report rendering: the human-readable answer, in Chinese or English |
+| [`config`](../hermes_update_check/config.py) | 897 | Configuration loading, validation and path resolution |
+| [`checker`](../hermes_update_check/checker.py) | 895 | Orchestration: gather every input, then hand it to the risk engine |
+| [`updater`](../hermes_update_check/updater.py) | 812 | Update execution: snapshot -> update -> health check -> (rollback) |
 | [`clusters`](../hermes_update_check/clusters.py) | 804 | Regression clustering: turn raw issue hits into *credible* regression signals |
+| [`provenance`](../hermes_update_check/provenance.py) | 775 | Code provenance: *what code is actually running*, not just what it calls itself |
+| [`gates`](../hermes_update_check/gates.py) | 731 | Gates: the few rules that can still stop an update |
 | [`impact`](../hermes_update_check/impact.py) | 711 | Personal impact, core-feature readiness and systemic critical risk |
-| [`gates`](../hermes_update_check/gates.py) | 667 | Gates: the few rules that can still stop an update |
 | [`advisor`](../hermes_update_check/advisor.py) | 659 | The advisor: turn provenance + risk + readiness + gates into one verdict |
+| [`preflight`](../hermes_update_check/preflight.py) | 635 | Pre-update checks: is this machine actually in a state where an update is safe to start? |
 | [`usage_profile`](../hermes_update_check/usage_profile.py) | 614 | Which parts of Hermes this user actually depends on |
-| [`updater`](../hermes_update_check/updater.py) | 604 | Update execution: snapshot -> update -> health check -> (rollback) |
-| [`provenance`](../hermes_update_check/provenance.py) | 564 | Code provenance: *what code is actually running*, not just what it calls itself |
-| [`github_api`](../hermes_update_check/github_api.py) | 546 | GitHub API access for the Hermes repository: releases, compares, issue searches |
+| [`github_api`](../hermes_update_check/github_api.py) | 573 | GitHub API access for the Hermes repository: releases, compares, issue searches |
+| [`health`](../hermes_update_check/health.py) | 555 | Post-update health checks: did the update actually leave a working install? |
 | [`local_env`](../hermes_update_check/local_env.py) | 533 | Local environment detection: what Hermes is installed here, how, and in what state |
 | [`util`](../hermes_update_check/util.py) | 512 | Small, dependency-free helpers: subprocess runner, JSON IO, time parsing, hashing |
-| [`health`](../hermes_update_check/health.py) | 511 | Post-update health checks: did the update actually leave a working install? |
-| [`preflight`](../hermes_update_check/preflight.py) | 485 | Pre-update checks: is this machine actually in a state where an update is safe to start? |
 | [`rollback_safety`](../hermes_update_check/rollback_safety.py) | 344 | Can we actually get back if the update goes wrong? |
+| [`state`](../hermes_update_check/state.py) | 327 | State files: `update_state.json`, watch state, cache/snapshot directories |
 | [`http`](../hermes_update_check/http.py) | 309 | HTTP layer: stdlib-only client with timeouts, retries, on-disk cache and rate-limit awareness |
 | [`versioning`](../hermes_update_check/versioning.py) | 299 | Version parsing and comparison |
-| [`state`](../hermes_update_check/state.py) | 275 | State files: `update_state.json`, watch state, cache/snapshot directories |
 | [`console`](../hermes_update_check/console.py) | 228 | Terminal rendering: pretty with `rich`, correct with plain text |
 | [`errors`](../hermes_update_check/errors.py) | 120 | Exceptions and process exit codes |
 | [`notify.telegram`](../hermes_update_check/notify/telegram.py) | 111 | Telegram channel (first-class notifier - `my chat` is where alerts are read) |
@@ -109,44 +111,45 @@ _no public symbols_
 
 ### `checker` — Orchestration: gather every input, then hand it to the risk engine
 
-`hermes_update_check/checker.py` (826 lines)
+`hermes_update_check/checker.py` (895 lines)
 
 | kind | symbol | line | purpose |
 |---|---|---|---|
-| constant | `ISSUE_FALLBACK_QUERY` | 67 | 'label:bug' |
-| constant | `BASELINE_MIN_DAYS` | 69 | 3.0 |
-| constant | `BASELINE_MAX_DAYS` | 70 | 14.0 |
-| class | **UpdateCheck** — degraded, update_status, channel, action, tracking_main, recommended_action | 74 | The complete result of one check - everything the report needs |
-| function | `build_http_client(cfg: Config, state_root: Path, *, logger: Optional[logging.Logger] = …, no_cache: bool = …) -> tuple[HttpClient, bool]` | 303 | Create the HTTP client with token and disk cache |
-| function | `resolve_github_token(cfg: Config) -> tuple[Optional[str], bool]` | 319 | Find a GitHub token in the environment (never in the config file) |
-| function | `build_github_client(cfg: Config, state_root: Path, *, logger: Optional[logging.Logger] = …, no_cache: bool = …) -> tuple[GitHubClient, bool, HttpClient]` | 333 |  |
-| function | `run_check(cfg: Config, *, env: Optional[LocalEnv] = …, client: Optional[GitHubClient] = …, state_root: Optional[Path] = …, no_cache: bool = …, include_issues: Optional[bool] = …, logger: Optional[logging.Logger] = …) -> UpdateCheck` | 350 | Full check: local env -> releases -> compare -> issues -> risk assessment |
-| function | `collect_issue_signal(cfg: Config, client: GitHubClient, release: Release, *, provenance: Optional[CodeProvenance] = …, logger: Optional[logging.Logger] = …, use_cache: bool = …) -> IssueSignal` | 602 | Search GitHub issues filed after the release, plus a baseline window |
-| function | `issue_signal_confidence(signal: IssueSignal) -> int` | 781 | Issue Signal Confidence (0-100): how much should the issue data be trusted? |
-| function | `summarize_release_line(release: Release) -> str` | 809 | One-line label like ``v0.21.3 (v2026.9.14) - 0.6 days old`` |
-| function | `level_of(score: Optional[int]) -> str` | 817 |  |
-| function | `iso_now() -> str` | 821 |  |
-| function | `normalise_release_tag(tag: Optional[str]) -> Optional[str]` | 825 |  |
+| constant | `ISSUE_FALLBACK_QUERY` | 75 | 'label:bug' |
+| constant | `BASELINE_MIN_DAYS` | 77 | 3.0 |
+| constant | `BASELINE_MAX_DAYS` | 78 | 14.0 |
+| class | **UpdateCheck** — degraded, update_status, channel, action, tracking_main, recommended_action | 107 | The complete result of one check - everything the report needs |
+| function | `build_http_client(cfg: Config, state_root: Path, *, logger: Optional[logging.Logger] = …, no_cache: bool = …) -> tuple[HttpClient, bool]` | 338 | Create the HTTP client with token and disk cache |
+| function | `resolve_github_token(cfg: Config) -> tuple[Optional[str], bool]` | 354 | Find a GitHub token in the environment (never in the config file) |
+| function | `build_github_client(cfg: Config, state_root: Path, *, logger: Optional[logging.Logger] = …, no_cache: bool = …) -> tuple[GitHubClient, bool, HttpClient]` | 368 |  |
+| function | `run_check(cfg: Config, *, env: Optional[LocalEnv] = …, client: Optional[GitHubClient] = …, state_root: Optional[Path] = …, no_cache: bool = …, include_issues: Optional[bool] = …, logger: Optional[logging.Logger] = …) -> UpdateCheck` | 385 | Full check: local env -> releases -> compare -> issues -> risk assessment |
+| function | `collect_issue_signal(cfg: Config, client: GitHubClient, release: Release, *, provenance: Optional[CodeProvenance] = …, logger: Optional[logging.Logger] = …, use_cache: bool = …) -> IssueSignal` | 671 | Search GitHub issues filed after the release, plus a baseline window |
+| function | `issue_signal_confidence(signal: IssueSignal) -> int` | 850 | Issue Signal Confidence (0-100): how much should the issue data be trusted? |
+| function | `summarize_release_line(release: Release) -> str` | 878 | One-line label like ``v0.21.3 (v2026.9.14) - 0.6 days old`` |
+| function | `level_of(score: Optional[int]) -> str` | 886 |  |
+| function | `iso_now() -> str` | 890 |  |
+| function | `normalise_release_tag(tag: Optional[str]) -> Optional[str]` | 894 |  |
 
 ### `cli` — Command line interface
 
-`hermes_update_check/cli.py` (1187 lines)
+`hermes_update_check/cli.py` (1707 lines)
 
 | kind | symbol | line | purpose |
 |---|---|---|---|
-| function | `build_parser() -> argparse.ArgumentParser` | 74 |  |
-| function | `make_output_encoding_safe() -> None` | 182 | Never crash on a console that cannot represent the text we print |
-| function | `main(argv: Optional[Sequence[str]] = …) -> int` | 209 |  |
-| function | `cmd_check(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int` | 297 |  |
-| function | `cmd_report(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int` | 312 |  |
-| function | `cmd_watch(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int` | 338 | Cron entry point: stay silent unless something meaningful changed |
-| function | `cmd_update(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int` | 431 |  |
-| function | `cmd_rollback(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int` | 556 |  |
-| function | `cmd_health(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int` | 616 |  |
-| function | `cmd_preflight(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int` | 633 |  |
-| function | `cmd_profile(args: argparse.Namespace, cfg: Config, console: Console) -> int` | 643 | ``profile show|detect|edit`` - what this user actually depends on (phase 3) |
-| function | `cmd_config(args: argparse.Namespace, cfg: Config, console: Console) -> int` | 768 |  |
-| function | `cmd_notify_test(args: argparse.Namespace, cfg: Config, console: Console, logger: Any) -> int` | 790 |  |
+| function | `build_parser() -> argparse.ArgumentParser` | 91 |  |
+| function | `make_output_encoding_safe() -> None` | 219 | Never crash on a console that cannot represent the text we print |
+| function | `main(argv: Optional[Sequence[str]] = …) -> int` | 246 |  |
+| function | `cmd_check(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int` | 336 |  |
+| function | `cmd_report(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int` | 351 |  |
+| function | `cmd_watch(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int` | 377 | Cron entry point: stay silent unless something meaningful changed |
+| function | `cmd_update(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int` | 476 |  |
+| function | `cmd_rollback(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int` | 640 |  |
+| function | `cmd_health(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int` | 700 |  |
+| function | `cmd_preflight(args: argparse.Namespace, cfg: Config, console: Console, store: StateStore, logger: Any) -> int` | 717 |  |
+| function | `cmd_profile(args: argparse.Namespace, cfg: Config, console: Console) -> int` | 727 | ``profile show|detect|edit`` - what this user actually depends on (phase 3) |
+| function | `cmd_overrides(args: argparse.Namespace, cfg: Config, console: Console) -> int` | 907 | ``overrides detect|status|list|diff|register|unregister|refresh|export|doctor`` |
+| function | `cmd_config(args: argparse.Namespace, cfg: Config, console: Console) -> int` | 1260 |  |
+| function | `cmd_notify_test(args: argparse.Namespace, cfg: Config, console: Console, logger: Any) -> int` | 1282 |  |
 
 ### `clusters` — Regression clustering: turn raw issue hits into *credible* regression signals
 
@@ -181,32 +184,33 @@ _no public symbols_
 
 ### `config` — Configuration loading, validation and path resolution
 
-`hermes_update_check/config.py` (843 lines)
+`hermes_update_check/config.py` (897 lines)
 
 | kind | symbol | line | purpose |
 |---|---|---|---|
 | constant | `ENV_PREFIX` | 32 | 'HERMES_UPDATE_CHECK_' |
-| class | **GitHubConfig** | 152 |  |
-| class | **HardGateConfig** | 162 | Which rules may still stop an update (phase 3 keeps this list short) |
-| class | **ReleaseAgePolicy** — band, to_dict | 192 | Segmented release-age policy (doc section 9) |
-| class | **SmokeTestConfig** — enabled_tests, to_dict | 222 | Post-update smoke tests (doc section 20); all read-only by design |
-| class | **NetworkConfig** | 249 |  |
-| class | **PathsConfig** | 255 |  |
-| class | **UpdateConfig** | 261 |  |
-| class | **WatchConfig** | 271 |  |
-| class | **TelegramConfig** | 280 |  |
-| class | **WebhookConfig** | 287 |  |
-| class | **NotifyConfig** | 294 |  |
-| class | **LoggingConfig** | 300 |  |
-| class | **RiskWeights** | 307 |  |
-| class | **Config** — repo, to_dict | 317 |  |
-| function | `default_config_path() -> Path` | 377 | `~/.config/hermes-update-check/config.yaml` (Windows: `%APPDATA%\...`) |
-| function | `default_state_dir() -> Path` | 392 | `~/.hermes-update-check` - state, cache, snapshots, logs, update_state.json |
-| function | `resolve_hermes_home(cfg: Config | None = …) -> Path` | 400 | Resolve $HERMES_HOME the way Hermes does, falling back to ~/.hermes |
-| function | `resolve_state_dir(cfg: Config | None = …) -> Path` | 413 |  |
-| function | `load_config(path: Path | str | None = …, *, env: Mapping[str, str] | None = …) -> Config` | 424 | Load, merge and validate configuration |
-| function | `deep_merge(base: Mapping[str, Any], override: Mapping[str, Any]) -> dict[str, Any]` | 489 | Recursive merge; `override` wins |
-| function | `write_default_config(path: Path | None = …, *, force: bool = …) -> Path` | 829 | Write a commented example config (used by `config init`) |
+| class | **GitHubConfig** | 160 |  |
+| class | **HardGateConfig** | 170 | Which rules may still stop an update (phase 3 keeps this list short) |
+| class | **LocalOverridesConfig** — to_dict | 204 | Managed local overrides (phase 4): intentional customization is not corruption |
+| class | **ReleaseAgePolicy** — band, to_dict | 228 | Segmented release-age policy (doc section 9) |
+| class | **SmokeTestConfig** — enabled_tests, to_dict | 258 | Post-update smoke tests (doc section 20); all read-only by design |
+| class | **NetworkConfig** | 285 |  |
+| class | **PathsConfig** | 291 |  |
+| class | **UpdateConfig** | 297 |  |
+| class | **WatchConfig** | 307 |  |
+| class | **TelegramConfig** | 316 |  |
+| class | **WebhookConfig** | 323 |  |
+| class | **NotifyConfig** | 330 |  |
+| class | **LoggingConfig** | 336 |  |
+| class | **RiskWeights** | 343 |  |
+| class | **Config** — repo, to_dict | 353 |  |
+| function | `default_config_path() -> Path` | 414 | `~/.config/hermes-update-check/config.yaml` (Windows: `%APPDATA%\...`) |
+| function | `default_state_dir() -> Path` | 429 | `~/.hermes-update-check` - state, cache, snapshots, logs, update_state.json |
+| function | `resolve_hermes_home(cfg: Config | None = …) -> Path` | 437 | Resolve $HERMES_HOME the way Hermes does, falling back to ~/.hermes |
+| function | `resolve_state_dir(cfg: Config | None = …) -> Path` | 450 |  |
+| function | `load_config(path: Path | str | None = …, *, env: Mapping[str, str] | None = …) -> Config` | 461 | Load, merge and validate configuration |
+| function | `deep_merge(base: Mapping[str, Any], override: Mapping[str, Any]) -> dict[str, Any]` | 526 | Recursive merge; `override` wins |
+| function | `write_default_config(path: Path | None = …, *, force: bool = …) -> Path` | 883 | Write a commented example config (used by `config init`) |
 
 ### `console` — Terminal rendering: pretty with `rich`, correct with plain text
 
@@ -245,27 +249,27 @@ _no public symbols_
 
 ### `gates` — Gates: the few rules that can still stop an update
 
-`hermes_update_check/gates.py` (667 lines)
+`hermes_update_check/gates.py` (731 lines)
 
 | kind | symbol | line | purpose |
 |---|---|---|---|
-| constant | `GATE_BLOCK` | 61 | 'BLOCK' |
-| constant | `GATE_WARN` | 62 | 'WARN' |
-| constant | `GATE_PASS` | 63 | 'PASS' |
-| constant | `GATE_SKIP` | 64 | 'SKIP' |
-| class | **EnvironmentState** — abnormal, to_dict | 77 | Cheap, file-level sanity of the local install (no subprocesses) |
-| function | `probe_environment(env: LocalEnv, *, logger: Optional[logging.Logger] = …) -> EnvironmentState` | 103 | Check the local environment without touching the network or spawning work |
-| class | **GateResult** — blocking, to_dict | 142 |  |
-| class | **GateReport** — blocking, warnings, cautions, blocked, environment_abnormal, blocked_by | 177 |  |
-| function | `evaluate_gates(cfg: Config, *, provenance: CodeProvenance, decision: UpdateDecision, release: Optional[Release], assessment: Optional[RiskAssessment], clusters: Sequence[RegressionCluster] = …, environment: Optional[EnvironmentState] = …, readiness: Optional[PersonalReadiness] = …, rollback_safety: Optional[RollbackSafety] = …, now: Optional[datetime] = …) -> GateReport` | 237 | Evaluate every configured gate |
-| constant | `_SYSTEMIC_FEATURE_KEYS` | 428 | {'config'} |
-| function | `describe_gate_lines(report: GateReport, *, lang: str = …) -> list[str]` | 647 | Compact one-line-per-gate rendering used by the report and the CLI |
-| function | `severe_cluster_keys(clusters, *, threshold: str = …) -> list[str]` | 659 |  |
-| function | `critical_cluster_keys(clusters) -> list[str]` | 666 |  |
+| constant | `GATE_BLOCK` | 62 | 'BLOCK' |
+| constant | `GATE_WARN` | 63 | 'WARN' |
+| constant | `GATE_PASS` | 64 | 'PASS' |
+| constant | `GATE_SKIP` | 65 | 'SKIP' |
+| class | **EnvironmentState** — abnormal, to_dict | 78 | Cheap, file-level sanity of the local install (no subprocesses) |
+| function | `probe_environment(env: LocalEnv, *, logger: Optional[logging.Logger] = …) -> EnvironmentState` | 104 | Check the local environment without touching the network or spawning work |
+| class | **GateResult** — blocking, to_dict | 143 |  |
+| class | **GateReport** — blocking, warnings, cautions, blocked, environment_abnormal, blocked_by | 178 |  |
+| function | `evaluate_gates(cfg: Config, *, provenance: CodeProvenance, decision: UpdateDecision, release: Optional[Release], assessment: Optional[RiskAssessment], clusters: Sequence[RegressionCluster] = …, environment: Optional[EnvironmentState] = …, readiness: Optional[PersonalReadiness] = …, rollback_safety: Optional[RollbackSafety] = …, overrides: Optional[OverrideReport] = …, now: Optional[datetime] = …) -> GateReport` | 238 | Evaluate every configured gate |
+| constant | `_SYSTEMIC_FEATURE_KEYS` | 430 | {'config'} |
+| function | `describe_gate_lines(report: GateReport, *, lang: str = …) -> list[str]` | 711 | Compact one-line-per-gate rendering used by the report and the CLI |
+| function | `severe_cluster_keys(clusters, *, threshold: str = …) -> list[str]` | 723 |  |
+| function | `critical_cluster_keys(clusters) -> list[str]` | 730 |  |
 
 ### `github_api` — GitHub API access for the Hermes repository: releases, compares, issue searches
 
-`hermes_update_check/github_api.py` (546 lines)
+`hermes_update_check/github_api.py` (573 lines)
 
 | kind | symbol | line | purpose |
 |---|---|---|---|
@@ -281,15 +285,15 @@ _no public symbols_
 | function | `is_maintainer_association(value: str | None) -> bool` | 184 |  |
 | class | **IssueComment** — from_maintainer, to_dict | 189 |  |
 | class | **IssueSearchResult** | 209 |  |
-| class | **GitHubClient** — list_releases, latest_release, compare, search_issues, get_rate_limit, get_issue_comments | 219 | Thin, typed wrapper over the three endpoints this tool needs |
-| function | `extract_display_version(name: str, body: str, tag: str) -> Optional[str]` | 443 | Find the SemVer-ish display version behind a date tag |
-| function | `extract_pr_count(text: str | None) -> Optional[int]` | 482 | Estimate the number of PRs a release bundles, from its own release notes |
-| function | `build_issue_query(repo: str, *, created_after: Optional[datetime] = …, created_before: Optional[datetime] = …, keywords: Sequence[str] = …, label: Optional[str] = …, state: Optional[str] = …) -> str` | 506 | Compose a GitHub issue-search query string |
-| function | `parse_repo_slug(slug: str) -> tuple[str, str]` | 542 |  |
+| class | **GitHubClient** — list_releases, latest_release, compare, tag_commit, search_issues, get_rate_limit | 219 | Thin, typed wrapper over the three endpoints this tool needs |
+| function | `extract_display_version(name: str, body: str, tag: str) -> Optional[str]` | 470 | Find the SemVer-ish display version behind a date tag |
+| function | `extract_pr_count(text: str | None) -> Optional[int]` | 509 | Estimate the number of PRs a release bundles, from its own release notes |
+| function | `build_issue_query(repo: str, *, created_after: Optional[datetime] = …, created_before: Optional[datetime] = …, keywords: Sequence[str] = …, label: Optional[str] = …, state: Optional[str] = …) -> str` | 533 | Compose a GitHub issue-search query string |
+| function | `parse_repo_slug(slug: str) -> tuple[str, str]` | 569 |  |
 
 ### `health` — Post-update health checks: did the update actually leave a working install?
 
-`hermes_update_check/health.py` (511 lines)
+`hermes_update_check/health.py` (555 lines)
 
 | kind | symbol | line | purpose |
 |---|---|---|---|
@@ -413,9 +417,81 @@ _no public symbols_
 |---|---|---|---|
 | class | **WebhookNotifier** — ready, send | 15 |  |
 
+### `overrides` — Managed Local Overrides: intentional local customization is not corruption
+
+`hermes_update_check/overrides.py` (1324 lines)
+
+| kind | symbol | line | purpose |
+|---|---|---|---|
+| constant | `OVERRIDES_DIRNAME` | 43 | 'overrides' |
+| constant | `REGISTRY_NAME` | 44 | 'registry.json' |
+| constant | `PATCHES_DIRNAME` | 45 | 'patches' |
+| constant | `SNAPSHOTS_DIRNAME` | 46 | 'snapshots' |
+| constant | `REGISTRY_VERSION` | 47 | 1 |
+| constant | `POLICY_PRESERVE` | 49 | 'preserve' |
+| constant | `STATUS_MODIFIED` | 51 | 'modified' |
+| constant | `STATUS_ADDED` | 52 | 'added' |
+| constant | `STATUS_DELETED` | 53 | 'deleted' |
+| constant | `STATUS_RENAMED` | 54 | 'renamed' |
+| constant | `STATUS_UNTRACKED` | 55 | 'untracked' |
+| constant | `STATUS_IGNORED` | 56 | 'ignored' |
+| constant | `STATUS_UNKNOWN` | 57 | 'unknown' |
+| constant | `MATCH_EXACT` | 60 | 'exact' |
+| constant | `MATCH_DRIFTED` | 61 | 'drifted' |
+| constant | `MATCH_MISSING` | 62 | 'missing' |
+| constant | `MATCH_UNKNOWN` | 63 | 'unknown' |
+| constant | `SAFETY_PASS` | 65 | 'PASS' |
+| constant | `SAFETY_WARN` | 66 | 'WARN' |
+| constant | `SAFETY_FAIL` | 67 | 'FAIL' |
+| constant | `SAFETY_UNKNOWN` | 68 | 'UNKNOWN' |
+| constant | `CONFIDENCE_HIGH` | 70 | 'HIGH' |
+| constant | `CONFIDENCE_MEDIUM` | 71 | 'MEDIUM' |
+| constant | `CONFIDENCE_LOW` | 72 | 'LOW' |
+| constant | `CONFIDENCE_UNKNOWN` | 73 | 'UNKNOWN' |
+| constant | `REGISTERABLE_STATUSES` | 76 | {STATUS_MODIFIED, STATUS_ADDED, STATUS_DELETED, STATUS_RENAMED} |
+| class | **OverrideError** | 82 | Raised for refused operations (never for a mere detection problem) |
+| function | `run_git(install_dir: Path, args: Sequence[str], *, runner: Optional[RunFn] = …, timeout: float = …) -> ProcResult` | 108 | Public wrapper so other modules share one git invocation path |
+| function | `git_available(*, runner: Optional[RunFn] = …, install_dir: Optional[Path] = …) -> bool` | 126 | Probe git by *running* it - `command -v` lies on Windows |
+| class | **LocalChange** — registerable, to_dict | 139 | One line of ``git status --porcelain`` |
+| class | **OverrideEntry** — exact, to_dict, from_dict | 165 | One registered local customization |
+| class | **OverrideRegistry** — empty, paths, entry, to_dict, from_dict | 217 | The local override registry (``~/.hermes-update-check/overrides/registry.json``) |
+| class | **ReapplyPrediction** — manual_merge_likely, to_dict | 273 | How likely a registered override survives the trip to ``target`` |
+| class | **OverrideReport** — managed_count, unknown_count, drifted_count, missing_count, clean, blocks_update | 300 | Classification of the working tree against the registry |
+| class | **RegisterResult** — to_dict | 360 |  |
+| class | **ApplyResult** — ok, to_dict | 382 |  |
+| function | `overrides_root(state_root: Path) -> Path` | 410 |  |
+| function | `patches_dir(state_root: Path) -> Path` | 414 |  |
+| function | `snapshots_dir(state_root: Path) -> Path` | 418 |  |
+| function | `registry_path(state_root: Path) -> Path` | 422 |  |
+| function | `load_registry(state_root: Path) -> OverrideRegistry` | 426 | Read the registry; a corrupt file yields a *broken* registry, never a crash |
+| function | `save_registry(state_root: Path, registry: OverrideRegistry) -> Path` | 446 |  |
+| function | `sha256_bytes(data: bytes) -> str` | 456 |  |
+| function | `working_tree_sha256(install_dir: Path, path: str) -> str` | 471 | sha256 of the file as it is on disk ("" when it does not exist) |
+| function | `blob_sha256(install_dir: Path, path: str, rev: str = …, *, runner: Optional[RunFn] = …) -> str` | 477 | sha256 of the file *content* at ``rev`` ("" when it does not exist there) |
+| function | `snapshot_path(state_root: Path, stamp: str, path: str) -> Path` | 488 |  |
+| function | `write_patch(state_root: Path, stamp: str, install_dir: Path, paths: Sequence[str], *, runner: Optional[RunFn] = …) -> tuple[str, Path]` | 492 | ``git diff --binary`` for the tracked paths; returns (sha256, file) |
+| function | `read_patch(path: Path) -> str` | 507 |  |
+| function | `parse_porcelain(text: str) -> list[LocalChange]` | 519 | Parse ``git status --porcelain -uall --ignored=matching`` output |
+| function | `detect_changes(install_dir: Path, *, runner: Optional[RunFn] = …) -> list[LocalChange]` | 573 | Every local change git can see (tracked, untracked, ignored) |
+| function | `split_changes(changes: Iterable[LocalChange]) -> tuple[list[LocalChange], list[LocalChange], list[str]]` | 582 | (tracked modifications, untracked files, ignored files) |
+| function | `head_commit(install_dir: Path, *, runner: Optional[RunFn] = …) -> str` | 597 |  |
+| function | `current_branch(install_dir: Path, *, runner: Optional[RunFn] = …) -> str` | 602 |  |
+| function | `upstream_commit(install_dir: Path, ref: str = …, *, runner: Optional[RunFn] = …) -> str` | 607 |  |
+| function | `classify(install_dir: Path, registry: OverrideRegistry, *, runner: Optional[RunFn] = …) -> OverrideReport` | 617 | Compare the working tree with the registry: managed / unknown / drifted / missing |
+| function | `register_overrides(install_dir: Path, state_root: Path, *, paths: Optional[Sequence[str]] = …, include_untracked: bool = …, base_release: str = …, runner: Optional[RunFn] = …, stamp: Optional[str] = …) -> RegisterResult` | 725 | Register local changes as managed overrides (never automatic) |
+| function | `snapshot_file_for(state_root: Path, stamp: str, install_dir: Path, path: str) -> Path` | 820 | Copy the current bytes of ``path`` into the override snapshots directory |
+| function | `unregister_overrides(state_root: Path, paths: Optional[Sequence[str]] = …, *, all_entries: bool = …, keep_patches: bool = …) -> list[str]` | 846 | Forget registrations |
+| function | `refresh_overrides(install_dir: Path, state_root: Path, *, paths: Optional[Sequence[str]] = …, runner: Optional[RunFn] = …) -> RegisterResult` | 870 | Re-baseline registered overrides: new base commit, new hashes, new patch |
+| function | `predict_reapply(install_dir: Path, registry: OverrideRegistry, target: Optional[str], *, runner: Optional[RunFn] = …) -> ReapplyPrediction` | 968 | Will the registered overrides survive the jump from base to ``target``? |
+| function | `apply_overrides(install_dir: Path, state_root: Path, registry: Optional[OverrideRegistry] = …, *, paths: Optional[Sequence[str]] = …, strategy: str = …, dry_run: bool = …, runner: Optional[RunFn] = …) -> ApplyResult` | 1074 | Reapply registered patches onto the current checkout |
+| function | `restore_clean_state(install_dir: Path, report: OverrideReport, *, runner: Optional[RunFn] = …, allow_unknown: bool = …) -> bool` | 1143 | Return the working tree to upstream state *for the registered paths only* |
+| class | **IntegrityIssue** — to_dict | 1183 |  |
+| function | `integrity_issues(state_root: Path, install_dir: Optional[Path] = …, *, runner: Optional[RunFn] = …) -> list[IntegrityIssue]` | 1198 | Registry + patch integrity for health/preflight/doctor |
+| function | `export_overrides(state_root: Path, out_path: Path) -> Path` | 1293 | Bundle registry + patches + snapshots into a zip |
+
 ### `preflight` — Pre-update checks: is this machine actually in a state where an update is safe to start?
 
-`hermes_update_check/preflight.py` (485 lines)
+`hermes_update_check/preflight.py` (635 lines)
 
 | kind | symbol | line | purpose |
 |---|---|---|---|
@@ -429,37 +505,48 @@ _no public symbols_
 
 ### `provenance` — Code provenance: *what code is actually running*, not just what it calls itself
 
-`hermes_update_check/provenance.py` (564 lines)
+`hermes_update_check/provenance.py` (775 lines)
 
 | kind | symbol | line | purpose |
 |---|---|---|---|
-| constant | `CHANNEL_STABLE` | 43 | 'STABLE' |
-| constant | `CHANNEL_MAIN` | 44 | 'MAIN' |
-| constant | `CHANNEL_PRERELEASE` | 45 | 'PRERELEASE' |
-| constant | `CHANNEL_DETACHED` | 46 | 'DETACHED' |
-| constant | `CHANNEL_CUSTOM` | 47 | 'CUSTOM' |
-| constant | `CHANNEL_UNKNOWN` | 48 | 'UNKNOWN' |
-| constant | `DEV_BRANCHES` | 59 | {'main', 'master', 'develop', 'development', 'dev'} |
-| constant | `UPDATE_STATUS_UP_TO_DATE` | 62 | 'up_to_date' |
-| constant | `UPDATE_STATUS_AVAILABLE` | 63 | 'update_available' |
-| constant | `UPDATE_STATUS_AHEAD` | 64 | 'ahead_of_stable' |
-| constant | `UPDATE_STATUS_MANUAL_REVIEW` | 65 | 'manual_review' |
-| constant | `UPDATE_STATUS_UNKNOWN` | 66 | 'unknown' |
-| class | **CodeProvenance** — ahead_of_stable, exact_release_tag, is_development_channel, channel_note_zh, channel_note_en, to_dict | 72 | Where the running code actually sits relative to the release tags |
-| class | **UpdateDecision** — headline_zh, headline_en, to_dict | 152 | Is an update even the right question to ask? |
-| function | `resolve_provenance(env: LocalEnv, releases: Sequence[Release] = …, *, latest: Optional[Release] = …, compare: Optional[CompareFn] = …) -> CodeProvenance` | 198 | Build the provenance model from the local environment plus GitHub data |
-| function | `decide_update(prov: CodeProvenance, latest: Optional[Release], *, preferred_channel: str = …, allow_prerelease: bool = …) -> UpdateDecision` | 405 | Decide *whether* a newer release is the right thing to move to |
-| function | `channel_mismatch(prov: CodeProvenance, preferred_channel: str) -> Optional[tuple[str, str]]` | 535 | Warning text when the install does not track the preferred channel |
-| function | `now_version_age_days(published: Optional[datetime], *, now: Optional[datetime] = …) -> Optional[float]` | 559 |  |
+| constant | `CHANNEL_STABLE` | 45 | 'STABLE' |
+| constant | `CHANNEL_MAIN` | 46 | 'MAIN' |
+| constant | `CHANNEL_PRERELEASE` | 47 | 'PRERELEASE' |
+| constant | `CHANNEL_DETACHED` | 48 | 'DETACHED' |
+| constant | `CHANNEL_CUSTOM` | 49 | 'CUSTOM' |
+| constant | `CHANNEL_UNKNOWN` | 50 | 'UNKNOWN' |
+| constant | `INSTALL_STANDARD_RELEASE` | 54 | 'STANDARD_RELEASE' |
+| constant | `INSTALL_MAIN_CLEAN` | 55 | 'MAIN_CLEAN' |
+| constant | `INSTALL_MAIN_WITH_MANAGED_OVERRIDES` | 56 | 'MAIN_WITH_MANAGED_OVERRIDES' |
+| constant | `INSTALL_CUSTOM_COMMIT` | 57 | 'CUSTOM_COMMIT' |
+| constant | `INSTALL_FORK` | 58 | 'FORK' |
+| constant | `INSTALL_DETACHED` | 59 | 'DETACHED' |
+| constant | `INSTALL_UNKNOWN` | 60 | 'UNKNOWN' |
+| constant | `COMPARE_SOURCE_GITHUB` | 63 | 'github' |
+| constant | `COMPARE_SOURCE_LOCAL_GIT` | 64 | 'local_git' |
+| constant | `COMPARE_SOURCE_NONE` | 65 | 'none' |
+| constant | `DEV_BRANCHES` | 76 | {'main', 'master', 'develop', 'development', 'dev'} |
+| constant | `UPDATE_STATUS_UP_TO_DATE` | 79 | 'up_to_date' |
+| constant | `UPDATE_STATUS_AVAILABLE` | 80 | 'update_available' |
+| constant | `UPDATE_STATUS_AHEAD` | 81 | 'ahead_of_stable' |
+| constant | `UPDATE_STATUS_MANUAL_REVIEW` | 82 | 'manual_review' |
+| constant | `UPDATE_STATUS_UNKNOWN` | 83 | 'unknown' |
+| class | **CodeProvenance** — ahead_of_stable, exact_release_tag, is_development_channel, channel_note_zh, channel_note_en, to_dict | 89 | Where the running code actually sits relative to the release tags |
+| class | **UpdateDecision** — headline_zh, headline_en, to_dict | 187 | Is an update even the right question to ask? |
+| function | `resolve_provenance(env: LocalEnv, releases: Sequence[Release] = …, *, latest: Optional[Release] = …, compare: Optional[CompareFn] = …, target_commit: Optional[str] = …, runner: Optional[Any] = …, official_repo: str = …, managed_overrides: int = …, unknown_changes: int = …, drifted_overrides: int = …) -> CodeProvenance` | 233 | Build the provenance model from the local environment plus GitHub data |
+| function | `local_git_relation(install_dir: Optional[Path], ref: str, *, runner: Optional[Any] = …) -> Optional[tuple[int, int]]` | 431 | (behind, ahead) between ``ref`` and HEAD, computed with the local git only |
+| function | `decide_update(prov: CodeProvenance, latest: Optional[Release], *, preferred_channel: str = …, allow_prerelease: bool = …) -> UpdateDecision` | 596 | Decide *whether* a newer release is the right thing to move to |
+| function | `channel_mismatch(prov: CodeProvenance, preferred_channel: str) -> Optional[tuple[str, str]]` | 746 | Warning text when the install does not track the preferred channel |
+| function | `now_version_age_days(published: Optional[datetime], *, now: Optional[datetime] = …) -> Optional[float]` | 770 |  |
 
 ### `report` — Report rendering: the human-readable answer, in Chinese or English
 
-`hermes_update_check/report.py` (867 lines)
+`hermes_update_check/report.py` (901 lines)
 
 | kind | symbol | line | purpose |
 |---|---|---|---|
-| constant | `REPORT_TITLE` | 42 | 'Hermes Update Advisor' |
-| class | **Reporter** — render, recommendation_lines, to_markdown | 60 | Renders an UpdateCheck for humans (rich) or machines (markdown/json) |
+| constant | `REPORT_TITLE` | 43 | 'Hermes Update Advisor' |
+| class | **Reporter** — render, recommendation_lines, to_markdown | 62 | Renders an UpdateCheck for humans (rich) or machines (markdown/json) |
 
 ### `risk` — The risk engine: everything that turns observations into an Update Risk Score
 
@@ -524,7 +611,7 @@ _no public symbols_
 
 ### `state` — State files: `update_state.json`, watch state, cache/snapshot directories
 
-`hermes_update_check/state.py` (275 lines)
+`hermes_update_check/state.py` (327 lines)
 
 | kind | symbol | line | purpose |
 |---|---|---|---|
@@ -535,27 +622,33 @@ _no public symbols_
 | constant | `STATUS_HEALTH_FAILED` | 25 | 'health_check_failed' |
 | constant | `STATUS_ROLLED_BACK` | 26 | 'rolled_back' |
 | constant | `STATUS_FAILED` | 27 | 'failed' |
-| class | **UpdateState** — to_dict, from_dict, mark, created_at, human_summary | 31 | Pre-update facts needed to undo an update, plus the outcome |
-| class | **WatchState** — record, mark_notified, to_dict, from_dict | 96 | What watch mode remembers between runs, so it can stay silent when nothing changed |
-| function | `confidence_bucket(confidence: int) -> str` | 186 | Coarse confidence bands - small numeric wobbles must not trigger notifications |
-| class | **StateStore** — cache_dir, logs_dir, snapshots_dir, reports_dir, log_file, update_state_path | 195 | Filesystem layout + read/write helpers for all persisted state |
+| constant | `STAGE_PREPARED` | 31 | 'PREPARED' |
+| constant | `STAGE_CLEANED` | 32 | 'CLEANED' |
+| constant | `STAGE_UPDATED` | 33 | 'UPDATED' |
+| constant | `STAGE_OVERRIDES_REAPPLIED` | 34 | 'OVERRIDES_REAPPLIED' |
+| constant | `STAGE_VERIFIED` | 35 | 'VERIFIED' |
+| constant | `STAGE_COMMITTED` | 36 | 'COMMITTED' |
+| class | **UpdateState** — to_dict, from_dict, mark, advance, interrupted, interrupted_summary | 52 | Pre-update facts needed to undo an update, plus the outcome |
+| class | **WatchState** — record, mark_notified, to_dict, from_dict | 144 | What watch mode remembers between runs, so it can stay silent when nothing changed |
+| function | `confidence_bucket(confidence: int) -> str` | 238 | Coarse confidence bands - small numeric wobbles must not trigger notifications |
+| class | **StateStore** — cache_dir, logs_dir, snapshots_dir, reports_dir, log_file, update_state_path | 247 | Filesystem layout + read/write helpers for all persisted state |
 
 ### `updater` — Update execution: snapshot -> update -> health check -> (rollback)
 
-`hermes_update_check/updater.py` (604 lines)
+`hermes_update_check/updater.py` (812 lines)
 
 | kind | symbol | line | purpose |
 |---|---|---|---|
-| class | **SnapshotEntry** — to_dict | 53 |  |
-| class | **Snapshot** — to_dict | 75 |  |
-| class | **UpdateOutcome** — to_dict | 91 |  |
-| class | **RollbackOutcome** — to_dict | 121 |  |
-| function | `create_snapshot(env: LocalEnv, state_root: Path, *, logger: Optional[logging.Logger] = …) -> Snapshot` | 147 | Fingerprint (and partially copy) the Hermes home before an update |
-| function | `build_update_command(cfg: Config, env: LocalEnv, *, backup: bool, yes: bool, branch: Optional[str] = …, extra_args: Sequence[str] = …) -> list[str]` | 223 | Compose the ``hermes update`` invocation (nothing is executed here) |
-| function | `run_update(cfg: Config, env: LocalEnv, *, state_root: Optional[Path] = …, backup: bool = …, yes: bool = …, branch: Optional[str] = …, extra_args: Sequence[str] = …, dry_run: bool = …, skip_health_check: bool = …, auto_rollback: bool = …, on_line: LineCallback = …, logger: Optional[logging.Logger] = …, timeout: float = …) -> UpdateOutcome` | 245 | Execute the update |
-| function | `pre_update_gateway_running(env: LocalEnv, *, logger: Optional[logging.Logger] = …) -> Optional[bool]` | 401 | Was the gateway running *before* we touched anything? |
-| function | `dependency_install_command(env: LocalEnv) -> list[str]` | 420 | How to reinstall Hermes' Python dependencies after a git checkout |
-| function | `run_rollback(cfg: Config, env: LocalEnv, *, store: Optional[StateStore] = …, state: Optional[UpdateState] = …, yes: bool = …, to_ref: Optional[str] = …, reinstall_deps: bool = …, restore_backup: Optional[str] = …, in_place_restore: bool = …, dry_run: bool = …, on_line: LineCallback = …, logger: Optional[logging.Logger] = …, timeout: float = …) -> RollbackOutcome` | 434 | Restore the pre-update version: git ref + dependencies (+ optional backup) |
+| class | **SnapshotEntry** — to_dict | 68 |  |
+| class | **Snapshot** — to_dict | 90 |  |
+| class | **UpdateOutcome** — overrides_conflict, to_dict | 106 |  |
+| class | **RollbackOutcome** — to_dict | 151 |  |
+| function | `create_snapshot(env: LocalEnv, state_root: Path, *, logger: Optional[logging.Logger] = …) -> Snapshot` | 177 | Fingerprint (and partially copy) the Hermes home before an update |
+| function | `build_update_command(cfg: Config, env: LocalEnv, *, backup: bool, yes: bool, branch: Optional[str] = …, extra_args: Sequence[str] = …) -> list[str]` | 253 | Compose the ``hermes update`` invocation (nothing is executed here) |
+| function | `run_update(cfg: Config, env: LocalEnv, *, state_root: Optional[Path] = …, backup: bool = …, yes: bool = …, branch: Optional[str] = …, extra_args: Sequence[str] = …, dry_run: bool = …, skip_health_check: bool = …, auto_rollback: bool = …, on_line: LineCallback = …, logger: Optional[logging.Logger] = …, timeout: float = …) -> UpdateOutcome` | 275 | Execute the update |
+| function | `pre_update_gateway_running(env: LocalEnv, *, logger: Optional[logging.Logger] = …) -> Optional[bool]` | 579 | Was the gateway running *before* we touched anything? |
+| function | `dependency_install_command(env: LocalEnv) -> list[str]` | 598 | How to reinstall Hermes' Python dependencies after a git checkout |
+| function | `run_rollback(cfg: Config, env: LocalEnv, *, store: Optional[StateStore] = …, state: Optional[UpdateState] = …, yes: bool = …, to_ref: Optional[str] = …, reinstall_deps: bool = …, restore_backup: Optional[str] = …, in_place_restore: bool = …, dry_run: bool = …, on_line: LineCallback = …, logger: Optional[logging.Logger] = …, timeout: float = …) -> RollbackOutcome` | 612 | Restore the pre-update version: git ref + dependencies (+ optional backup) |
 
 ### `usage_profile` — Which parts of Hermes this user actually depends on
 
@@ -653,8 +746,10 @@ _no public symbols_
 | [`tests/test_impact.py`](../tests/test_impact.py) | 20 | 340 | Personal Impact, Core Feature Readiness and Systemic Critical Risk |
 | [`tests/test_local_env.py`](../tests/test_local_env.py) | 19 | 280 | Environment-detection tests: the layer that reads the *real* machine |
 | [`tests/test_notify.py`](../tests/test_notify.py) | 14 | 262 | Notification-channel tests: payload shape, failure handling, no secret leakage |
+| [`tests/test_overrides.py`](../tests/test_overrides.py) | 44 | 644 | Managed local overrides: registry, classification, patches, prediction, apply |
+| [`tests/test_overrides_integration.py`](../tests/test_overrides_integration.py) | 23 | 599 | Phase-4 integration: gates, update transaction, rollback, watch, provenance |
 | [`tests/test_preflight_health.py`](../tests/test_preflight_health.py) | 13 | 184 | Preflight and health-check tests (local filesystem only) |
-| [`tests/test_provenance.py`](../tests/test_provenance.py) | 16 | 274 | Code provenance tests: the five cases from the design brief, plus the rest |
+| [`tests/test_provenance.py`](../tests/test_provenance.py) | 17 | 325 | Code provenance tests: the five cases from the design brief, plus the rest |
 | [`tests/test_repo_hygiene.py`](../tests/test_repo_hygiene.py) | 3 | 76 | Repository hygiene: nothing important may be silently ignored or stale |
 | [`tests/test_report.py`](../tests/test_report.py) | 10 | 159 | Report rendering tests (plain-text console, no network) |
 | [`tests/test_risk.py`](../tests/test_risk.py) | 33 | 564 | Risk-engine tests: the scoring rules are the product, so they are pinned here |

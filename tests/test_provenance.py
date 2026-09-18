@@ -16,6 +16,7 @@ from hermes_update_check.provenance import (
     CHANNEL_PRERELEASE,
     CHANNEL_STABLE,
     CHANNEL_UNKNOWN,
+    COMPARE_SOURCE_LOCAL_GIT,
     UPDATE_STATUS_AHEAD,
     UPDATE_STATUS_AVAILABLE,
     UPDATE_STATUS_MANUAL_REVIEW,
@@ -125,15 +126,65 @@ def test_main_diverged_from_release_needs_manual_review(hermes_home: Path) -> No
     assert decision.status == UPDATE_STATUS_MANUAL_REVIEW  # ahead *and* behind: not a plain upgrade
 
 
-def test_case1_when_compare_is_unavailable_main_is_not_a_candidate(hermes_home: Path) -> None:
+def test_case1_when_compare_is_unavailable_main_is_not_manual_review(hermes_home: Path) -> None:
+    """Phase 4 (doc section 29-33): a compare 404 must not become MANUAL_REVIEW.
+
+    Local git is authoritative for the local repository; without any distance
+    information the release is still a candidate to sync *to* (on main), and the
+    main-branch caution - not MANUAL_REVIEW - carries the warning.
+    """
     env = env_with(hermes_home, branch="main")
     prov = resolve_provenance(env, [LATEST], latest=LATEST, compare=lambda b, h: None)
     assert prov.channel == CHANNEL_MAIN
     assert prov.compare_available is False
     assert prov.commits_ahead_of_tag is None
     decision = decide_update(prov, LATEST)
-    # no distance information: still not a normal update path
-    assert decision.status == UPDATE_STATUS_MANUAL_REVIEW
+    assert decision.status == UPDATE_STATUS_AVAILABLE
+    assert decision.is_update_candidate is True
+    assert "无法精确计算" in decision.message_zh
+
+
+def test_case1b_local_git_measures_the_distance_when_github_404s(hermes_home: Path, tmp_path: Path) -> None:
+    """The fallback itself: local `rev-list --left-right --count` answers instead."""
+    import subprocess
+
+    from hermes_update_check.overrides import git_available
+
+    if not git_available(install_dir=tmp_path):
+        pytest.skip("git executable not available")
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    for args in (
+        ["init", "-q", "-b", "main"],
+        ["config", "user.email", "t@example.com"],
+        ["config", "user.name", "t"],
+    ):
+        subprocess.run(["git", *args], cwd=repo, capture_output=True, check=True)
+    (repo / "a.txt").write_text("one\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=repo, capture_output=True, check=True)
+    subprocess.run(["git", "commit", "-qm", "one"], cwd=repo, capture_output=True, check=True)
+    release_commit = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=repo, capture_output=True, text=True, check=True
+    ).stdout.strip()
+    (repo / "a.txt").write_text("two\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=repo, capture_output=True, check=True)
+    subprocess.run(["git", "commit", "-qm", "two"], cwd=repo, capture_output=True, check=True)
+
+    env = env_with(hermes_home, branch="main")
+    env.install_dir = repo
+    env.git.commit = "0bca6a32"
+    prov = resolve_provenance(
+        env,
+        [LATEST],
+        latest=LATEST,
+        compare=lambda b, h: None,
+        target_commit=release_commit,
+    )
+    assert prov.compare_available is True
+    assert prov.compare_source == COMPARE_SOURCE_LOCAL_GIT
+    assert prov.commits_ahead_of_tag == 1  # one commit on top of the release commit
+    decision = decide_update(prov, LATEST)
+    assert decision.status == UPDATE_STATUS_AHEAD
     assert decision.is_update_candidate is False
 
 

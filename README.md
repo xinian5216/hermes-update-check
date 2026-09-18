@@ -109,6 +109,7 @@ hermes-update-check/
 │   ├── usage_profile.py           # ★ 使用画像：功能与 Provider 的 critical/important/optional/unused
 │   ├── impact.py                  # ★ Personal Impact / Core Feature Readiness / 系统级风险
 │   ├── rollback_safety.py         # ★ 回滚路径探测（提交可达/状态可写/磁盘/venv/备份）
+│   ├── overrides.py               # ★ 本地定制：登记表 / patch / 分类 / 冲突预测 / 应用
 │   ├── gates.py                   # ★ 阻断规则（只剩五条）与提示规则
 │   ├── advisor.py                 # ★ 最终裁决：系统级 → 关键工作流 → 回滚 → 年龄策略 → 可用性 → SAFE/ACCEPTABLE
 │   ├── report.py                  # 人类可读报告 / Markdown / JSON
@@ -284,6 +285,8 @@ hermes-update-check check                 # 快速检查：一屏给结论（默
 hermes-update-check report                # 完整报告：每个风险因子的加减分明细 + Issue 样本
 hermes-update-check report --format markdown --output r.md
 hermes-update-check report --format json  # 机器可读（cron/CI/看板）
+hermes-update-check overrides status      # 本地定制：已登记/未登记/漂移 + Override Safety
+hermes-update-check overrides detect      # 只展示 git 看到的本地修改（不自动登记）
 hermes-update-check profile show          # 你的使用画像（哪些功能算关键）
 hermes-update-check profile detect        # 从本机 Hermes 配置自动推断画像（只读键名）
 hermes-update-check profile edit          # 打印/写入 usage_profile（--write 会先备份 .bak）
@@ -992,6 +995,15 @@ WantedBy=timers.target
     "systemic": [ { "key": "SESSION_LOSS", "detected": false } ]
   },
   "rollback_safety": { "status": "PASS", "previous_ref": "5eb99eb2", "checks": [ … ] },
+  "install_state": "MAIN_WITH_MANAGED_OVERRIDES",
+  "local_overrides": {
+    "managed_count": 4,
+    "unknown_count": 0,
+    "drifted": [],
+    "missing": [],
+    "safety": "PASS",
+    "prediction": { "confidence": "HIGH", "target": "v2026.9.14", "manual_merge_likely": false }
+  },
   "usage_profile": { "features": { "sessions": "critical" }, "providers": { "openai": "important" } },
   "recommended_recheck": "2026-09-15T19:21:04Z",
   "recommended_recheck_hours": 12.0
@@ -1054,7 +1066,7 @@ fi
 
 ```bash
 uv venv .venv && uv pip install -e ".[dev]" --python .venv/bin/python
-.venv/bin/python -m pytest -q          # 467 个测试（401 个函数），全部离线：不用网络、不碰真实安装
+.venv/bin/python -m pytest -q          # 537 个测试（471 个函数），全部离线：不用网络、不碰真实安装
 .venv/bin/python -m pytest -q tests/test_provenance.py tests/test_gates.py tests/test_advisor.py
 ```
 
@@ -1133,8 +1145,8 @@ python scripts/build_index.py --check   # 只校验是否过期（CI 用，过�
 ### 开发循环（本地 = CI 同一套门槛）
 
 ```bash
-python -m pytest -q                                   # 467 个测试（401 个函数），离线
-python -m pytest --cov --cov-fail-under=80            # 覆盖率门槛（当前 84%）
+python -m pytest -q                                   # 537 个测试（471 个函数），离线
+python -m pytest --cov --cov-fail-under=80            # 覆盖率门槛（当前 82%）
 ruff check .                                          # lint（0 findings 才能过）
 ruff format --check .                                 # 格式检查（如需改写：ruff format .）
 python scripts/scan_secrets.py --staged               # 提交前脱敏扫描（钩子已自动执行）
@@ -1151,6 +1163,141 @@ python scripts/build_index.py                         # 公开接口有变动时
    `hermes-update-check --version`。`gh release view` 只能证明发布存在，不能证明产物装得上。
 
 ---
+
+## 十八、本地定制（Managed Local Overrides，第四阶段）
+
+用户会**有意**修改本地 Hermes 源码：去掉不喜欢的 UI、改掉某段提示、调整默认行为。
+这些修改是经过思考的定制，不是意外。但 `git` 看起来只有一句 "dirty"，
+旧版本因此把"有意修改"和"临时文件 / 半成品 / 冲突残留"一视同仁地拦下来——
+只要你有定制，就永远得不到有用的结论。
+
+第四阶段把工作区状态拆成两类：
+
+```
+known dirty   已登记、有哈希、可生成 patch、可恢复  -> 可管理
+unknown dirty 未登记，可能是缓存/临时文件/半成品   -> 仍然阻断
+```
+
+### 18.1 命令
+
+```bash
+huc overrides detect      # 只展示 git 看到的修改（绝不自动登记）
+huc overrides register    # 把你选中的修改登记为受管定制
+huc overrides status      # 已登记 / 未登记 / 漂移 + Override Safety
+huc overrides list        # 逐文件列出状态与策略
+huc overrides diff        # 你的定制内容；--target vX.Y.Z 预测与新版的冲突
+huc overrides refresh     # 把当前内容确立为新基线（drift 之后）
+huc overrides unregister  # 不再受管（文件内容不动）
+huc overrides export out.zip
+huc overrides doctor      # 登记表 / patch / 哈希 / 事务自检
+```
+
+`detect` 默认**不登记任何东西**，未跟踪文件（缓存、日志、下载物）默认跳过——
+它们必须由你显式指定才会被登记。
+
+### 18.2 登记表
+
+```
+~/.hermes-update-check/overrides/
+├── registry.json          # 版本 / base commit / 每个文件的哈希与策略
+├── patches/<时间>.patch    # git diff --binary（支持文本、删除、改名、二进制）
+└── snapshots/<时间>/…      # 未跟踪文件的原始字节（用于"新增文件"式定制）
+```
+
+登记时记录的是**真正的基线**，而不是文件名：
+
+```json
+{ "path": "hermes/a.py", "status": "modified", "policy": "preserve",
+  "base_commit": "0bca6a32…", "base_sha256": "…", "current_sha256": "…",
+  "patch_sha256": "…", "registered_at": "2026-09-18T04:13:46Z" }
+```
+
+`patch + metadata` 才是长期格式；`git stash` 只在更新过程中临时使用（它依赖当前仓库、
+可能被清理、无法审计、难以跨机器迁移）。patch 从不包含密钥以外的额外处理——
+相反，保存与导出前会跑一遍密钥扫描（发现疑似密钥只 **WARN 并限制输出**，绝不删你的 patch）。
+
+### 18.3 判定规则
+
+| 磁盘现状 | 结论 |
+|---|---|
+| 文件哈希 == 登记时的哈希 | `MANAGED / EXACT` |
+| 文件仍是修改状态，但内容变了 | `MANAGED / DRIFTED`（不认为安全，先 refresh 或确认） |
+| 登记项在磁盘上已不存在 | `MISSING`（可能你自己还原了；提示 refresh/unregister） |
+| git 里存在、登记表里没有 | `UNKNOWN` → **更新前阻断** |
+| 忽略文件（build/、*.log…） | 只展示，永不阻断 |
+
+`Override Safety` 取 `PASS` / `WARN` / `FAIL` / `UNKNOWN`：
+`FAIL` = 有未登记修改；`WARN` = 有漂移或登记项消失；`UNKNOWN` = 登记表损坏或 git 不可用
+（"无法验证"从不等于"安全"）。
+
+### 18.4 门禁的变化
+
+```
+dirty
+├─ 只有已登记且未变的定制   -> PASS
+├─ 有漂移                   -> BLOCK（block_drifted_overrides，可关）
+└─ 有任何未登记修改         -> BLOCK
+```
+
+登记表为空时行为与第三阶段完全一致（任何修改都阻断）——老用户不会被静默改变行为。
+
+### 18.5 更新时的保全流程
+
+```text
+1  preflight            2  备份 HERMES_HOME        3   快照 override patch
+4  记录 commit/branch/哈希  5  验证 patch 可读      6   仅把登记路径还原为上游内容
+7  hermes update         8  取新 HEAD             9   git apply --3way 重新应用
+10 验证结果             11  smoke test           12  写入新的 base
+```
+
+事务状态写进 `update_state.json`：`PREPARED → CLEANED → UPDATED →
+OVERRIDES_REAPPLIED → VERIFIED → COMMITTED`。中途崩溃时，下次运行会告诉你
+**停在哪一步**，而不是让你猜。
+
+安全红线（代码与测试都强制）：
+
+* **绝不**为了更新成功而销毁你的修改；不使用 `git reset --hard`；
+* 只有确认"所有 dirty 都属已登记"才动工作区（否则 ABORT）；
+* 冲突时 `git apply --3way` 失败就停下来：保存 patch、保存冲突信息、
+  **不自动 ours/theirs**，交给你人工合并；
+* 更新本身失败时，优先恢复旧 commit / 旧工作区 / 旧 override patch。
+
+### 18.6 与其他命令的联动
+
+* `rollback`：先收起已登记定制，checkout 回旧版本后**重新应用 patch**——不会只回滚 Hermes 而丢掉你的定制；
+* `health`：登记表完整性、patch 哈希、托管文件状态、未完成事务；
+* `preflight`：登记表/patch 可写/git 可用/未登记修改；
+* `watch`：4 个稳定定制**不会**每天打扰你；只有漂移、新出现的未登记修改、
+  或冲突预测变差才通知。
+* `report` / `check`：新增「本地定制」一节（`Managed / Unknown / Drifted / Override Safety`）。
+
+### 18.7 真实数据（本机实测）
+
+同一台机器、同一棵工作区（4 个本地修改），只切换"是否已登记"：
+
+| | 未登记 | 已登记 |
+|---|---|---|
+| Working Tree | 有本地修改（已登记 0，未登记 4） | 有本地修改（已登记 4，未登记 0） |
+| 门禁 | `BLOCK 工作区必须干净` | `PASS 工作区必须干净` |
+| 结论 | **BLOCKED** | **ACCEPTABLE** |
+
+`huc overrides diff --target v2026.9.14` 预测：**4 HIGH / 0 MEDIUM / 0 LOW**
+（上游没有改动这些文件的同一区域 → 重新应用把握 HIGH）。
+
+### 18.8 GitHub compare 404 与本地 git
+
+旧版本在 GitHub compare 返回 404 时（本地提交未推送、来自其他 remote、tag 未 fetch）
+会把安装判成"非标准状态 → MANUAL_REVIEW"。第四阶段改为：
+
+```text
+GitHub compare 不可用 -> 本机 git rev-list --left-right --count <目标>...HEAD
+                       -> 拿不到目标对象库时：对照 origin/main 给出本地领先/落后
+                       -> 仍然未知：如实说明，但绝不因此判定安装异常
+```
+
+安装状态也细化成 `STANDARD_RELEASE` / `MAIN_CLEAN` / `MAIN_WITH_MANAGED_OVERRIDES` /
+`CUSTOM_COMMIT` / `FORK` / `DETACHED` / `UNKNOWN`；**只有** 以下情况才进 MANUAL_REVIEW：
+仓库无法识别、定制漂移、未登记修改、预测冲突 LOW、本机 git 历史无法解析、事务中断。
 
 ## 许可
 

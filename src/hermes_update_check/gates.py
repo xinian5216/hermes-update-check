@@ -45,6 +45,7 @@ from .impact import (
 )
 from .local_env import LocalEnv
 from .logging_setup import get_logger
+from .overrides import OverrideReport
 from .provenance import (
     CHANNEL_MAIN,
     CHANNEL_PRERELEASE,
@@ -245,6 +246,7 @@ def evaluate_gates(
     environment: Optional[EnvironmentState] = None,
     readiness: Optional[PersonalReadiness] = None,
     rollback_safety: Optional[RollbackSafety] = None,
+    overrides: Optional[OverrideReport] = None,
     now: Optional[datetime] = None,
 ) -> GateReport:
     """Evaluate every configured gate. Pure function of its inputs (no I/O)."""
@@ -258,7 +260,7 @@ def evaluate_gates(
     report.gates.append(_gate_environment(environment, decision))
     report.gates.append(_gate_release_age(cfg, release, decision, moment, report))
     report.gates.append(_gate_main_branch(gates_cfg, provenance, decision))
-    report.gates.append(_gate_dirty_worktree(gates_cfg, provenance, decision))
+    report.gates.append(_gate_dirty_worktree(gates_cfg, provenance, decision, overrides))
     report.gates.append(_gate_prerelease(gates_cfg, provenance, decision))
     report.gates.append(_gate_systemic(gates_cfg, readiness, decision))
     report.gates.append(_gate_critical_workflow(gates_cfg, readiness, decision))
@@ -488,9 +490,27 @@ def _gate_main_branch(gates_cfg, provenance: CodeProvenance, decision: UpdateDec
     return result
 
 
-def _gate_dirty_worktree(gates_cfg, provenance: CodeProvenance, decision: UpdateDecision) -> GateResult:
-    """Local safety: still a blocker (doc section 10) - it is not a release-quality signal."""
+def _gate_dirty_worktree(
+    gates_cfg,
+    provenance: CodeProvenance,
+    decision: UpdateDecision,
+    overrides: Optional[OverrideReport] = None,
+) -> GateResult:
+    """Local changes: *known* dirty is manageable, *unknown* dirty still blocks.
+
+    Phase 4 (doc section 14):
+
+        dirty
+        ├─ only managed, unchanged since registration   -> PASS / WARN
+        ├─ managed + drifted                            -> BLOCK (configurable)
+        └─ any unknown change                           -> BLOCK
+
+    An empty registry keeps the phase-3 behaviour (any change blocks), so existing
+    users see no surprise.
+    """
     blocking = bool(getattr(gates_cfg, "block_dirty_worktree", True))
+    block_unknown = bool(getattr(gates_cfg, "block_unknown_changes", True))
+    block_drift = bool(getattr(gates_cfg, "block_drifted_overrides", True))
     result = GateResult(
         key="dirty_worktree",
         name_zh="工作区必须干净",
@@ -506,13 +526,57 @@ def _gate_dirty_worktree(gates_cfg, provenance: CodeProvenance, decision: Update
         result.reason_zh = f"工作区有 {provenance.dirty_files} 个未提交修改（本次无需更新）"
         result.reason_en = f"worktree has {provenance.dirty_files} uncommitted change(s) (no update pending)"
         return result
+
+    has_registry = bool(overrides is not None and overrides.registry and not overrides.registry.empty)
+    if overrides is not None and has_registry:
+        unknown = overrides.unknown_count
+        drifted = overrides.drifted_count
+        if unknown:
+            if block_unknown:
+                result.status = GATE_BLOCK
+                result.reason_zh = f"存在 {unknown} 个未登记的修改（另有 {overrides.managed_count} 个已登记定制）"
+                result.reason_en = (
+                    f"{unknown} unregistered change(s) on top of {overrides.managed_count} managed override(s)"
+                )
+                result.remediation_zh = "先处理未登记的修改：登记为定制（huc overrides register）或提交/stash/删除它们"
+                result.remediation_en = (
+                    "deal with the unregistered changes first: register them (`huc overrides register`), "
+                    "commit them, stash them, or remove them"
+                )
+            else:
+                result.status = GATE_WARN
+                result.reason_zh = f"存在 {unknown} 个未登记的修改"
+                result.reason_en = f"{unknown} unregistered change(s)"
+            return result
+        if drifted:
+            if block_drift:
+                result.status = GATE_BLOCK
+                result.reason_zh = f"{drifted} 个本地定制在登记之后又被修改过（drift）：先 refresh 或确认"
+                result.reason_en = f"{drifted} override(s) drifted since registration: refresh or confirm them first"
+                result.remediation_zh = "确认改动后运行 huc overrides refresh（把当前内容作为新基线）"
+                result.remediation_en = "run `huc overrides refresh` after reviewing the change (new baseline)"
+            else:
+                result.status = GATE_WARN
+                result.reason_zh = f"{drifted} 个本地定制有 drift"
+                result.reason_en = f"{drifted} override(s) drifted"
+            return result
+        # only managed, unchanged changes
+        result.status = GATE_PASS
+        result.reason_zh = f"工作区有 {overrides.managed_count} 个本地定制，全部与登记时一致；未登记修改 0 个"
+        result.reason_en = (
+            f"{overrides.managed_count} managed local override(s), all unchanged since registration; "
+            "0 unregistered changes"
+        )
+        return result
+
     if blocking:
         result.status = GATE_BLOCK
         result.reason_zh = f"工作区有 {provenance.dirty_files} 个未提交修改"
         result.reason_en = f"worktree has {provenance.dirty_files} uncommitted change(s)"
-        result.remediation_zh = "先提交或 stash 本地修改（更新会 stash，但可能与新版冲突）"
+        result.remediation_zh = "先提交或 stash 本地修改；如果是你有意保留的定制，用 `huc overrides register` 登记它们"
         result.remediation_en = (
-            "commit or stash local changes first (the update stashes them, but conflicts are possible)"
+            "commit or stash local changes first; if they are intentional customizations, "
+            "register them with `huc overrides register`"
         )
     else:
         result.status = GATE_WARN
