@@ -8,15 +8,12 @@ profile-independent.
 
 from __future__ import annotations
 
-import pytest
-
 from hermes_update_check.clusters import (
     CONFIDENCE_HIGH,
     CONFIDENCE_LOW,
     CONFIDENCE_MEDIUM,
     SEVERITY_CRITICAL,
     SEVERITY_HIGH,
-    SEVERITY_LOW,
     SEVERITY_MEDIUM,
     RegressionCluster,
 )
@@ -26,7 +23,6 @@ from hermes_update_check.impact import (
     FEATURE_UNUSED,
     FEATURE_WARN,
     READINESS_ACCEPTABLE_MIN,
-    READINESS_SAFE_MIN,
     claims_unavailability,
     compute_personal_readiness,
     detect_systemic_risks,
@@ -126,7 +122,11 @@ def test_readiness_barely_moves_for_an_optional_feature_but_collapses_for_a_crit
     )
     critical = compute_personal_readiness(
         profile(sessions=LEVEL_CRITICAL),
-        [cluster("SESSION", SEVERITY_HIGH, CONFIDENCE_HIGH, features=["sessions"], text="session data is unrecoverable")],
+        [
+            cluster(
+                "SESSION", SEVERITY_HIGH, CONFIDENCE_HIGH, features=["sessions"], text="session data is unrecoverable"
+            )
+        ],
     )
     # a small dent for an optional feature, a bigger one for an important feature...
     assert optional.readiness >= 80

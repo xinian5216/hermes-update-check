@@ -28,13 +28,13 @@
     {
       "name": "advisor",
       "path": "hermes_update_check/advisor.py",
-      "lines": 649,
+      "lines": 659,
       "summary": "The advisor: turn provenance + risk + readiness + gates into one verdict",
       "symbols": [
         {
           "kind": "constant",
           "name": "RECOMMEND_BLOCKED",
-          "line": 56,
+          "line": 55,
           "summary": "'BLOCKED'",
           "signature": "",
           "members": []
@@ -42,7 +42,7 @@
         {
           "kind": "constant",
           "name": "RECOMMEND_WAIT",
-          "line": 57,
+          "line": 56,
           "summary": "'WAIT'",
           "signature": "",
           "members": []
@@ -50,7 +50,7 @@
         {
           "kind": "constant",
           "name": "RECOMMEND_ACCEPTABLE",
-          "line": 58,
+          "line": 57,
           "summary": "'ACCEPTABLE'",
           "signature": "",
           "members": []
@@ -58,7 +58,7 @@
         {
           "kind": "constant",
           "name": "RECOMMEND_SAFE",
-          "line": 59,
+          "line": 58,
           "summary": "'SAFE'",
           "signature": "",
           "members": []
@@ -66,7 +66,7 @@
         {
           "kind": "constant",
           "name": "RECOMMEND_AHEAD_OF_STABLE",
-          "line": 62,
+          "line": 61,
           "summary": "'AHEAD_OF_STABLE'",
           "signature": "",
           "members": []
@@ -74,7 +74,7 @@
         {
           "kind": "constant",
           "name": "RECOMMEND_MANUAL_REVIEW",
-          "line": 63,
+          "line": 62,
           "summary": "'MANUAL_REVIEW'",
           "signature": "",
           "members": []
@@ -82,7 +82,7 @@
         {
           "kind": "constant",
           "name": "DECIDED_BY",
-          "line": 80,
+          "line": 79,
           "summary": "{'update_status': '更新状态', 'insufficient_data': '数据不足', 'environment': …",
           "signature": "",
           "members": []
@@ -90,7 +90,7 @@
         {
           "kind": "constant",
           "name": "RECHECK_CRITICAL_HOURS",
-          "line": 96,
+          "line": 95,
           "summary": "12.0",
           "signature": "",
           "members": []
@@ -98,7 +98,7 @@
         {
           "kind": "constant",
           "name": "RECHECK_SEVERE_HOURS",
-          "line": 97,
+          "line": 96,
           "summary": "24.0",
           "signature": "",
           "members": []
@@ -106,7 +106,7 @@
         {
           "kind": "constant",
           "name": "RECHECK_ROUTINE_HOURS",
-          "line": 98,
+          "line": 97,
           "summary": "24.0",
           "signature": "",
           "members": []
@@ -114,7 +114,7 @@
         {
           "kind": "constant",
           "name": "RECHECK_WAIT_HOURS",
-          "line": 99,
+          "line": 98,
           "summary": "72.0",
           "signature": "",
           "members": []
@@ -122,7 +122,7 @@
         {
           "kind": "class",
           "name": "Recommendation",
-          "line": 107,
+          "line": 106,
           "summary": "The final, human-readable verdict",
           "signature": "",
           "members": [
@@ -135,7 +135,7 @@
         {
           "kind": "function",
           "name": "advise",
-          "line": 201,
+          "line": 200,
           "summary": "Apply the phase-3 priority order and produce the final recommendation",
           "signature": "(cfg: Config, *, provenance: CodeProvenance, decision: UpdateDecision, assessment: Optional[RiskAssessment], gates: GateReport, clusters: Sequence[RegressionCluster] = …, release: Optional[Release] = …, readiness: Optional[PersonalReadiness] = …, now: Optional[datetime] = …) -> Recommendation",
           "members": []
@@ -143,7 +143,7 @@
         {
           "kind": "function",
           "name": "recommended_recheck",
-          "line": 603,
+          "line": 613,
           "summary": "Next monitoring check - explicitly *not* a promise that updating becomes possible",
           "signature": "(*, action: str, gate_deadline: Optional[datetime], clusters: Sequence[RegressionCluster], routine_hours: float, now: datetime) -> tuple[Optional[float], str, str]",
           "members": []
@@ -282,13 +282,13 @@
     {
       "name": "cli",
       "path": "hermes_update_check/cli.py",
-      "lines": 1185,
+      "lines": 1187,
       "summary": "Command line interface",
       "symbols": [
         {
           "kind": "function",
           "name": "build_parser",
-          "line": 77,
+          "line": 74,
           "summary": "",
           "signature": "() -> argparse.ArgumentParser",
           "members": []
@@ -376,7 +376,7 @@
         {
           "kind": "function",
           "name": "cmd_config",
-          "line": 764,
+          "line": 768,
           "summary": "",
           "signature": "(args: argparse.Namespace, cfg: Config, console: Console) -> int",
           "members": []
@@ -384,7 +384,7 @@
         {
           "kind": "function",
           "name": "cmd_notify_test",
-          "line": 786,
+          "line": 790,
           "summary": "",
           "signature": "(args: argparse.Namespace, cfg: Config, console: Console, logger: Any) -> int",
           "members": []
@@ -394,7 +394,7 @@
     {
       "name": "clusters",
       "path": "hermes_update_check/clusters.py",
-      "lines": 805,
+      "lines": 804,
       "summary": "Regression clustering: turn raw issue hits into *credible* regression signals",
       "symbols": [
         {
@@ -556,7 +556,7 @@
         {
           "kind": "function",
           "name": "build_clusters",
-          "line": 493,
+          "line": 494,
           "summary": "Grade every cluster found in the scanned issues",
           "signature": "(issues: Iterable[Issue], *, enrichment: Optional[dict[int, IssueEnrichment]] = …, release_version: Optional[str] = …, release_tag: Optional[str] = …) -> list[RegressionCluster]",
           "members": []
@@ -564,7 +564,7 @@
         {
           "kind": "function",
           "name": "grade_confidence",
-          "line": 656,
+          "line": 655,
           "summary": "Credibility of a cluster, 0..1, mapped to LOW/MEDIUM/HIGH",
           "signature": "(*, reports: int, unique_reporters: int, open_count: int, maintainer_confirmed: int, linked_pr: int, with_reproduction: int, mentions_version: int, signature_groups: int) -> str",
           "members": []
@@ -572,7 +572,7 @@
         {
           "kind": "class",
           "name": "RegressionSignal",
-          "line": 701,
+          "line": 700,
           "summary": "The Regression Signal (0-100) plus the floor used when data is missing",
           "signature": "",
           "members": [
@@ -583,7 +583,7 @@
         {
           "kind": "constant",
           "name": "CLUSTER_WEIGHT",
-          "line": 735,
+          "line": 734,
           "summary": "0.6",
           "signature": "",
           "members": []
@@ -591,7 +591,7 @@
         {
           "kind": "constant",
           "name": "EVIDENCE_FLOOR",
-          "line": 739,
+          "line": 738,
           "summary": "0.55",
           "signature": "",
           "members": []
@@ -599,7 +599,7 @@
         {
           "kind": "function",
           "name": "regression_signal",
-          "line": 742,
+          "line": 741,
           "summary": "Combine cluster evidence into the Regression Signal",
           "signature": "(clusters: Iterable[RegressionCluster], *, volume_ratio: float = …, signal_confidence: Optional[int] = …, unavailable: bool = …, unavailable_reason: str = …) -> RegressionSignal",
           "members": []
@@ -1001,13 +1001,13 @@
     {
       "name": "gates",
       "path": "hermes_update_check/gates.py",
-      "lines": 679,
+      "lines": 667,
       "summary": "Gates: the few rules that can still stop an update",
       "symbols": [
         {
           "kind": "constant",
           "name": "GATE_BLOCK",
-          "line": 66,
+          "line": 61,
           "summary": "'BLOCK'",
           "signature": "",
           "members": []
@@ -1015,7 +1015,7 @@
         {
           "kind": "constant",
           "name": "GATE_WARN",
-          "line": 67,
+          "line": 62,
           "summary": "'WARN'",
           "signature": "",
           "members": []
@@ -1023,7 +1023,7 @@
         {
           "kind": "constant",
           "name": "GATE_PASS",
-          "line": 68,
+          "line": 63,
           "summary": "'PASS'",
           "signature": "",
           "members": []
@@ -1031,7 +1031,7 @@
         {
           "kind": "constant",
           "name": "GATE_SKIP",
-          "line": 69,
+          "line": 64,
           "summary": "'SKIP'",
           "signature": "",
           "members": []
@@ -1039,7 +1039,7 @@
         {
           "kind": "class",
           "name": "EnvironmentState",
-          "line": 82,
+          "line": 77,
           "summary": "Cheap, file-level sanity of the local install (no subprocesses)",
           "signature": "",
           "members": [
@@ -1050,7 +1050,7 @@
         {
           "kind": "function",
           "name": "probe_environment",
-          "line": 108,
+          "line": 103,
           "summary": "Check the local environment without touching the network or spawning work",
           "signature": "(env: LocalEnv, *, logger: Optional[logging.Logger] = …) -> EnvironmentState",
           "members": []
@@ -1058,7 +1058,7 @@
         {
           "kind": "class",
           "name": "GateResult",
-          "line": 147,
+          "line": 142,
           "summary": "",
           "signature": "",
           "members": [
@@ -1069,7 +1069,7 @@
         {
           "kind": "class",
           "name": "GateReport",
-          "line": 182,
+          "line": 177,
           "summary": "",
           "signature": "",
           "members": [
@@ -1087,7 +1087,7 @@
         {
           "kind": "function",
           "name": "evaluate_gates",
-          "line": 242,
+          "line": 237,
           "summary": "Evaluate every configured gate",
           "signature": "(cfg: Config, *, provenance: CodeProvenance, decision: UpdateDecision, release: Optional[Release], assessment: Optional[RiskAssessment], clusters: Sequence[RegressionCluster] = …, environment: Optional[EnvironmentState] = …, readiness: Optional[PersonalReadiness] = …, rollback_safety: Optional[RollbackSafety] = …, now: Optional[datetime] = …) -> GateReport",
           "members": []
@@ -1095,7 +1095,7 @@
         {
           "kind": "constant",
           "name": "_SYSTEMIC_FEATURE_KEYS",
-          "line": 438,
+          "line": 428,
           "summary": "{'config'}",
           "signature": "",
           "members": []
@@ -1103,7 +1103,7 @@
         {
           "kind": "function",
           "name": "describe_gate_lines",
-          "line": 659,
+          "line": 647,
           "summary": "Compact one-line-per-gate rendering used by the report and the CLI",
           "signature": "(report: GateReport, *, lang: str = …) -> list[str]",
           "members": []
@@ -1111,7 +1111,7 @@
         {
           "kind": "function",
           "name": "severe_cluster_keys",
-          "line": 671,
+          "line": 659,
           "summary": "",
           "signature": "(clusters, *, threshold: str = …) -> list[str]",
           "members": []
@@ -1119,7 +1119,7 @@
         {
           "kind": "function",
           "name": "critical_cluster_keys",
-          "line": 678,
+          "line": 666,
           "summary": "",
           "signature": "(clusters) -> list[str]",
           "members": []
@@ -1418,13 +1418,13 @@
     {
       "name": "impact",
       "path": "hermes_update_check/impact.py",
-      "lines": 718,
+      "lines": 711,
       "summary": "Personal impact, core-feature readiness and systemic critical risk",
       "symbols": [
         {
           "kind": "constant",
           "name": "READINESS_DAMPING",
-          "line": 63,
+          "line": 60,
           "summary": "1.6",
           "signature": "",
           "members": []
@@ -1432,7 +1432,7 @@
         {
           "kind": "constant",
           "name": "READINESS_SAFE_MIN",
-          "line": 66,
+          "line": 63,
           "summary": "85",
           "signature": "",
           "members": []
@@ -1440,7 +1440,7 @@
         {
           "kind": "constant",
           "name": "READINESS_ACCEPTABLE_MIN",
-          "line": 67,
+          "line": 64,
           "summary": "60",
           "signature": "",
           "members": []
@@ -1448,7 +1448,7 @@
         {
           "kind": "constant",
           "name": "FEATURE_OK",
-          "line": 72,
+          "line": 69,
           "summary": "'OK'",
           "signature": "",
           "members": []
@@ -1456,7 +1456,7 @@
         {
           "kind": "constant",
           "name": "FEATURE_WARN",
-          "line": 73,
+          "line": 70,
           "summary": "'WARN'",
           "signature": "",
           "members": []
@@ -1464,7 +1464,7 @@
         {
           "kind": "constant",
           "name": "FEATURE_FAIL",
-          "line": 74,
+          "line": 71,
           "summary": "'FAIL'",
           "signature": "",
           "members": []
@@ -1472,7 +1472,7 @@
         {
           "kind": "constant",
           "name": "FEATURE_UNUSED",
-          "line": 75,
+          "line": 72,
           "summary": "'UNUSED'",
           "signature": "",
           "members": []
@@ -1480,7 +1480,7 @@
         {
           "kind": "class",
           "name": "SystemicSpec",
-          "line": 79,
+          "line": 76,
           "summary": "",
           "signature": "",
           "members": []
@@ -1488,7 +1488,7 @@
         {
           "kind": "constant",
           "name": "_NEGATION_WINDOW",
-          "line": 198,
+          "line": 193,
           "summary": "70",
           "signature": "",
           "members": []
@@ -1496,7 +1496,7 @@
         {
           "kind": "class",
           "name": "SystemicRisk",
-          "line": 228,
+          "line": 223,
           "summary": "One system-wide risk category and whether the evidence matches it",
           "signature": "",
           "members": [
@@ -1507,7 +1507,7 @@
         {
           "kind": "constant",
           "name": "_PROVIDER_VOCAB",
-          "line": 313,
+          "line": 308,
           "summary": "'providers?|api key|endpoint'",
           "signature": "",
           "members": []
@@ -1515,7 +1515,7 @@
         {
           "kind": "function",
           "name": "feature_claims_unavailable",
-          "line": 321,
+          "line": 316,
           "summary": "Does this evidence claim *this feature* is unavailable?",
           "signature": "(feature_key: str, text: str) -> bool",
           "members": []
@@ -1523,7 +1523,7 @@
         {
           "kind": "function",
           "name": "claims_unavailability",
-          "line": 344,
+          "line": 336,
           "summary": "Does this evidence contain any *unnegated* unavailability claim at all?",
           "signature": "(text: str) -> bool",
           "members": []
@@ -1531,7 +1531,7 @@
         {
           "kind": "class",
           "name": "FeatureImpact",
-          "line": 356,
+          "line": 348,
           "summary": "One feature of the profile and what the candidate release does to it",
           "signature": "",
           "members": [
@@ -1542,7 +1542,7 @@
         {
           "kind": "class",
           "name": "PersonalReadiness",
-          "line": 390,
+          "line": 382,
           "summary": "The phase-3 bundle: impact + readiness + systemic risk",
           "signature": "",
           "members": [
@@ -1558,7 +1558,7 @@
         {
           "kind": "function",
           "name": "cluster_text",
-          "line": 454,
+          "line": 446,
           "summary": "Evidence text for a cluster: every sample title plus a slice of each body",
           "signature": "(cluster: RegressionCluster) -> str",
           "members": []
@@ -1566,7 +1566,7 @@
         {
           "kind": "function",
           "name": "detect_systemic_risks",
-          "line": 477,
+          "line": 469,
           "summary": "Which system-wide risk categories the evidence actually supports",
           "signature": "(clusters: Iterable[RegressionCluster], *, cluster_source: Optional[dict[str, list[RegressionCluster]]] = …) -> list[SystemicRisk]",
           "members": []
@@ -1574,7 +1574,7 @@
         {
           "kind": "function",
           "name": "local_rollback_risk",
-          "line": 545,
+          "line": 537,
           "summary": "Turn a failing rollback-safety probe into a systemic risk entry",
           "signature": "(status: str, *, detail_zh: str = …, detail_en: str = …) -> Optional[SystemicRisk]",
           "members": []
@@ -1582,7 +1582,7 @@
         {
           "kind": "function",
           "name": "compute_personal_readiness",
-          "line": 565,
+          "line": 557,
           "summary": "Impact + readiness from clusters and the profile",
           "signature": "(profile: UsageProfile, clusters: Sequence[RegressionCluster], *, extra_systemic: Sequence[SystemicRisk] = …, impact_feature_keys: Optional[dict[str, list[str]]] = …) -> PersonalReadiness",
           "members": []
@@ -2138,7 +2138,7 @@
     {
       "name": "report",
       "path": "hermes_update_check/report.py",
-      "lines": 863,
+      "lines": 867,
       "summary": "Report rendering: the human-readable answer, in Chinese or English",
       "symbols": [
         {
@@ -2505,13 +2505,13 @@
     {
       "name": "rollback_safety",
       "path": "hermes_update_check/rollback_safety.py",
-      "lines": 327,
+      "lines": 344,
       "summary": "Can we actually get back if the update goes wrong?",
       "symbols": [
         {
           "kind": "constant",
           "name": "SAFETY_PASS",
-          "line": 32,
+          "line": 31,
           "summary": "'PASS'",
           "signature": "",
           "members": []
@@ -2519,7 +2519,7 @@
         {
           "kind": "constant",
           "name": "SAFETY_WARN",
-          "line": 33,
+          "line": 32,
           "summary": "'WARN'",
           "signature": "",
           "members": []
@@ -2527,7 +2527,7 @@
         {
           "kind": "constant",
           "name": "SAFETY_FAIL",
-          "line": 34,
+          "line": 33,
           "summary": "'FAIL'",
           "signature": "",
           "members": []
@@ -2535,7 +2535,7 @@
         {
           "kind": "constant",
           "name": "SAFETY_UNKNOWN",
-          "line": 35,
+          "line": 34,
           "summary": "'UNKNOWN'",
           "signature": "",
           "members": []
@@ -2543,7 +2543,7 @@
         {
           "kind": "constant",
           "name": "_RANK",
-          "line": 37,
+          "line": 36,
           "summary": "{SAFETY_PASS: 0, SAFETY_UNKNOWN: 1, SAFETY_WARN: 2, SAFETY_FAIL: 3}",
           "signature": "",
           "members": []
@@ -2551,7 +2551,7 @@
         {
           "kind": "class",
           "name": "SafetyCheck",
-          "line": 41,
+          "line": 40,
           "summary": "",
           "signature": "",
           "members": [
@@ -2561,7 +2561,7 @@
         {
           "kind": "class",
           "name": "RollbackSafety",
-          "line": 61,
+          "line": 60,
           "summary": "",
           "signature": "",
           "members": [
@@ -2573,7 +2573,7 @@
         {
           "kind": "function",
           "name": "assess_rollback_safety",
-          "line": 104,
+          "line": 103,
           "summary": "Read-only assessment of whether `rollback` would work right now",
           "signature": "(cfg: Config, env: LocalEnv, provenance: CodeProvenance, *, state: Optional[UpdateState] = …, state_dir: Optional[Path] = …, git_probe: Optional[Callable[[str], bool]] = …, disk_free_gib: Optional[float] = …, logger: Optional[logging.Logger] = …) -> RollbackSafety",
           "members": []
@@ -2801,7 +2801,7 @@
     {
       "name": "usage_profile",
       "path": "hermes_update_check/usage_profile.py",
-      "lines": 604,
+      "lines": 614,
       "summary": "Which parts of Hermes this user actually depends on",
       "symbols": [
         {
@@ -2871,7 +2871,7 @@
         {
           "kind": "function",
           "name": "provider_names_in",
-          "line": 224,
+          "line": 228,
           "summary": "Which providers an issue text names (never 'all providers')",
           "signature": "(text: str) -> list[str]",
           "members": []
@@ -2879,7 +2879,7 @@
         {
           "kind": "function",
           "name": "mentions_all_providers",
-          "line": 235,
+          "line": 239,
           "summary": "",
           "signature": "(text: str) -> bool",
           "members": []
@@ -2887,7 +2887,7 @@
         {
           "kind": "function",
           "name": "affected_features",
-          "line": 239,
+          "line": 243,
           "summary": "Map one regression cluster (with its evidence text) onto feature keys",
           "signature": "(cluster_key: str, text: str = …, *, titles: str = …) -> list[str]",
           "members": []
@@ -2895,7 +2895,7 @@
         {
           "kind": "class",
           "name": "UsageProfile",
-          "line": 266,
+          "line": 270,
           "summary": "The user's declaration of what matters (``usage_profile`` in the config)",
           "signature": "",
           "members": [
@@ -2914,7 +2914,7 @@
         {
           "kind": "function",
           "name": "builtin_default_profile",
-          "line": 391,
+          "line": 399,
           "summary": "The conservative default used when no ``usage_profile`` is configured",
           "signature": "(providers: Sequence[str] = …) -> UsageProfile",
           "members": []
@@ -2922,7 +2922,7 @@
         {
           "kind": "class",
           "name": "UsageDetection",
-          "line": 430,
+          "line": 440,
           "summary": "Detection result: the proposed profile plus why each row was proposed",
           "signature": "",
           "members": []
@@ -2930,7 +2930,7 @@
         {
           "kind": "function",
           "name": "detect_usage_profile",
-          "line": 480,
+          "line": 490,
           "summary": "Propose a profile from what is provably configured on this machine",
           "signature": "(*, hermes_home: Path, config_data: Optional[Mapping[str, Any]] = …, env: Optional[Mapping[str, str]] = …, install_kind: str = …, extra_providers: Sequence[str] = …) -> UsageDetection",
           "members": []
@@ -2938,7 +2938,7 @@
         {
           "kind": "function",
           "name": "resolve_profile",
-          "line": 579,
+          "line": 589,
           "summary": "The profile to *use*: configured one, else detection, else built-in default",
           "signature": "(cfg: Any, *, hermes_home: Optional[Path] = …, env: Optional[Mapping[str, str]] = …, warnings: Optional[list[str]] = …) -> UsageProfile",
           "members": []
@@ -3357,7 +3357,7 @@
   "tests": [
     {
       "path": "tests/test_advisor.py",
-      "lines": 361,
+      "lines": 353,
       "summary": "Advisor tests: priority order, recheck computation, and 'unknown is not safe'",
       "tests": 19,
       "names": [
@@ -3858,7 +3858,7 @@
     },
     {
       "path": "tests/test_usage_profile.py",
-      "lines": 235,
+      "lines": 232,
       "summary": "Usage profile: levels, weights, detection and cluster -> feature attribution",
       "tests": 20,
       "names": [
@@ -3967,7 +3967,7 @@
   ],
   "totals": {
     "modules": 31,
-    "lines": 14092,
+    "lines": 14115,
     "tests": 401
   }
 }

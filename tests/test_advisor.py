@@ -8,16 +8,18 @@ from conftest import make_release
 from test_clusters import issue
 from test_gates import make_assessment, ready_decision, stable_prov
 
-from hermes_update_check.clusters import CONFIDENCE_HIGH, SEVERITY_CRITICAL, RegressionCluster
 from hermes_update_check.advisor import (
     RECHECK_CRITICAL_HOURS,
     RECHECK_ROUTINE_HOURS,
+    RECOMMEND_ACCEPTABLE,
     RECOMMEND_AHEAD_OF_STABLE,
+    RECOMMEND_BLOCKED,
     RECOMMEND_MANUAL_REVIEW,
+    RECOMMEND_SAFE,
     advise,
     recommended_recheck,
 )
-from hermes_update_check.clusters import build_clusters
+from hermes_update_check.clusters import RegressionCluster, build_clusters
 from hermes_update_check.config import Config
 from hermes_update_check.gates import EnvironmentState, evaluate_gates
 from hermes_update_check.provenance import (
@@ -28,14 +30,8 @@ from hermes_update_check.provenance import (
     UPDATE_STATUS_UP_TO_DATE,
     UpdateDecision,
 )
-from hermes_update_check.advisor import (
-    RECOMMEND_ACCEPTABLE,
-    RECOMMEND_BLOCKED,
-    RECOMMEND_SAFE,
-)
-from hermes_update_check.risk import RECOMMEND_UNKNOWN, RECOMMEND_UP_TO_DATE, RECOMMEND_WAIT
+from hermes_update_check.risk import RECOMMEND_UNKNOWN, RECOMMEND_WAIT
 from hermes_update_check.util import utcnow
-
 
 
 def _cluster(
@@ -43,9 +39,7 @@ def _cluster(
 ) -> RegressionCluster:
     """A minimal cluster for readiness tests."""
     evidence = (
-        f"{feature} data is unrecoverable after the update"
-        if unavailable
-        else f"an edge case in {feature} misbehaves"
+        f"{feature} data is unrecoverable after the update" if unavailable else f"an edge case in {feature} misbehaves"
     )
     return RegressionCluster(
         key=key,
@@ -205,9 +199,7 @@ def test_readiness_drives_the_verdict(cfg: Config) -> None:
     from hermes_update_check.impact import compute_personal_readiness
     from hermes_update_check.usage_profile import LEVEL_IMPORTANT, UsageProfile
 
-    profile = UsageProfile(
-        features={"tools": LEVEL_IMPORTANT, "browser_tools": LEVEL_IMPORTANT}, source="config"
-    )
+    profile = UsageProfile(features={"tools": LEVEL_IMPORTANT, "browser_tools": LEVEL_IMPORTANT}, source="config")
     clusters = [
         _cluster("CRASH", "HIGH", "HIGH", unavailable=True, feature="tools"),
         _cluster("CRASH", "HIGH", "HIGH", unavailable=True, feature="browser_tools"),

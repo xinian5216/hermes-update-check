@@ -26,11 +26,10 @@ Release age is segmented instead of a 48 h wall (``release_age_policy``):
 from __future__ import annotations
 
 import logging
-import re
 import sqlite3
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Optional, Sequence
+from typing import Optional, Sequence
 
 from .clusters import (
     CONFIDENCE_HIGH,
@@ -42,10 +41,7 @@ from .clusters import (
 from .config import Config, ReleaseAgePolicy
 from .github_api import Release
 from .impact import (
-    FEATURE_FAIL,
-    FEATURE_WARN,
     PersonalReadiness,
-    SystemicRisk,
 )
 from .local_env import LocalEnv
 from .logging_setup import get_logger
@@ -61,7 +57,6 @@ from .provenance import (
 from .risk import RiskAssessment
 from .rollback_safety import SAFETY_FAIL, RollbackSafety
 from .util import iso, utcnow
-from .usage_profile import LEVEL_CRITICAL
 
 GATE_BLOCK = "BLOCK"
 GATE_WARN = "WARN"
@@ -265,9 +260,7 @@ def evaluate_gates(
     report.gates.append(_gate_main_branch(gates_cfg, provenance, decision))
     report.gates.append(_gate_dirty_worktree(gates_cfg, provenance, decision))
     report.gates.append(_gate_prerelease(gates_cfg, provenance, decision))
-    report.gates.append(
-        _gate_systemic(gates_cfg, readiness, decision)
-    )
+    report.gates.append(_gate_systemic(gates_cfg, readiness, decision))
     report.gates.append(_gate_critical_workflow(gates_cfg, readiness, decision))
     report.gates.append(_gate_rollback_safety(gates_cfg, rollback_safety, decision))
     for cluster_key, attr, label_zh, label_en in WARNING_REGRESSION_GATES:
@@ -374,7 +367,6 @@ def _gate_systemic(
     blocking = [risk for risk in readiness.blocking_systemic if risk.source != "local"]
     if blocking and getattr(gates_cfg, "block_on_systemic_risk", True):
         result.status = GATE_BLOCK
-        worst = blocking[0]
         result.reason_zh = "；".join(risk.evidence_zh or risk.zh for risk in blocking[:3])
         result.reason_en = "; ".join(risk.evidence_en or risk.en for risk in blocking[:3])
         result.remediation_zh = "这些是系统级问题（与使用画像无关）：等修复版本或 Issue 关闭后再更新"
@@ -419,9 +411,7 @@ def _gate_critical_workflow(
         result.reason_zh = f"你标记为 critical 的功能出现高可信度严重回归：{labels_zh}"
         result.reason_en = f"high-confidence severe regression in a feature you marked critical: {labels_en}"
         result.remediation_zh = "等这些 Issue 关闭或修复版本发布；如果该功能其实不关键，可调整 usage_profile"
-        result.remediation_en = (
-            "wait for the issues to close or a fix release; if the feature is not actually critical, adjust usage_profile"
-        )
+        result.remediation_en = "wait for the issues to close or a fix release; if the feature is not actually critical, adjust usage_profile"
         return result
 
     suspect = [feature for feature in readiness.critical_suspect if feature.key not in _SYSTEMIC_FEATURE_KEYS]
@@ -590,9 +580,7 @@ def _gate_release_age(
 
     if band == "block":
         result.status = GATE_BLOCK
-        result.reason_zh = (
-            f"Release 仅发布 {age_hours:.1f} 小时（< {policy.block_hours:g}h）：太新，先让它跑一会儿"
-        )
+        result.reason_zh = f"Release 仅发布 {age_hours:.1f} 小时（< {policy.block_hours:g}h）：太新，先让它跑一会儿"
         result.reason_en = (
             f"release is only {age_hours:.1f} hours old (< {policy.block_hours:g}h): too fresh, let it settle"
         )

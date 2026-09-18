@@ -32,7 +32,6 @@ from .config import Config
 from .gates import GateReport
 from .github_api import Release
 from .impact import (
-    FEATURE_UNUSED,
     READINESS_ACCEPTABLE_MIN,
     READINESS_SAFE_MIN,
     PersonalReadiness,
@@ -346,7 +345,14 @@ def advise(
         rec.remediation_zh = gate_remediation_zh + rec.remediation_zh
         rec.remediation_en = gate_remediation_en + rec.remediation_en
 
-        priority = ("systemic_risk", "critical_workflow", "rollback_safety", "dirty_worktree", "release_age", "environment")
+        priority = (
+            "systemic_risk",
+            "critical_workflow",
+            "rollback_safety",
+            "dirty_worktree",
+            "release_age",
+            "environment",
+        )
         decided_by = next(
             (key for key in priority if any(gate.key == key for gate in blocking)),
             blocking[0].key,
@@ -363,7 +369,11 @@ def advise(
                 "BLOCKED —— 回滚路径不可用",
                 "BLOCKED - the rollback path is not available",
             ),
-            "dirty_worktree": ("dirty_worktree", "BLOCKED —— 本地工作区不安全", "BLOCKED - the local worktree is not safe"),
+            "dirty_worktree": (
+                "dirty_worktree",
+                "BLOCKED —— 本地工作区不安全",
+                "BLOCKED - the local worktree is not safe",
+            ),
             "release_age": (
                 "release_age_policy",
                 "BLOCKED —— 发布太新（策略阻断）",
@@ -387,8 +397,8 @@ def advise(
     # -- 5. critical workflow: severe but not yet confirmed ------------------ #
     suspect = gates.get("critical_workflow")
     if suspect is not None and suspect.status == "WARN" and readiness is not None and readiness.critical_suspect:
-        rec.reasons_zh = [suspect.reason_zh] + rec.reasons_zh
-        rec.reasons_en = [suspect.reason_en] + rec.reasons_en
+        rec.reasons_zh = [suspect.reason_zh, *rec.reasons_zh]
+        rec.reasons_en = [suspect.reason_en, *rec.reasons_en]
         rec.remediation_zh.append("等这些报告被确认或关闭，或把该功能在 usage_profile 中下调为 important/optional")
         rec.remediation_en.append(
             "wait for those reports to be confirmed or closed, or downgrade the feature in usage_profile"

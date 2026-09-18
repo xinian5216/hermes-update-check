@@ -7,13 +7,13 @@ from pathlib import Path
 import pytest
 from conftest import FakeGitHubClient, make_compare, make_issue, make_release
 
+from hermes_update_check.advisor import RECOMMEND_ACCEPTABLE, RECOMMEND_SAFE, RECOMMEND_WAIT
 from hermes_update_check.checker import (
     ISSUE_KEYWORDS,
     collect_issue_signal,
     run_check,
 )
 from hermes_update_check.local_env import GitState, LocalEnv
-from hermes_update_check.advisor import RECOMMEND_ACCEPTABLE, RECOMMEND_SAFE, RECOMMEND_WAIT
 
 
 def make_env(

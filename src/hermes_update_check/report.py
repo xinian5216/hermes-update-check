@@ -21,22 +21,22 @@ from __future__ import annotations
 
 from typing import Optional
 
-from .checker import UpdateCheck
-from .clusters import RegressionCluster
-from .console import Console
-from .gates import GATE_PASS, GATE_SKIP, GateReport
-from .provenance import UPDATE_STATUS_AHEAD
 from .advisor import (
     RECOMMEND_ACCEPTABLE,
     RECOMMEND_BLOCKED,
     RECOMMEND_SAFE,
     RECOMMEND_WAIT,
 )
-from .rollback_safety import SAFETY_FAIL, SAFETY_PASS, SAFETY_UNKNOWN, SAFETY_WARN
+from .checker import UpdateCheck
+from .clusters import RegressionCluster
+from .console import Console
+from .gates import GATE_PASS, GATE_SKIP, GateReport
+from .provenance import UPDATE_STATUS_AHEAD
 from .risk import (
     RECOMMEND_UNKNOWN,
     RiskAssessment,
 )
+from .rollback_safety import SAFETY_FAIL, SAFETY_PASS, SAFETY_UNKNOWN, SAFETY_WARN
 from .util import humanize_hours, iso
 
 REPORT_TITLE = "Hermes Update Advisor"
@@ -338,8 +338,7 @@ class Reporter:
         rows = [
             (
                 self._t("个人影响 Personal Impact", "Personal Impact"),
-                f"{readiness.impact if readiness.impact is not None else 'UNKNOWN'} "
-                f"/ 100  {readiness.impact_level}",
+                f"{readiness.impact if readiness.impact is not None else 'UNKNOWN'} / 100  {readiness.impact_level}",
             ),
             (
                 self._t("核心功能可用性 Core Readiness", "Core Feature Readiness"),
@@ -357,7 +356,9 @@ class Reporter:
             rows.append((self._t("回滚路径 Rollback Safety", "Rollback Safety"), label))
         source = {
             "config": self._t("来自配置 usage_profile", "from usage_profile in your config"),
-            "detected": self._t("自动检测（运行 `profile detect` 后请人工调整）", "auto-detected (run `profile detect` and review)"),
+            "detected": self._t(
+                "自动检测（运行 `profile detect` 后请人工调整）", "auto-detected (run `profile detect` and review)"
+            ),
             "builtin-default": self._t("内置默认画像", "built-in default profile"),
         }.get(readiness.profile.source, readiness.profile.source)
         rows.append((self._t("画像来源 Profile", "Profile source"), source))
@@ -459,8 +460,8 @@ class Reporter:
             console.print(f"  {headline}")
         explanation = rec.explanation_zh if self.lang == "zh" else rec.explanation_en
         if explanation:
-            for index, line in enumerate(_wrap(explanation, width=86)):
-                console.print(("  " if index == 0 else "  ") + line)
+            for line in _wrap(explanation, width=86):
+                console.print("  " + line)
         console.print(
             self._t(
                 f"  （由 {rec.decided_by_label} 决定；"

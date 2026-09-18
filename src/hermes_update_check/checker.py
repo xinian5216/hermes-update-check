@@ -24,9 +24,6 @@ from .clusters import (
 )
 from .config import Config, resolve_state_dir
 from .gates import EnvironmentState, GateReport, evaluate_gates, probe_environment
-from .impact import PersonalReadiness, compute_personal_readiness, local_rollback_risk
-from .rollback_safety import RollbackSafety, assess_rollback_safety
-from .usage_profile import UsageProfile, resolve_profile
 from .github_api import (
     CompareResult,
     GitHubClient,
@@ -37,6 +34,7 @@ from .github_api import (
     extract_pr_count,
 )
 from .http import DiskCache, HttpClient
+from .impact import PersonalReadiness, compute_personal_readiness, local_rollback_risk
 from .local_env import LocalEnv, detect_local_env
 from .logging_setup import get_logger
 from .provenance import (
@@ -48,6 +46,8 @@ from .provenance import (
     resolve_provenance,
 )
 from .risk import CheckContext, IssueSignal, RiskAssessment, assess, classify_issues, level_for_score
+from .rollback_safety import RollbackSafety, assess_rollback_safety
+from .usage_profile import UsageProfile, resolve_profile
 from .util import hours_between, iso, utcnow
 from .versioning import compare_versions, normalise_tag
 

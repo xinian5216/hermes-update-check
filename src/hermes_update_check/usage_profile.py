@@ -176,10 +176,14 @@ PROVIDER_PATTERNS: dict[str, tuple[str, ...]] = {
     "azure": (r"\bazure\b",),
     "ark": (r"\bark\b", r"\bvolc\b", r"\bbytedance\b"),
 }
-_PROVIDER_COMPILED = {name: [re.compile(p, re.IGNORECASE) for p in patterns] for name, patterns in PROVIDER_PATTERNS.items()}
+_PROVIDER_COMPILED = {
+    name: [re.compile(p, re.IGNORECASE) for p in patterns] for name, patterns in PROVIDER_PATTERNS.items()
+}
 
 #: Generic provider words that mean "the provider layer", not one provider.
-_ALL_PROVIDER_RE = re.compile(r"\ball providers\b|\bevery provider\b|\bprovider system\b|\bcompletely broken\b", re.IGNORECASE)
+_ALL_PROVIDER_RE = re.compile(
+    r"\ball providers\b|\bevery provider\b|\bprovider system\b|\bcompletely broken\b", re.IGNORECASE
+)
 
 _ENV_PROVIDER_HINTS: tuple[tuple[str, str], ...] = (
     ("OPENAI_API_KEY", "openai"),
@@ -304,7 +308,11 @@ class UsageProfile:
     def critical_keys(self) -> list[str]:
         return sorted(
             [key for key, level in self.features.items() if level == LEVEL_CRITICAL]
-            + [f"providers.{name}" for name, level in self.providers.items() if level == LEVEL_CRITICAL and name != PROVIDER_AGGREGATE_KEY]
+            + [
+                f"providers.{name}"
+                for name, level in self.providers.items()
+                if level == LEVEL_CRITICAL and name != PROVIDER_AGGREGATE_KEY
+            ]
         )
 
     def active_keys(self) -> list[str]:
@@ -340,7 +348,7 @@ class UsageProfile:
         }
 
     @classmethod
-    def from_dict(cls, data: Mapping[str, Any] | None, *, warnings: Optional[list[str]] = None) -> "UsageProfile":
+    def from_dict(cls, data: Mapping[str, Any] | None, *, warnings: Optional[list[str]] = None) -> UsageProfile:
         """Build a profile from the config section; unknown levels degrade loudly."""
         warn = warnings if warnings is not None else []
         if not isinstance(data, Mapping):
@@ -408,9 +416,11 @@ def builtin_default_profile(providers: Sequence[str] = ()) -> UsageProfile:
             "browser_tools": LEVEL_OPTIONAL,
             "docker": LEVEL_UNUSED,
         },
-        providers={name: LEVEL_IMPORTANT for name in providers},
+        providers=dict.fromkeys(providers, LEVEL_IMPORTANT),
         source="builtin-default",
-        notes_zh=["未配置 usage_profile：正在使用内置默认画像（不影响核心功能，但请运行 `profile detect` 按实际使用调整）"],
+        notes_zh=[
+            "未配置 usage_profile：正在使用内置默认画像（不影响核心功能，但请运行 `profile detect` 按实际使用调整）"
+        ],
         notes_en=[
             "no usage_profile configured: using the built-in default profile "
             "(run `profile detect` to match your actual setup)"
@@ -467,12 +477,12 @@ def _read_hermes_config(path: Path) -> dict[str, Any]:
     except OSError:
         return {}
     try:
-        import yaml  # noqa: PLC0415 - optional dependency
+        import yaml
 
         data = yaml.safe_load(text)
         if isinstance(data, dict):
             return data
-    except Exception:  # noqa: BLE001 - a broken config must not break detection
+    except Exception:
         pass
     return {match.lower(): {} for match in re.findall(r"(?m)^\s*([A-Za-z_][\w-]*)\s*:", text)}
 

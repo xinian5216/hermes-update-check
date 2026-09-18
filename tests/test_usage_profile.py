@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from hermes_update_check.usage_profile import (
     DEFAULT_LEVEL_FOR_UNKNOWN_FEATURE,
     DEFAULT_LEVEL_FOR_UNKNOWN_PROVIDER,
@@ -23,7 +21,6 @@ from hermes_update_check.usage_profile import (
     provider_names_in,
     resolve_profile,
 )
-
 
 # --------------------------------------------------------------------------- #
 # weights (doc section 6)

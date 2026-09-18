@@ -15,7 +15,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field, fields
 from pathlib import Path
-from typing import Any, Mapping, MutableMapping
+from typing import Any, Mapping, MutableMapping, Optional
 
 from . import TOOL_NAME
 from .errors import ConfigError
@@ -735,7 +735,7 @@ def _migrate_legacy_config(cfg: Config, data: Mapping[str, Any], warnings: list[
         ("block_active_update_failure", "block_on_systemic_risk", "systemic"),
         ("block_active_gateway_regression", "warn_active_gateway_regression", "warning"),
     )
-    for old_key, new_key, kind in legacy_switches:
+    for old_key, new_key, _kind in legacy_switches:
         if old_key not in hg:
             continue
         notices.append(f"Deprecated: hard_gates.{old_key}\n  Use: hard_gates.{new_key}")

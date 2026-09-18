@@ -44,7 +44,7 @@ irm https://raw.githubusercontent.com/xinian5216/hermes-update-check/main/instal
 4. [使用命令](#三使用命令)
 5. [代码来源判定 Code Provenance](#四代码来源判定code-provenance)
 6. [风险模型（组件化）](#五风险模型组件化)
-7. [硬门禁 Hard Gates](#六硬门禁-hard-gates)
+7. [阻断规则与使用画像](#六阻断规则与使用画像第三阶段核心)
 8. [回归聚类与可信度](#七回归聚类与可信度)
 9. [回滚机制](#八回滚机制)
 10. [Telegram / Webhook 通知配置](#九如何配置-telegram-通知)
@@ -105,9 +105,12 @@ hermes-update-check/
 │   ├── provenance.py              # ★ 代码来源（channel / ahead / behind / detached）
 │   ├── checker.py                 # 编排：把观测数据收集成一次完整的 UpdateCheck
 │   ├── risk.py                    # ★ 风险引擎（关键词/年龄/规模 + 组件合成）
-│   ├── clusters.py                # ★ 回归聚类：严重程度 × 独立性 × 可信度
-│   ├── gates.py                   # ★ 硬门禁：规则优先于评分
-│   ├── advisor.py                 # ★ 最终裁决：数据 → 环境 → 门禁 → 评分 → 观察期 → UPDATE
+│   ├── clusters.py                # ★ 回归聚类：严重程度 × 独立性 × 可信度 + 功能归因/去重/相关性折扣
+│   ├── usage_profile.py           # ★ 使用画像：功能与 Provider 的 critical/important/optional/unused
+│   ├── impact.py                  # ★ Personal Impact / Core Feature Readiness / 系统级风险
+│   ├── rollback_safety.py         # ★ 回滚路径探测（提交可达/状态可写/磁盘/venv/备份）
+│   ├── gates.py                   # ★ 阻断规则（只剩五条）与提示规则
+│   ├── advisor.py                 # ★ 最终裁决：系统级 → 关键工作流 → 回滚 → 年龄策略 → 可用性 → SAFE/ACCEPTABLE
 │   ├── report.py                  # 人类可读报告 / Markdown / JSON
 │   ├── preflight.py               # 更新前检查（只读）
 │   ├── health.py                  # 更新后健康检查（7 项探针）
@@ -281,6 +284,9 @@ hermes-update-check check                 # 快速检查：一屏给结论（默
 hermes-update-check report                # 完整报告：每个风险因子的加减分明细 + Issue 样本
 hermes-update-check report --format markdown --output r.md
 hermes-update-check report --format json  # 机器可读（cron/CI/看板）
+hermes-update-check profile show          # 你的使用画像（哪些功能算关键）
+hermes-update-check profile detect        # 从本机 Hermes 配置自动推断画像（只读键名）
+hermes-update-check profile edit          # 打印/写入 usage_profile（--write 会先备份 .bak）
 hermes-update-check preflight             # 只看更新前检查（只读）
 hermes-update-check health                # 只看健康检查（只读，加 --smoke 会真的调一次模型）
 hermes-update-check watch                 # 定时检查：无变化不打扰，有变化才通知
@@ -348,38 +354,66 @@ Hermes Update Advisor
   当前在 main 分支且落后最新正式版本 125 个 commit：可以同步代码，但注意更新后拿到的是
   main 而不是该 Release。
 
-风险 ────────────────────────────────────────────────────────────────────────
-  Change Risk          79 / 100
-  Regression Signal    84 / 100
+全局风险（背景信息） ────────────────────────────────────────────────────────
+  Change Risk          73 / 100
+  Regression Signal    83 / 100
   Data Confidence      100 / 100
   Environment Risk     67 / 100
-  Overall Risk         99/100          Risk Level  VERY HIGH
-  Stability            1/100
-  Issue Signal Confidence: 80/100（扫描 67 条，聚类 8 个）
+  Overall Risk         98/100          Risk Level  VERY HIGH
+  Stability            2/100
+  Issue Signal Confidence: 80/100（扫描 89 条，聚类 8 个）
 
-硬门禁 ──────────────────────────────────────────────────────────────────────
-  PASS  观测数据是否充分
-  BLOCK Release 年龄 >= 48h
-        Release 仅发布 33.6 小时，低于最小观察期 48 小时
-  BLOCK 禁止在 main 开发分支上执行更新
+个人就绪度 ──────────────────────────────────────────────────────────────────
+  个人影响 Personal Impact         94 / 100  VERY HIGH
+  核心功能可用性 Core Readiness    83 / 100  VERY HIGH
+  回滚路径 Rollback Safety         警告（尚无 update_state.json，首次更新会创建）
+  画像来源 Profile                 自动检测（运行 `profile detect` 后请人工调整）
+
+你的核心功能 ────────────────────────────────────────────────────────────────
+  浏览器工具                 WARN  HIGH / HIGH
+  Provider（未细分）         WARN  HIGH / HIGH
+  Session / 会话数据         WARN  HIGH / HIGH
+  工具系统                   WARN  HIGH / HIGH
+  CLI / Agent                WARN  HIGH / MEDIUM · 报告称不可用
+  Gateway                    UNUSED（未使用，不计入）
+  MCP                        UNUSED（未使用，不计入）
+
+已知问题 ────────────────────────────────────────────────────────────────────
+  Gateway    HIGH     HIGH     UNUSED
+  MCP        HIGH     HIGH     UNUSED
+  Telegram   HIGH     HIGH     UNUSED
+  Session / 会话数据    HIGH     HIGH     IMPORTANT
+
+系统级风险 ──────────────────────────────────────────────────────────────────
+  数据库损坏              无
+  Session 丢失            无
+  凭证丢失 / 泄露         无
+  安装损坏                证据不足（仅提示）
+  Hermes 无法启动         无
+
+门禁与提示 ──────────────────────────────────────────────────────────────────
+  PASS  Release 年龄（<6h 阻断 / <12h 谨慎）
+  WARN  开发分支（main）提示
+        当前安装跟踪 main 开发分支（代码可能领先正式 Release，稳定性低于正式版本）
   BLOCK 工作区必须干净
-  BLOCK 禁止存在活跃的数据库回归
-  WARN  Channel 与 preferred_channel 不一致
-
-回归信号 ────────────────────────────────────────────────────────────────────
-  Gateway          CRITICAL HIGH      7 个报告 / 6 位独立报告人 / 6 个 open
-  Provider / 模型接入  CRITICAL HIGH    7 个报告 / 7 位独立报告人 / 6 个 open
-  ...
+        工作区有 4 个未提交修改
+  WARN  Gateway 回归提示
+        Gateway 存在 7 个报告（7 位报告人，4 个 open），严重程度 HIGH，可信度 HIGH
 
 建议 ────────────────────────────────────────────────────────────────────────
-  HARD GATE TRIGGERED —— WAIT
-  （由 Hard Gate 决定；Overall Risk: 99）
+  BLOCKED
+  BLOCKED —— 本地工作区不安全
+  （由 本地工作区 决定；你的风险：个人影响 94 / 核心可用性 83；全局风险 98——仅作背景）
 
   原因：
-    - Release 仅发布 33.6 小时，低于最小观察期 48 小时
-    - 当前安装跟踪 main 开发分支（代码可能领先正式 Release）
-    ...
-  建议复查时间：2026-09-16T13:39:38Z（约 12 小时后）
+    - 工作区有 4 个未提交修改
+    - Gateway：HIGH / 可信度 HIGH —— 你的画像标记为 unused，不计入个人影响
+
+  下一步：
+    - 先提交或 stash 本地修改（更新会 stash，但可能与新版冲突）
+
+  下次监控复查 Next Monitoring Check：2026-09-19T01:46:21Z（约 24 小时后）
+  （复查时间只是下一次观察的时机，不代表届时一定能更新）
 ```
 
 ---
@@ -415,7 +449,11 @@ git provenance  →  release tag  →  hermes --version（最后的兜底）
 
 报告与 JSON 都会给出：`reported_version / channel / branch / commit / nearest_tag / ahead_by / behind_by / dirty`。
 
-## 五、风险模型（组件化）
+## 五、风险模型（组件化，第三阶段起作为背景信息）
+
+> 第三阶段起，以下这些分数**不再单独决定**能否更新：它们提供背景与解释，
+> 真正的裁决来自「六、阻断规则与使用画像」。全局风险高会把结论限制在 ACCEPTABLE，
+> 但不会单独产生 WAIT/AVOID。
 
 风险不再是一个数字，而是三个可解释的组件（各自 0-100）：
 
@@ -477,52 +515,153 @@ Recommendation: WAIT — INSUFFICIENT OBSERVATION DATA
 * 测试 `test_missing_issue_data_never_makes_a_release_look_safer` 用「有数据的干净版本 vs 没数据的同一版本」
   来钉死这条规则：**没数据时的分数一定不低于有数据时**。
 
-## 六、硬门禁（Hard Gates）
+## 六、阻断规则与使用画像（第三阶段核心）
 
-门禁是**规则**，不是分数：门禁触发时，即使风险分只有 8 分也不会建议更新。
+第三阶段把决策模型从 **Global Risk Driven** 改成 **User Impact + Core Feature Readiness Driven**：
+
+> 全局风险继续保留，但只作为背景信息；真正决定「能不能更新」的是——
+> **这个版本对你的关键工作流是否已经可用。**
+
+设计前提是：Hermes 每天都在合入大量改动，如果门槛定成"近乎零 Bug 才更新"，工具会永远说 WAIT，
+最后没人再用。目标不是更宽松，而是**更符合实际使用影响**：
+
+```
+Global instability does not necessarily mean personal unusability.
+A bug in an unused feature should not block an update.
+Data loss and installation corruption remain non-negotiable blockers.
+```
+
+### 6.1 使用画像 `usage_profile`
+
+每项功能（以及每个 Provider）都有一个使用等级：
+
+| 等级 | 权重 | 含义 |
+|---|---|---|
+| `critical` | 1.0 | 关键：**已确认**的严重回归会阻断更新 |
+| `important` | 0.6 | 重要：计入个人影响 |
+| `optional` | 0.25 | 可选：只造成很小的扣分 |
+| `unused` | 0.0 | 未使用：**完全不计**，这个功能的 Bug 不会让工具说 WAIT |
+
+```yaml
+usage_profile:
+  features:
+    cli_agent: critical      # 你每天用的 CLI
+    desktop: critical
+    sessions: critical
+    tools: critical
+    mcp: important
+    gateway: unused          # 没跑 Gateway 就不该被 Gateway 的 Bug 拖住
+    telegram: unused
+    web_tools: important
+    browser_tools: optional
+    docker: unused
+  providers:
+    providers: important     # 未单独列出的 Provider 的组默认值
+    openai: critical
+    anthropic: important
+    gemini: unused
+```
+
+三个命令管理画像：
+
+```bash
+hermes-update-check profile show      # 当前生效的画像（含来源：配置 / 自动检测 / 内置默认）
+hermes-update-check profile detect    # 从你的 Hermes 配置自动推断，并列出每项的判断依据
+hermes-update-check profile edit      # 打印可粘贴的 YAML；加 --write 直接写入配置（先备份 .bak）
+```
+
+自动检测**只区分「已配置 → important」与「未配置 → unused」，从不替你判断什么叫 critical**——
+它读的是配置里的**键名**与环境变量**名字**（例如 `TELEGRAM_BOT_TOKEN` 是否存在），
+从不读取任何值，也从不联网。
+
+### 6.2 两个新指标
+
+```
+个人影响 Personal Impact      0-100   已知问题对你所用功能的暴露程度
+核心功能可用性 Core Readiness 0-100   你的关键工作流是否真的「不可用」
+```
+
+`Personal Impact` 用线性权重（一个未使用功能的 Bug 贡献 0），`Core Readiness` 用阻尼后的权重驱动结论：
+**只有"报告称该功能不可用"（unusable / cannot start / no longer works / data is unrecoverable…）
+才会把可用性拉低**；"某个边界场景有 Bug" 只反映在个人影响里，不会让工具说"你的核心功能挂了"。
+
+判定分档：`>= 85` 可判 SAFE；`60-84` 最高 ACCEPTABLE；`< 60` → WAIT。
+
+### 6.3 系统级风险（与画像无关，永远不可协商）
+
+```
+数据损坏 / Session 丢失 / 凭证丢失或泄露 / 配置损坏
+安装损坏 / 回滚失败 / Hermes 无法启动 / 所有 Provider 不可用
+```
+
+这些类别需要**高可信度 + 独立佐证**（≥2 位独立报告人，或 maintainer 确认/打标，或含复现步骤）才阻断；
+只有一条未确认的报告 → 只提示、不阻断（`UNKNOWN` 从不被当作安全）。
+
+### 6.4 现在只有这五件事会阻断
 
 ```yaml
 hard_gates:
-  enabled: true
-  minimum_release_age_hours: 48          # BLOCK：发布不足 48 小时
-  block_main_branch_update: true         # BLOCK：跟踪 main 开发分支
-  block_dirty_worktree: true             # BLOCK：工作区有未提交修改
-  block_prerelease: true                 # BLOCK：预发布版本
-  block_active_database_regression: true # BLOCK：活跃的数据库回归（open + 有佐证）
-  block_active_session_regression: true  # BLOCK：活跃的 Session/数据丢失回归
-  block_active_gateway_regression: false # 噪声较大，默认关闭但可开启
-  block_active_update_failure: true      # BLOCK：活跃的「升级失败」回归
-  block_on_insufficient_data: true       # BLOCK：观测数据不完整
+  block_on_systemic_risk: true       # 系统级风险（上一节）
+  block_on_critical_workflow: true   # 你标记为 critical 的功能被确认不可用
+  block_on_rollback_safety: true     # 回滚路径不可用（提交找不回 / 状态目录不可写 / 磁盘不足）
+  block_dirty_worktree: true         # 本地工作区有未提交修改（本地安全，不是版本质量问题）
+  block_on_insufficient_data: true   # 观测数据不完整
 ```
 
-裁决优先级（固定顺序，`advisor.py`）：
+**被降级的旧门禁**（只提示、只把结论限制在 ACCEPTABLE，不再阻止更新）：
+
+| 旧规则 | 现在 |
+|---|---|
+| `minimum_release_age_hours: 48` 永久阻断 | 分段策略：`<6h` 阻断 / `6-12h` 谨慎 / `12-24h` 可接受 / `>24h` 正常（`release_age_policy`） |
+| 跟踪 main 分支 → 阻断 | WARN + 计入 Environment Risk（本地安全类仍然阻断，例如脏工作区） |
+| 预发布版本 → 阻断 | WARN（可用 `block_prerelease: true` 恢复旧行为） |
+| 普通 Gateway / MCP / Provider / 认证 / 崩溃回归 → 阻断 | WARN + 计入对应功能的个人影响 |
+
+旧配置**不会被拒绝**：`minimum_release_age_hours` 等键仍然能读，会被映射到新策略并给出弃用提示
+（例如 `Deprecated: hard_gates.minimum_release_age_hours → Use: release_age_policy`）。
+
+### 6.5 结论等级与两种时钟
+
+| 结论 | 含义 |
+|---|---|
+| `BLOCKED` | 有系统级风险或已确认的关键工作流回归：现在不要更新 |
+| `WAIT` | 证据不足，或关键功能存在**尚未确认**的严重报告：先观察 |
+| `ACCEPTABLE` | 有已知 Bug，但没打到你的关键工作流，且备份/回滚/预检通过：可以更新（先备份） |
+| `SAFE` | 没有明显严重回归 |
+
+外加三种特殊状态：`AHEAD_OF_STABLE`（当前代码已领先正式版本）、`MANUAL_REVIEW`（安装状态非标准）、
+`INSUFFICIENT_DATA`（数据不足）。
+
+报告里给出**两种时间**，避免误读：
 
 ```
-1. 无需更新（已最新 / 已领先 Release）
-2. 数据不足            → WAIT — INSUFFICIENT OBSERVATION DATA
-3. 本地环境异常        → MANUAL_REVIEW（先修环境）
-4. Hard Gate 触发      → WAIT（附最早可重新评估时间）
-5. 风险评分            → AVOID(≥81) / WAIT(>阈值)
-6. 发布观察期未满      → WAIT（minimum_release_age_days）
-7. UPDATE
+下次监控复查 Next Monitoring Check   什么时候再看一眼
+策略最早放行 Earliest Policy Clearance   发布年龄/阻断条件什么时候解除
 ```
 
-报告会把门禁逐条列出（`BLOCK` / `WARN` / `PASS` / `SKIP`）并说明原因，例如：
+"下次复查 12 小时"**不代表**"12 小时后就能更新"。
 
-```
-硬门禁 ───────────────────────────────────────
-  BLOCK Release 年龄 >= 48h
-        Release 仅发布 15.2 小时，低于最小观察期 48 小时
-  BLOCK 工作区必须干净
-        工作区有 4 个未提交修改
-  WARN  Channel 与 preferred_channel 不一致
-        当前跟踪的是 MAIN，而 preferred_channel 是 stable：建议备份后切换到正式 Release（本工具不会自动降级）
-```
+### 6.6 真实数据对比（同一台机器、同一个 release）
 
-`preferred_channel`（`stable` / `main` / `prerelease`，默认 `stable`）与实际 channel 不一致时产生 WARN，
-但**绝不自动降级或切换分支**。
+同一个 `v2026.9.14`（发布 81.7 小时、全局风险 98/100 VERY HIGH）：
+
+| | 旧模型（Global Risk 驱动） | 新模型（Personal Readiness 驱动） |
+|---|---|---|
+| 结论 | `WAIT` | `BLOCKED`（仅因本地工作区有 4 个未提交修改） |
+| 阻断门禁 | `main_branch` + `dirty_worktree` + `active_update_failure_regression` | 仅 `dirty_worktree` |
+| 个人影响 / 核心可用性 | — | 94 / 83 |
+| 提示（不再阻断） | `channel_mismatch` | main 分支提示、Channel 提示、Gateway/Provider 回归提示（均标记为 unused 或 WARN） |
+| 工作区干净时 | 仍然 `WAIT`（main 分支是**永久**属性） | **`ACCEPTABLE`**（"已知回归没有伤到你的关键工作流，可以更新，先备份"） |
+
+也就是说：旧模型会把用户永远卡在一个**他无法通过小心操作改变的属性**（跟踪 main）上；
+新模型只在**本地确实不安全**时阻断，并且明确告诉用户"提交/暂存后即可更新"。
 
 ## 七、回归聚类与可信度
+
+> 第三阶段起，每个聚类还会给出 **`affected_features`**（影响哪些功能，按 Provider 细分）、
+> **重复报告折叠**（标题相似度 / 显式引用 / duplicate 标签，同一根因不重复计分）与
+> **相关性折扣**（一个 Issue 命中多个类别时：primary 1.0 / secondary 0.4 / tertiary 0.2）。
+> 单个 Provider 完全不可用按 `HIGH` 处理，只有「全体 Provider / 凭证体系」故障才是 `CRITICAL`。
 
 Issue 数量会被高噪声仓库淹没，所以 9 类回归分别做**严重程度 × 独立性 × 佐证**评分：
 
@@ -661,6 +800,10 @@ Webhook 收到的是 JSON：`{title, body, level, tag, url, fields:{current, lat
 
 ## 十、配置文件参考
 
+> 第三阶段新增 `usage_profile` / `release_age_policy` / `smoke_tests` 三节，
+> 并把 `hard_gates` 简化到五个阻断开关；旧的 `minimum_release_age_hours`、`block_active_*` 仍然能读，
+> 加载时会打印弃用提示并映射到新语义（见 `config.example.yaml` 的注释）。
+
 默认位置：Linux/macOS `~/.config/hermes-update-check/config.yaml`，Windows `%APPDATA%\hermes-update-check\config.yaml`。
 优先级：**内置默认值 < 配置文件 < `HERMES_UPDATE_CHECK_*` 环境变量 < 命令行参数**。
 用 `hermes-update-check config init` 生成完整注释版本；`config show --json` 查看生效值。
@@ -750,6 +893,11 @@ HERMES_UPDATE_CHECK_CONFIG=/etc/hermes-update-check.yaml
 
 ## 十一、watch 模式与 cron
 
+> 第三阶段起，通知跟随**结论变化**（`BLOCKED → WAIT`、`WAIT → ACCEPTABLE`、`ACCEPTABLE → SAFE`、
+> `SAFE → WAIT`、`ACCEPTABLE → BLOCKED`）以及**你的关键工作流**的变化
+> （"你的关键工作流出现回归" / "关键工作流回归已解除"）。
+> 只有全局风险变化、但结论没变时（例如 80 → 70）**不会打扰你**。
+
 `watch` 只做检查 + 状态对比，**不会更新**：
 
 * 首次运行：只记录状态（除非 `notify_on_first_run: true`）；
@@ -823,24 +971,49 @@ WantedBy=timers.target
   "hard_gates": [ { "key": "release_age", "status": "BLOCK", "reason": "…" } ],
   "regressions": [ { "key": "GATEWAY", "severity": "CRITICAL", "confidence": "HIGH", "reports": 7, "unique_reporters": 6, "open": 6 } ],
   "update_status": "update_available",
-  "recommendation": "WAIT",
+  "recommendation": "ACCEPTABLE",
+  "recommendation_detail": {
+    "action": "ACCEPTABLE",
+    "decided_by": "caution",
+    "personal_impact": 16,
+    "personal_impact_level": "LOW",
+    "core_readiness": 92,
+    "core_readiness_level": "HIGH",
+    "systemic_risks": [ { "key": "DATA_CORRUPTION", "detected": false, "blocking": false } ],
+    "cautions_zh": [ "…" ],
+    "policy_clearance_at": "2026-09-15T10:04:14Z",
+    "policy_clearance_hours": 8.6
+  },
+  "personal_readiness": {
+    "profile_source": "detected",
+    "personal_impact": 16,
+    "core_readiness": 92,
+    "features": [ { "key": "sessions", "level": "critical", "status": "OK", "unavailable": false } ],
+    "systemic": [ { "key": "SESSION_LOSS", "detected": false } ]
+  },
+  "rollback_safety": { "status": "PASS", "previous_ref": "5eb99eb2", "checks": [ … ] },
+  "usage_profile": { "features": { "sessions": "critical" }, "providers": { "openai": "important" } },
   "recommended_recheck": "2026-09-15T19:21:04Z",
   "recommended_recheck_hours": 12.0
 }
 ```
 
-`recommendation` 取值：`UPDATE` / `WAIT` / `AVOID` / `INSUFFICIENT_DATA` / `UP_TO_DATE` /
-`AHEAD_OF_STABLE` / `MANUAL_REVIEW`（后两个是二阶段新增，`update_available` 布尔字段保留兼容）。
+`recommendation` 取值（第三阶段）：`BLOCKED` / `WAIT` / `ACCEPTABLE` / `SAFE`，以及特殊状态
+`AHEAD_OF_STABLE` / `MANUAL_REVIEW` / `INSUFFICIENT_DATA` / `UP_TO_DATE`。
+旧值 `UPDATE` / `AVOID` 仍然被接受（老的状态文件与旧调用方）。
+
+`recommended_recheck_hours` 是**下次监控复查**；`policy_clearance_hours` 是**策略最早放行时间**
+（发布年龄等阻断条件何时解除），两者含义不同，不要混用。
 
 ## 十三、退出码（cron / CI 用）
 
 | 码 | 含义 |
 |---|---|
-| 0 | 成功：已是最新 / 已领先 Release（AHEAD_OF_STABLE），或风险可接受（UPDATE） |
+| 0 | 成功：已是最新 / 已领先 Release（AHEAD_OF_STABLE），或**可以更新**（`SAFE` / `ACCEPTABLE`；兼容旧值 `UPDATE`） |
 | 1 | 运行内部错误（未捕获异常，堆栈在 `~/.hermes-update-check/logs/`） |
 | 2 | 用法错误（参数不对） |
 | 3 | 配置 / 前置条件错误（例如没有 `update_state.json` 可回滚） |
-| 10 | 检查完成，但建议 WAIT / AVOID / MANUAL_REVIEW（含 Hard Gate 触发） |
+| 10 | 检查完成，但结论是 `BLOCKED` / `WAIT` / `MANUAL_REVIEW`（含任何阻断门禁；兼容旧值 `AVOID`） |
 | 11 | 数据不足（INSUFFICIENT DATA） |
 | 12 | 更新后健康检查失败（需要 rollback） |
 | 13 | 用户取消 / 非交互环境未给 `--yes` |
@@ -881,7 +1054,7 @@ fi
 
 ```bash
 uv venv .venv && uv pip install -e ".[dev]" --python .venv/bin/python
-.venv/bin/python -m pytest -q          # 409 个测试（344 个函数），全部离线：不用网络、不碰真实安装
+.venv/bin/python -m pytest -q          # 467 个测试（401 个函数），全部离线：不用网络、不碰真实安装
 .venv/bin/python -m pytest -q tests/test_provenance.py tests/test_gates.py tests/test_advisor.py
 ```
 
@@ -960,8 +1133,8 @@ python scripts/build_index.py --check   # 只校验是否过期（CI 用，过�
 ### 开发循环（本地 = CI 同一套门槛）
 
 ```bash
-python -m pytest -q                                   # 409 个测试（344 个函数），离线
-python -m pytest --cov --cov-fail-under=80            # 覆盖率门槛（当前 83%）
+python -m pytest -q                                   # 467 个测试（401 个函数），离线
+python -m pytest --cov --cov-fail-under=80            # 覆盖率门槛（当前 84%）
 ruff check .                                          # lint（0 findings 才能过）
 ruff format --check .                                 # 格式检查（如需改写：ruff format .）
 python scripts/scan_secrets.py --staged               # 提交前脱敏扫描（钩子已自动执行）

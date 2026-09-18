@@ -39,11 +39,9 @@ from typing import Any, Iterable, Optional, Sequence
 from .clusters import (
     CONFIDENCE_HIGH,
     CONFIDENCE_LOW,
-    CONFIDENCE_MEDIUM,
     CONFIDENCE_WEIGHTS,
     SEVERITY_CRITICAL,
     SEVERITY_HIGH,
-    SEVERITY_LOW,
     SEVERITY_MEDIUM,
     SEVERITY_RANK,
     SEVERITY_WEIGHTS,
@@ -52,7 +50,6 @@ from .clusters import (
 from .risk import level_for_score
 from .usage_profile import (
     LEVEL_CRITICAL,
-    LEVEL_IMPORTANT,
     LEVEL_UNUSED,
     LEVEL_WEIGHTS,
     UsageProfile,
@@ -189,9 +186,7 @@ SYSTEMIC_SPECS: tuple[SystemicSpec, ...] = (
     ),
 )
 
-_SYSTEMIC_COMPILED = {
-    spec.key: [re.compile(p, re.IGNORECASE) for p in spec.patterns] for spec in SYSTEMIC_SPECS
-}
+_SYSTEMIC_COMPILED = {spec.key: [re.compile(p, re.IGNORECASE) for p in spec.patterns] for spec in SYSTEMIC_SPECS}
 
 #: Words that, shortly before a match, mean the text is *talking about* preventing a
 #: failure rather than reporting one ("halts to prevent SQLite corruption").
@@ -335,10 +330,7 @@ def feature_claims_unavailable(feature_key: str, text: str) -> bool:
         subject = _FEATURE_VOCAB.get(feature_key, re.escape(feature_key))
 
     forward = re.compile(rf"(?:{subject})[^.]{{0,40}}(?:{'|'.join(AVAILABILITY_PREDICATES)})", re.IGNORECASE)
-    for match in forward.finditer(text):
-        if not _negated(text, match.start()):
-            return True
-    return False
+    return any(not _negated(text, match.start()) for match in forward.finditer(text))
 
 
 def claims_unavailability(text: str) -> bool:
@@ -413,9 +405,7 @@ class PersonalReadiness:
     def critical_broken(self) -> list[FeatureImpact]:
         """Critical features with a *confirmed* (high-confidence) severe regression."""
         return [
-            feature
-            for feature in self.features
-            if feature.level == LEVEL_CRITICAL and feature.status == FEATURE_FAIL
+            feature for feature in self.features if feature.level == LEVEL_CRITICAL and feature.status == FEATURE_FAIL
         ]
 
     @property
@@ -424,7 +414,9 @@ class PersonalReadiness:
         return [
             feature
             for feature in self.features
-            if feature.level == LEVEL_CRITICAL and feature.status == FEATURE_WARN and feature.severity in {SEVERITY_CRITICAL, SEVERITY_HIGH}
+            if feature.level == LEVEL_CRITICAL
+            and feature.status == FEATURE_WARN
+            and feature.severity in {SEVERITY_CRITICAL, SEVERITY_HIGH}
         ]
 
     @property
@@ -633,15 +625,12 @@ def compute_personal_readiness(
     impact_ratio = 1.0 - _product(personal_values.values())
     readiness_ratio = 1.0 - _product(readiness_values.values())
 
-    broken = [self_feature for self_feature in per_feature_meta]
     result.features = _feature_rows(profile, per_feature_contrib, per_feature_meta)
     result.impact = round(100 * max(0.0, min(1.0, impact_ratio)))
     result.readiness = round(100 * (1.0 - max(0.0, min(1.0, readiness_ratio))))
     result.impact_level = level_for_score(result.impact)
     result.readiness_level = level_for_score(result.readiness)
     result.systemic = list(extra_systemic) + detect_systemic_risks(cluster_list)
-    if broken:
-        pass  # (kept for readability: the feature rows above carry the detail)
     _add_reasons(result, profile, per_feature_contrib, per_feature_meta)
     return result
 
@@ -659,7 +648,7 @@ def _feature_rows(
     meta: dict[str, dict[str, Any]],
 ) -> list[FeatureImpact]:
     """One row per feature worth showing: touched features + active ones."""
-    keys = set(meta) | {key for key in profile.active_keys()}
+    keys: set[str] = set(meta) | set(profile.active_keys())
     rows: list[FeatureImpact] = []
     for key in sorted(keys):
         weight = profile.weight(key)
@@ -707,12 +696,16 @@ def _add_reasons(
         label_zh = profile.label(key, lang="zh")
         label_en = profile.label(key, lang="en")
         if level == LEVEL_UNUSED:
-            result.reasons_zh.append(f"{label_zh}：{severity} / 可信度 {confidence} —— 你的画像标记为 unused，不计入个人影响")
+            result.reasons_zh.append(
+                f"{label_zh}：{severity} / 可信度 {confidence} —— 你的画像标记为 unused，不计入个人影响"
+            )
             result.reasons_en.append(
                 f"{label_en}: {severity} / confidence {confidence} - marked unused in your profile, not counted"
             )
         else:
-            result.reasons_zh.append(f"{label_zh}：{severity} / 可信度 {confidence}（{LEVEL_WEIGHTS.get(level, 0):.2f} 权重）")
+            result.reasons_zh.append(
+                f"{label_zh}：{severity} / 可信度 {confidence}（{LEVEL_WEIGHTS.get(level, 0):.2f} 权重）"
+            )
             result.reasons_en.append(
                 f"{label_en}: {severity} / confidence {confidence} (weight {LEVEL_WEIGHTS.get(level, 0):.2f})"
             )

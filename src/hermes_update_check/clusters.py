@@ -463,9 +463,10 @@ def _is_duplicate(issue: Issue, canonical: Issue) -> bool:
         return True
     if any(marker in canonical_text for marker in _DUPLICATE_TEXT_MARKERS) and f"#{issue.number}" in canonical_text:
         return True
-    if any(str(label).lower() == "duplicate" for label in issue.labels) and _jaccard(
-        _signature_tokens(issue.title), _signature_tokens(canonical.title)
-    ) > 0.3:
+    if (
+        any(str(label).lower() == "duplicate" for label in issue.labels)
+        and _jaccard(_signature_tokens(issue.title), _signature_tokens(canonical.title)) > 0.3
+    ):
         return True
     if _title_signature(issue.title) == _title_signature(canonical.title):
         return True
@@ -613,9 +614,7 @@ def _grade_cluster(
             f"{collapsed} report(s) look like duplicates; scored as {root_causes} root cause(s) ({listing})"
         )
 
-    correlation_factor = (
-        round(sum(correlation_weights) / len(correlation_weights), 4) if correlation_weights else 1.0
-    )
+    correlation_factor = round(sum(correlation_weights) / len(correlation_weights), 4) if correlation_weights else 1.0
     if correlation_factor < 0.95:
         notes_zh.append(f"这些 Issue 同时命中其他类别：本类按 {correlation_factor:.2f} 折算，避免同一根因重复计分")
         notes_en.append(

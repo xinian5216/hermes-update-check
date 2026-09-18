@@ -20,8 +20,12 @@ from typing import Any, Optional, Sequence
 
 from . import TOOL_NAME, __version__
 from .advisor import (
+    RECOMMEND_ACCEPTABLE,
     RECOMMEND_AHEAD_OF_STABLE,
+    RECOMMEND_BLOCKED,
     RECOMMEND_MANUAL_REVIEW,
+    RECOMMEND_SAFE,
+    RECOMMEND_WAIT,
 )
 from .checker import UpdateCheck, run_check
 from .clusters import SEVERITY_CRITICAL
@@ -53,13 +57,6 @@ from .logging_setup import setup_logging
 from .notify import NotificationMessage, build_notifiers, describe_notifiers, notify_all
 from .preflight import STATUS_FAIL, PreflightReport, run_preflight
 from .report import Reporter
-from .advisor import (
-    RECOMMEND_ACCEPTABLE,
-    RECOMMEND_BLOCKED,
-    RECOMMEND_MANUAL_REVIEW,
-    RECOMMEND_SAFE,
-    RECOMMEND_WAIT,
-)
 from .risk import (
     RECOMMEND_UNKNOWN,
     RECOMMEND_UP_TO_DATE,
@@ -161,7 +158,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     profile = sub.add_parser("profile", help="usage profile: what *you* depend on (phase 3)")
     profile.add_argument(
-        "action", choices=["show", "detect", "edit"], nargs="?", default="show",
+        "action",
+        choices=["show", "detect", "edit"],
+        nargs="?",
+        default="show",
         help="show the profile in use / detect one from your Hermes install / print the YAML to edit",
     )
     profile.add_argument("--write", action="store_true", help="write the result into the config file (a .bak is kept)")
@@ -654,7 +654,10 @@ def cmd_profile(args: argparse.Namespace, cfg: Config, console: Console) -> int:
             return EXIT_OK
         source = {
             "config": ("来自你的配置 usage_profile", "from usage_profile in your config"),
-            "detected": ("自动检测（可用 `profile edit --write` 固定下来）", "auto-detected (pin it with `profile edit --write`)"),
+            "detected": (
+                "自动检测（可用 `profile edit --write` 固定下来）",
+                "auto-detected (pin it with `profile edit --write`)",
+            ),
             "builtin-default": ("内置默认画像", "built-in default profile"),
         }.get(profile.source, (profile.source, profile.source))
         console.heading("使用画像" if lang == "zh" else "USAGE PROFILE")
@@ -679,7 +682,9 @@ def cmd_profile(args: argparse.Namespace, cfg: Config, console: Console) -> int:
         detection = detect_usage_profile(hermes_home=hermes_home)
         profile = detection.profile
         if as_json:
-            print(json.dumps({"profile": profile.to_dict(), "evidence": detection.evidence}, indent=2, ensure_ascii=False))
+            print(
+                json.dumps({"profile": profile.to_dict(), "evidence": detection.evidence}, indent=2, ensure_ascii=False)
+            )
         else:
             console.heading(
                 "检测结果（只区分已配置/未配置，不会替你判断关键程度）"
@@ -734,13 +739,14 @@ def _write_profile(cfg: Config, profile, console: Console, *, lang: str = "zh") 
     try:
         import yaml
     except ImportError:  # pragma: no cover - PyYAML is an install dependency
-        console.error(
-            "PyYAML is required to write the config" if lang == "en" else "写入配置需要 PyYAML"
-        )
+        console.error("PyYAML is required to write the config" if lang == "en" else "写入配置需要 PyYAML")
         return
     path = cfg.source_path or default_config_path()
     raw = dict(cfg.raw or {})
-    raw["usage_profile"] = {"features": dict(sorted(profile.features.items())), "providers": dict(sorted(profile.providers.items()))}
+    raw["usage_profile"] = {
+        "features": dict(sorted(profile.features.items())),
+        "providers": dict(sorted(profile.providers.items())),
+    }
     path.parent.mkdir(parents=True, exist_ok=True)
     backup: Optional[Path] = None
     if path.exists():
@@ -752,11 +758,9 @@ def _write_profile(cfg: Config, profile, console: Console, *, lang: str = "zh") 
     )
     path.write_text(header + yaml.safe_dump(raw, sort_keys=False, allow_unicode=True), encoding="utf-8")
     console.print(
-        (
-            f"  已写入 {path}" + (f"（备份：{backup}）" if backup else "")
-            if lang == "zh"
-            else f"  written to {path}" + (f" (backup: {backup})" if backup else "")
-        )
+        f"  已写入 {path}" + (f"（备份：{backup}）" if backup else "")
+        if lang == "zh"
+        else f"  written to {path}" + (f" (backup: {backup})" if backup else "")
     )
     console.blank()
 
@@ -869,7 +873,6 @@ def _watch_signal(cfg: Config, watch_state, check: UpdateCheck) -> tuple[str, st
 
     assessment = check.assessment
     current_tag = check.latest.tag if check.latest else None
-    current_level = assessment.level if assessment else None
     current_action = check.action
     current_channel = check.channel
     current_status = check.update_status
@@ -878,7 +881,6 @@ def _watch_signal(cfg: Config, watch_state, check: UpdateCheck) -> tuple[str, st
     current_confidence = (assessment.data_confidence or 0) if assessment else 0
 
     previous_tag = watch_state.last_latest_tag
-    previous_level = watch_state.last_risk_level
     previous_action = watch_state.last_recommendation
     previous_channel = watch_state.last_channel
     previous_status = watch_state.last_update_status

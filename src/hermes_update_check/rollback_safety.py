@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import logging
 import os
-import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Optional
@@ -263,15 +262,18 @@ def assess_rollback_safety(
         detail_zh = f"剩余 {disk_free_gib:.1f} GiB（>= {minimum:g} GiB）"
         detail_en = f"{disk_free_gib:.1f} GiB free (>= {minimum:g} GiB)"
     safety.checks.append(
-        SafetyCheck(key="disk_space", zh="磁盘空间", en="disk space", status=status, detail_zh=detail_zh, detail_en=detail_en)
+        SafetyCheck(
+            key="disk_space", zh="磁盘空间", en="disk space", status=status, detail_zh=detail_zh, detail_en=detail_en
+        )
     )
 
     # 6. virtualenv identifiable (dependencies must be reinstallable) -------- #
     venv = Path(env.venv_python) if getattr(env, "venv_python", None) else None
     if venv is None:
         status = SAFETY_WARN
-        detail_zh, detail_en = "无法识别 Hermes 的 venv/python（回滚后需手动重装依赖）", (
-            "Hermes venv/python not identified (dependencies must be reinstalled by hand after a rollback)"
+        detail_zh, detail_en = (
+            "无法识别 Hermes 的 venv/python（回滚后需手动重装依赖）",
+            ("Hermes venv/python not identified (dependencies must be reinstalled by hand after a rollback)"),
         )
     elif venv.exists():
         status = SAFETY_PASS
@@ -282,7 +284,12 @@ def assess_rollback_safety(
         detail_en = f"recorded venv does not exist: {venv}"
     safety.checks.append(
         SafetyCheck(
-            key="venv_python", zh="Python 环境可识别", en="python environment identifiable", status=status, detail_zh=detail_zh, detail_en=detail_en
+            key="venv_python",
+            zh="Python 环境可识别",
+            en="python environment identifiable",
+            status=status,
+            detail_zh=detail_zh,
+            detail_en=detail_en,
         )
     )
 
@@ -293,19 +300,29 @@ def assess_rollback_safety(
         detail_zh, detail_en = f"{backups_dir} 存在", f"{backups_dir} exists"
     elif not getattr(env, "hermes_cli", None):
         status = SAFETY_WARN
-        detail_zh, detail_en = "未找到 hermes 可执行文件，无法确认备份支持", "hermes executable not found; backup support unverified"
+        detail_zh, detail_en = (
+            "未找到 hermes 可执行文件，无法确认备份支持",
+            "hermes executable not found; backup support unverified",
+        )
     else:
         status = SAFETY_UNKNOWN
         detail_zh = f"{backups_dir} 不存在（首次备份会创建）"
         detail_en = f"{backups_dir} does not exist yet (the first backup creates it)"
     safety.checks.append(
         SafetyCheck(
-            key="backup_support", zh="备份支持", en="backup support", status=status, detail_zh=detail_zh, detail_en=detail_en
+            key="backup_support",
+            zh="备份支持",
+            en="backup support",
+            status=status,
+            detail_zh=detail_zh,
+            detail_en=detail_en,
         )
     )
 
     # -- aggregate ----------------------------------------------------------- #
-    worst = max((check.status for check in safety.checks), key=lambda status: _RANK.get(status, 1), default=SAFETY_UNKNOWN)
+    worst = max(
+        (check.status for check in safety.checks), key=lambda status: _RANK.get(status, 1), default=SAFETY_UNKNOWN
+    )
     if worst == SAFETY_FAIL:
         safety.status = SAFETY_FAIL
     elif any(check.status == SAFETY_WARN for check in safety.checks):

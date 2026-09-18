@@ -15,7 +15,10 @@ risk_threshold: 40
 
 # Releases younger than this are never recommended for update, no matter how
 # low the risk score is (release-age observation window).
-minimum_release_age_days: 5
+# Deprecated (phase 3): no longer delays a recommendation by days; if set, it only
+# caps the verdict at ACCEPTABLE while the release is inside the window. Prefer
+# release_age_policy below.
+minimum_release_age_days: 0
 
 # ── Safety switches ──────────────────────────────────────────────────────────
 # auto_update is ALWAYS false by default and must stay false unless you
@@ -68,23 +71,78 @@ github:
 # A gate is a rule, not a score: when one blocks, the recommendation is WAIT even
 # if the computed risk is LOW. Priority: data -> environment -> gates -> score ->
 # cooling period -> UPDATE.
+# ── Usage profile (phase 3) ──────────────────────────────────────────────────
+# Which parts of Hermes YOU depend on. A regression only counts against you if it
+# touches something you use: unused = never counted, critical = a confirmed
+# regression blocks the update.
+#
+#   critical  - a confirmed severe regression blocks the update (weight 1.0)
+#   important - counts fully toward your personal impact (weight 0.6)
+#   optional  - a small dent only (weight 0.25)
+#   unused    - invisible: a bug here can never block or delay (weight 0.0)
+#
+# Run `hermes-update-check profile detect` to generate this from your install
+# (it only claims "important" for what is configured, never "critical"), then edit.
+usage_profile:
+  features:
+    cli_agent: critical
+    desktop: critical
+    sessions: critical
+    tools: critical
+    mcp: important
+    gateway: important
+    telegram: important
+    web_tools: important
+    browser_tools: optional
+    docker: unused
+  providers:
+    providers: important      # group default for any provider not listed below
+    openai: critical
+    anthropic: important
+    gemini: unused
+
+# ── Gates (phase 3: short on purpose) ────────────────────────────────────────
 hard_gates:
   enabled: true
-  # BLOCK any release younger than this many hours (observation window).
-  minimum_release_age_hours: 48
-  # BLOCK updating while the install tracks the main development branch.
-  block_main_branch_update: true
-  # BLOCK updating with uncommitted changes in the git worktree.
+  # --- what still blocks -----------------------------------------------------
+  # System-wide risk with corroborated evidence: data corruption, session loss,
+  # credential loss, config destruction, installation corruption, rollback
+  # failure, "cannot start", all providers down.
+  block_on_systemic_risk: true
+  # A regression in a feature you marked `critical`, confirmed (HIGH + HIGH).
+  block_on_critical_workflow: true
+  # Rollback is not available (unreachable commit, unwritable state dir, no disk).
+  block_on_rollback_safety: true
+  # Local safety, not release quality: uncommitted changes in the git worktree.
   block_dirty_worktree: true
-  # BLOCK updating while running a prerelease build / moving to a prerelease.
-  block_prerelease: true
-  # BLOCK while there are open, corroborated regression reports per class:
-  block_active_database_regression: true
-  block_active_session_regression: true
-  block_active_gateway_regression: false      # noisy class: off by default
-  block_active_update_failure: true           # "hermes update fails" regressions
-  # BLOCK when the observation data itself is incomplete (never guess from gaps).
+  # Never guess from gaps in the observation data.
   block_on_insufficient_data: true
+  # --- what only warns (caps the verdict at ACCEPTABLE) ----------------------
+  # Set these to true only if you want the phase-2 behaviour back (they block).
+  block_main_branch_update: false
+  block_prerelease: false
+  warn_active_gateway_regression: true
+  warn_active_mcp_regression: true
+  warn_active_provider_regression: true
+  warn_active_auth_regression: true
+  warn_active_crash_regression: true
+
+# ── Release age (phase 3: segmented instead of a 48 h wall) ──────────────────
+release_age_policy:
+  # younger than this: BLOCKED (too fresh to judge)
+  block_hours: 6
+  # younger than this: caution (caps the verdict at ACCEPTABLE, never blocks)
+  caution_hours: 12
+  # younger than this: no caution, the age still feeds Change Risk
+  acceptable_hours: 24
+
+# ── Post-update smoke tests (read-only, they never call a tool) ──────────────
+smoke_tests:
+  cli_start: true          # `hermes --version` still runs
+  session_open: true       # the session store is readable
+  config_load: true        # config.yaml still parses
+  gateway: false           # only useful if you run a gateway
+  mcp_load: false          # only useful if you configured MCP servers
 
 # ── Network ──────────────────────────────────────────────────────────────────
 network:
