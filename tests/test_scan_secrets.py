@@ -218,3 +218,56 @@ def test_ci_workflow_runs_the_scan_on_full_history() -> None:
     assert "scan_secrets.py --all-history" in workflow
     assert "fetch-depth: 0" in workflow
     assert "gitleaks" in workflow
+
+
+# --------------------------------------------------------------------------- #
+# History scan: only file *contents* are scanned, never tree/commit metadata
+# --------------------------------------------------------------------------- #
+
+# the digit run that blocked a push once: it sat inside a blob sha in a tree listing.
+# Split in the middle of the digit run - a literal here would make the scanner flag
+# its own test file (which is exactly the failure this test documents).
+SHA_WITH_PHONE_LIKE_DIGITS = "9b6d04c20d95c7a603725109c6d162" + "6" + "5436672c8"
+
+
+def _fake_git(monkeypatch, objects: str, blobs: dict[str, str]) -> None:
+    """Serve a canned `rev-list --objects --all` + object contents."""
+
+    def fake_git_output(*args: str) -> str:
+        if args[:2] == ("rev-list", "--objects"):
+            return objects
+        if args[0] == "cat-file" and args[1] == "-p":
+            return blobs.get(args[2], "")
+        raise AssertionError(f"unexpected git call: {args}")
+
+    def fake_run(cmd, **kwargs):  # the --batch-check helper
+        wanted = str(kwargs.get("input", "")).split()
+        lines = [f"{sha} blob" if sha in blobs else f"{sha} tree" for sha in wanted]
+
+        class _Done:
+            stdout = "\n".join(lines)
+            returncode = 0
+
+        return _Done()
+
+    monkeypatch.setattr(scanner, "git_output", fake_git_output)
+    monkeypatch.setattr(scanner.subprocess, "run", fake_run)
+
+
+def test_tree_objects_are_not_scanned(monkeypatch) -> None:
+    """A tree listing is sha + filename: its hex must never be read as content."""
+    tree_sha = "73da9b074f0b75f30f4d76686d4d8152ece4188a"
+    objects = f"{tree_sha} tests\n{SHA_WITH_PHONE_LIKE_DIGITS} tests/test_x.py"
+    _fake_git(monkeypatch, objects, {SHA_WITH_PHONE_LIKE_DIGITS: "print('hello')\n"})
+    assert scanner.scan_git_history() == []
+
+
+def test_blob_contents_are_still_scanned(monkeypatch) -> None:
+    """The tree skip must not blind the scanner to real leaks in history."""
+    token = "ghp_" + "Z9Y8X7W6V5U4T3S2R1Q0P9O8N7M6L5K4"
+    objects = f"{SHA_WITH_PHONE_LIKE_DIGITS} tests/test_x.py"
+    _fake_git(monkeypatch, objects, {SHA_WITH_PHONE_LIKE_DIGITS: f'token = "{token}"\n'})
+    problems = scanner.scan_git_history()
+    assert len(problems) == 1
+    assert "github-token" in problems[0]
+    assert token not in problems[0]  # redacted, never echoed back

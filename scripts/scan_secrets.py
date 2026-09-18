@@ -212,16 +212,44 @@ def git_output(*args: str) -> str:
     return subprocess.run(["git", *args], check=True, capture_output=True, text=True, errors="ignore").stdout
 
 
+def _only_blobs(shas: list[str]) -> set[str]:
+    """Keep only the object ids that are blobs (`git cat-file --batch-check`)."""
+    if not shas:
+        return set()
+    proc = subprocess.run(
+        ["git", "cat-file", "--batch-check=%(objectname) %(objecttype)"],
+        input="\n".join(shas),
+        capture_output=True,
+        text=True,
+        errors="ignore",
+        check=True,
+    )
+    keep: set[str] = set()
+    for line in proc.stdout.splitlines():
+        parts = line.split()
+        if len(parts) == 2 and parts[1] == "blob":
+            keep.add(parts[0])
+    return keep
+
+
 def scan_git_history() -> list[str]:
-    """Scan every blob reachable from any ref (catches removed-but-committed data)."""
+    """Scan every blob reachable from any ref (catches removed-but-committed data).
+
+    Only *blobs* are scanned. Tree objects must be skipped: their raw listing is a
+    list of `<child sha>\\t<filename>`, and a hex digest can contain a digit run that
+    looks like a phone number or an ID (a real false positive that blocked a push:
+    the sha of `tests/test_impact.py` happened to contain 11 digits in a row).
+    """
     problems: list[str] = []
     seen: set[str] = set()
+    entries: list[tuple[str, str]] = []
     for rev in git_output("rev-list", "--objects", "--all").splitlines():
         parts = rev.split(maxsplit=1)
-        if len(parts) != 2:
-            continue
-        sha, name = parts
-        if sha in seen or Path(name).suffix.lower() in SKIP_SUFFIXES:
+        if len(parts) == 2:
+            entries.append((parts[0], parts[1]))
+    blobs = _only_blobs([sha for sha, _ in entries])
+    for sha, name in entries:
+        if sha not in blobs or sha in seen or Path(name).suffix.lower() in SKIP_SUFFIXES:
             continue
         seen.add(sha)
         try:
