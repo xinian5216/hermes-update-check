@@ -84,7 +84,7 @@ release (`pyproject.toml` + `__init__.py`, then tag `vX.Y.Z`).
    a fresh venv, run `hermes-update-check --version`. `gh release view` only proves the
    release exists, not that the artifact installs.
 
-Currently released: **v1.1.0** (wheel + sdist attached).
+Currently released: **v1.2.0** (wheel + sdist attached; phase-3 decision model).
 
 ## Conventions
 
