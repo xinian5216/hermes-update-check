@@ -44,7 +44,7 @@ background information, never the decision.
 | path | what lives there |
 |---|---|
 | `src/hermes_update_check/` | the package (see `docs/CODE_MAP.md` for every module) |
-| `tests/` | 537 offline tests; fake GitHub client in `tests/conftest.py` |
+| `tests/` | 538 offline tests; fake GitHub client in `tests/conftest.py` |
 | `docs/CODE_MAP.md`, `docs/index.json` | generated code map for agents (see below) |
 | `scripts/build_index.py` | regenerates `docs/CODE_MAP.md` + `docs/index.json` |
 | `scripts/scan_secrets.py` | secret/privacy scanner (pre-commit hook + CI) |
@@ -70,7 +70,7 @@ Windows: the interpreter is at `.venv\Scripts\python.exe` and the command at
 ## The loop
 
 ```bash
-.venv/bin/python -m pytest -q                         # 537 tests, must stay green, offline
+.venv/bin/python -m pytest -q                         # 538 tests, must stay green, offline
 .venv/bin/python -m pytest --cov --cov-fail-under=80  # coverage gate (currently 82%)
 .venv/bin/python -m ruff check .                      # lint gate (0 findings)
 .venv/bin/python -m ruff format --check .             # formatting gate
@@ -95,7 +95,7 @@ release (`pyproject.toml` + `__init__.py`, then tag `vX.Y.Z`).
    a fresh venv, run `hermes-update-check --version`. `gh release view` only proves the
    release exists, not that the artifact installs.
 
-Currently released: **v1.2.0** (wheel + sdist attached; phase-3 decision model).
+Currently released: **v1.3.0** (wheel + sdist attached; phase-4 managed overrides).
 
 ## Conventions
 
