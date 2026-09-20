@@ -275,3 +275,26 @@ def test_collect_issue_signal_marks_failure(cfg) -> None:
     signal = collect_issue_signal(cfg, Failing(), make_release(age_hours=10))
     assert signal.available is False
     assert "rate limit" in (signal.unavailable_reason or "")
+
+
+def test_run_check_fetches_release_data_fresh(cfg, hermes_home, state_root) -> None:
+    """Regression: interactive checks must not silently answer from the hours-old
+    disk cache (user report: every desktop-shortcut run showed the previous result).
+
+    The decisive endpoints (release list, compare, tag commit) are requested with
+    fresh=True; the freshness metadata lands on the check and in the JSON contract.
+    """
+    releases = [make_release(tag="v2026.9.14", version="0.22.0"), make_release(tag="v2026.9.11", version="0.21.2")]
+    client = FakeGitHubClient(releases=releases, compare=make_compare(commits=30), tag_commit="abc123")
+    env = make_env(hermes_home, version="0.21.2", tag="v2026.9.11")
+    check = run_check(cfg, env=env, client=client, state_root=state_root)
+
+    assert client.list_releases_calls, "run_check must list releases"
+    assert all(call["fresh"] is True for call in client.list_releases_calls)
+    assert client.compare_calls, "run_check must compare"
+    assert all(call["fresh"] is True for call in client.compare_calls)
+    assert check.release_data_from_cache is False  # FakeGitHubClient never serves cache
+    assert check.release_data_age_seconds is None
+    payload = check.to_dict()
+    assert payload["release_data_from_cache"] is False
+    assert "release_data_age_seconds" in payload

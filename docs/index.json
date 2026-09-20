@@ -153,7 +153,7 @@
     {
       "name": "checker",
       "path": "hermes_update_check/checker.py",
-      "lines": 895,
+      "lines": 905,
       "summary": "Orchestration: gather every input, then hand it to the risk engine",
       "symbols": [
         {
@@ -200,7 +200,7 @@
         {
           "kind": "function",
           "name": "build_http_client",
-          "line": 338,
+          "line": 342,
           "summary": "Create the HTTP client with token and disk cache",
           "signature": "(cfg: Config, state_root: Path, *, logger: Optional[logging.Logger] = …, no_cache: bool = …) -> tuple[HttpClient, bool]",
           "members": []
@@ -208,7 +208,7 @@
         {
           "kind": "function",
           "name": "resolve_github_token",
-          "line": 354,
+          "line": 358,
           "summary": "Find a GitHub token in the environment (never in the config file)",
           "signature": "(cfg: Config) -> tuple[Optional[str], bool]",
           "members": []
@@ -216,7 +216,7 @@
         {
           "kind": "function",
           "name": "build_github_client",
-          "line": 368,
+          "line": 372,
           "summary": "",
           "signature": "(cfg: Config, state_root: Path, *, logger: Optional[logging.Logger] = …, no_cache: bool = …) -> tuple[GitHubClient, bool, HttpClient]",
           "members": []
@@ -224,7 +224,7 @@
         {
           "kind": "function",
           "name": "run_check",
-          "line": 385,
+          "line": 389,
           "summary": "Full check: local env -> releases -> compare -> issues -> risk assessment",
           "signature": "(cfg: Config, *, env: Optional[LocalEnv] = …, client: Optional[GitHubClient] = …, state_root: Optional[Path] = …, no_cache: bool = …, include_issues: Optional[bool] = …, logger: Optional[logging.Logger] = …) -> UpdateCheck",
           "members": []
@@ -232,7 +232,7 @@
         {
           "kind": "function",
           "name": "collect_issue_signal",
-          "line": 671,
+          "line": 681,
           "summary": "Search GitHub issues filed after the release, plus a baseline window",
           "signature": "(cfg: Config, client: GitHubClient, release: Release, *, provenance: Optional[CodeProvenance] = …, logger: Optional[logging.Logger] = …, use_cache: bool = …) -> IssueSignal",
           "members": []
@@ -240,7 +240,7 @@
         {
           "kind": "function",
           "name": "issue_signal_confidence",
-          "line": 850,
+          "line": 860,
           "summary": "Issue Signal Confidence (0-100): how much should the issue data be trusted?",
           "signature": "(signal: IssueSignal) -> int",
           "members": []
@@ -248,7 +248,7 @@
         {
           "kind": "function",
           "name": "summarize_release_line",
-          "line": 878,
+          "line": 888,
           "summary": "One-line label like ``v0.21.3 (v2026.9.14) - 0.6 days old``",
           "signature": "(release: Release) -> str",
           "members": []
@@ -256,7 +256,7 @@
         {
           "kind": "function",
           "name": "level_of",
-          "line": 886,
+          "line": 896,
           "summary": "",
           "signature": "(score: Optional[int]) -> str",
           "members": []
@@ -264,7 +264,7 @@
         {
           "kind": "function",
           "name": "iso_now",
-          "line": 890,
+          "line": 900,
           "summary": "",
           "signature": "() -> str",
           "members": []
@@ -272,7 +272,7 @@
         {
           "kind": "function",
           "name": "normalise_release_tag",
-          "line": 894,
+          "line": 904,
           "summary": "",
           "signature": "(tag: Optional[str]) -> Optional[str]",
           "members": []
@@ -1147,7 +1147,7 @@
     {
       "name": "github_api",
       "path": "hermes_update_check/github_api.py",
-      "lines": 573,
+      "lines": 585,
       "summary": "GitHub API access for the Hermes repository: releases, compares, issue searches",
       "symbols": [
         {
@@ -1285,7 +1285,7 @@
         {
           "kind": "function",
           "name": "extract_display_version",
-          "line": 470,
+          "line": 482,
           "summary": "Find the SemVer-ish display version behind a date tag",
           "signature": "(name: str, body: str, tag: str) -> Optional[str]",
           "members": []
@@ -1293,7 +1293,7 @@
         {
           "kind": "function",
           "name": "extract_pr_count",
-          "line": 509,
+          "line": 521,
           "summary": "Estimate the number of PRs a release bundles, from its own release notes",
           "signature": "(text: str | None) -> Optional[int]",
           "members": []
@@ -1301,7 +1301,7 @@
         {
           "kind": "function",
           "name": "build_issue_query",
-          "line": 533,
+          "line": 545,
           "summary": "Compose a GitHub issue-search query string",
           "signature": "(repo: str, *, created_after: Optional[datetime] = …, created_before: Optional[datetime] = …, keywords: Sequence[str] = …, label: Optional[str] = …, state: Optional[str] = …) -> str",
           "members": []
@@ -1309,7 +1309,7 @@
         {
           "kind": "function",
           "name": "parse_repo_slug",
-          "line": 569,
+          "line": 581,
           "summary": "",
           "signature": "(slug: str) -> tuple[str, str]",
           "members": []
@@ -1349,7 +1349,7 @@
     {
       "name": "http",
       "path": "hermes_update_check/http.py",
-      "lines": 309,
+      "lines": 317,
       "summary": "HTTP layer: stdlib-only client with timeouts, retries, on-disk cache and rate-limit awareness",
       "symbols": [
         {
@@ -1399,7 +1399,7 @@
         {
           "kind": "function",
           "name": "rate_limit_message",
-          "line": 282,
+          "line": 290,
           "summary": "",
           "signature": "(reset_header: Optional[str]) -> str",
           "members": []
@@ -1407,7 +1407,7 @@
         {
           "kind": "function",
           "name": "require_ok",
-          "line": 303,
+          "line": 311,
           "summary": "Turn an HttpResult into data or raise the right typed error",
           "signature": "(result: HttpResult, *, what: str) -> Any",
           "members": []
@@ -2804,7 +2804,7 @@
     {
       "name": "report",
       "path": "hermes_update_check/report.py",
-      "lines": 901,
+      "lines": 931,
       "summary": "Report rendering: the human-readable answer, in Chinese or English",
       "symbols": [
         {
@@ -2818,7 +2818,7 @@
         {
           "kind": "class",
           "name": "Reporter",
-          "line": 62,
+          "line": 71,
           "summary": "Renders an UpdateCheck for humans (rich) or machines (markdown/json)",
           "signature": "",
           "members": [
@@ -4106,9 +4106,9 @@
     },
     {
       "path": "tests/test_checker.py",
-      "lines": 277,
+      "lines": 300,
       "summary": "Orchestration tests: run_check with an injected (fake) GitHub client",
-      "tests": 13,
+      "tests": 14,
       "names": [
         "test_run_check_full_picture",
         "test_run_check_up_to_date",
@@ -4122,7 +4122,8 @@
         "test_comment_enrichment_marks_maintainer_confirmation",
         "test_collect_issue_signal_clusters",
         "test_collect_issue_signal_without_timestamp",
-        "test_collect_issue_signal_marks_failure"
+        "test_collect_issue_signal_marks_failure",
+        "test_run_check_fetches_release_data_fresh"
       ]
     },
     {
@@ -4289,9 +4290,9 @@
     },
     {
       "path": "tests/test_http_cache.py",
-      "lines": 118,
+      "lines": 163,
       "summary": "HTTP layer tests: cache TTL, stale fallback, failure handling (no external network)",
-      "tests": 10,
+      "tests": 12,
       "names": [
         "test_disk_cache_roundtrip",
         "test_disk_cache_expiry_and_stale",
@@ -4302,7 +4303,9 @@
         "test_http_client_falls_back_to_stale_cache",
         "test_fresh_cache_hit_is_not_degraded",
         "test_rate_limit_message_shapes_epoch",
-        "test_require_ok_raises_typed_errors"
+        "test_require_ok_raises_typed_errors",
+        "test_fresh_request_skips_cache_read_but_writes_back",
+        "test_fresh_request_still_falls_back_to_stale_cache"
       ]
     },
     {
@@ -4525,9 +4528,9 @@
     },
     {
       "path": "tests/test_report.py",
-      "lines": 159,
+      "lines": 175,
       "summary": "Report rendering tests (plain-text console, no network)",
-      "tests": 10,
+      "tests": 11,
       "names": [
         "test_compact_report_mentions_the_essentials",
         "test_report_english",
@@ -4538,7 +4541,8 @@
         "test_report_survives_missing_issue_data",
         "test_up_to_date_report",
         "test_plain_output_has_no_rich_markup",
-        "test_json_output_is_markup_free"
+        "test_json_output_is_markup_free",
+        "test_report_shows_data_freshness_line"
       ]
     },
     {
@@ -4776,7 +4780,7 @@
   ],
   "totals": {
     "modules": 32,
-    "lines": 16894,
-    "tests": 472
+    "lines": 16954,
+    "tests": 476
   }
 }

@@ -88,7 +88,7 @@ class StubHttp(HttpClient):
         self.routes = routes
         self.calls: list[str] = []
 
-    def get_json(self, url, *, params=None, extra_headers=None, use_cache=True, cache_key=None):
+    def get_json(self, url, *, params=None, extra_headers=None, use_cache=True, cache_key=None, fresh=False):
         from hermes_update_check.http import HttpResult
 
         self.calls.append(url)

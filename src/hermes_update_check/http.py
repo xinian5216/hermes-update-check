@@ -164,8 +164,16 @@ class HttpClient:
         extra_headers: Optional[Mapping[str, str]] = None,
         use_cache: bool = True,
         cache_key: Optional[str] = None,
+        fresh: bool = False,
     ) -> HttpResult:
-        """GET a JSON document. Never raises for network problems: inspect ``result.error``."""
+        """GET a JSON document. Never raises for network problems: inspect ``result.error``.
+
+        ``fresh=True`` skips the fresh-cache *read* but still writes a successful
+        response back to the cache and still falls back to stale cache on network
+        failure. Interactive commands use it for decisive endpoints (release list,
+        compare) so a manual ``check`` never silently answers from hours-old data,
+        while the expensive issue endpoints keep the normal TTL.
+        """
         full_url = url
         if params:
             filtered = {k: v for k, v in params.items() if v is not None}
@@ -173,10 +181,10 @@ class HttpClient:
                 full_url = f"{url}?{urlencode(filtered)}"
         key = cache_key or full_url
 
-        if use_cache and self.cache is not None:
-            fresh = self.cache.get(key)
-            if fresh is not None:
-                payload, age = fresh
+        if use_cache and not fresh and self.cache is not None:
+            fresh_hit = self.cache.get(key)
+            if fresh_hit is not None:
+                payload, age = fresh_hit
                 self.log.debug("cache hit %s (age %.0fs)", key, age)
                 return HttpResult(url=full_url, status=200, data=payload, from_cache=True, cache_age_seconds=age)
 

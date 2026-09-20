@@ -111,6 +111,8 @@ class UpdateCheck:
     env: LocalEnv
     generated_at: datetime = field(default_factory=utcnow)
     releases: list[Release] = field(default_factory=list)
+    release_data_from_cache: bool = False
+    release_data_age_seconds: Optional[float] = None
     latest: Optional[Release] = None
     previous: Optional[Release] = None
     compare: Optional[CompareResult] = None
@@ -271,6 +273,8 @@ class UpdateCheck:
             )
         return {
             "generated_at": iso(self.generated_at),
+            "release_data_from_cache": self.release_data_from_cache,
+            "release_data_age_seconds": self.release_data_age_seconds,
             "repo": self.cfg.repo,
             "local": local,
             "provenance": self.provenance.to_dict() if self.provenance else None,
@@ -406,7 +410,13 @@ def run_check(
     check.degradation.extend(local.errors)
 
     include_prerelease = bool(cfg.allow_prerelease or cfg.preferred_channel == "prerelease")
-    releases = client.list_releases(per_page=30, use_cache=not no_cache)
+    # Interactive checks must never silently answer from the hours-old disk cache:
+    # the release list / compare / tag-commit endpoints are cheap and decisive, so
+    # they always fetch fresh (stale cache remains the offline fallback). Only the
+    # rate-limit-expensive issue endpoints keep the normal cache TTL.
+    releases = client.list_releases(per_page=30, use_cache=not no_cache, fresh=True)
+    check.release_data_from_cache = bool(getattr(client, "last_releases_from_cache", False))
+    check.release_data_age_seconds = getattr(client, "last_releases_age_seconds", None)
     check.degradation.extend(client.degradations)
     client.degradations.clear()
     check.releases = releases
@@ -459,7 +469,7 @@ def run_check(
         local,
         releases,
         latest=latest,
-        compare=lambda base, head: client.compare(base, head, use_cache=not no_cache),
+        compare=lambda base, head: client.compare(base, head, use_cache=not no_cache, fresh=True),
         managed_overrides=check.overrides.managed_count if check.overrides else 0,
         unknown_changes=check.overrides.unknown_count if check.overrides else 0,
         drifted_overrides=check.overrides.drifted_count if check.overrides else 0,
@@ -470,7 +480,7 @@ def run_check(
         # GitHub compare refused (404: local-only commit / unfetched tag). Ask for
         # the release *commit* and let local git answer the same question.
         lookup = getattr(client, "tag_commit", None)
-        release_commit = lookup(latest.tag, use_cache=not no_cache) if callable(lookup) else None
+        release_commit = lookup(latest.tag, use_cache=not no_cache, fresh=True) if callable(lookup) else None
         if release_commit:
             provenance = resolve_provenance(
                 local,
@@ -498,7 +508,7 @@ def run_check(
     # -- diff size -------------------------------------------------------- #
     base_tag = check.previous.tag if check.previous else (local.release_tag or None)
     if base_tag and base_tag != latest.tag:
-        check.compare = client.compare(base_tag, latest.tag, use_cache=not no_cache)
+        check.compare = client.compare(base_tag, latest.tag, use_cache=not no_cache, fresh=True)
         check.degradation.extend(client.degradations)
         client.degradations.clear()
 

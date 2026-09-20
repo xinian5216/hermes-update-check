@@ -233,13 +233,23 @@ class GitHubClient:
         self.log = logger or get_logger("github")
         self._searches_used = 0
         self.degradations: list[str] = []
+        self.last_releases_from_cache: Optional[bool] = None
+        self.last_releases_age_seconds: Optional[float] = None
 
     # -- endpoints ----------------------------------------------------------- #
 
-    def list_releases(self, *, per_page: int = 20, use_cache: bool = True) -> list[Release]:
-        """Newest-first list of releases (includes prereleases; filter at the call site)."""
+    def list_releases(self, *, per_page: int = 20, use_cache: bool = True, fresh: bool = False) -> list[Release]:
+        """Newest-first list of releases (includes prereleases; filter at the call site).
+
+        ``fresh=True`` bypasses the fresh-cache read so interactive checks always
+        see the current release list; the response still refreshes the cache.
+        """
         url = f"{API_ROOT}/repos/{self.repo}/releases"
-        result = self.http.get_json(url, params={"per_page": max(1, min(100, per_page))}, use_cache=use_cache)
+        result = self.http.get_json(
+            url, params={"per_page": max(1, min(100, per_page))}, use_cache=use_cache, fresh=fresh
+        )
+        self.last_releases_from_cache = bool(result.from_cache)
+        self.last_releases_age_seconds = result.cache_age_seconds
         if result.stale:
             self._record_degradation(f"releases: using cached data ({result.error})")
         if not result.ok:
@@ -261,12 +271,14 @@ class GitHubClient:
             return release
         return None
 
-    def compare(self, base_tag: str, head_tag: str, *, use_cache: bool = True) -> Optional[CompareResult]:
+    def compare(
+        self, base_tag: str, head_tag: str, *, use_cache: bool = True, fresh: bool = False
+    ) -> Optional[CompareResult]:
         """Compare two tags/refs; handles the 250-commit truncation honestly."""
         if not base_tag or not head_tag:
             return None
         url = f"{API_ROOT}/repos/{self.repo}/compare/{quote_plus(base_tag)}...{quote_plus(head_tag)}"
-        result = self.http.get_json(url, use_cache=use_cache)
+        result = self.http.get_json(url, use_cache=use_cache, fresh=fresh)
         if result.stale:
             self._record_degradation(f"compare {base_tag}...{head_tag}: using cached data ({result.error})")
         if not result.ok:
@@ -304,7 +316,7 @@ class GitHubClient:
             self.log.debug("compare truncated: %d of %d commits in payload", len(commits), compare.total_commits)
         return compare
 
-    def tag_commit(self, tag: str, *, use_cache: bool = True) -> Optional[str]:
+    def tag_commit(self, tag: str, *, use_cache: bool = True, fresh: bool = False) -> Optional[str]:
         """The commit a release tag points at (annotated tags are dereferenced).
 
         Phase-4 local-git fallback: when GitHub cannot *compare* (404 - the local
@@ -314,7 +326,7 @@ class GitHubClient:
         if not tag:
             return None
         url = f"{API_ROOT}/repos/{self.repo}/git/ref/tags/{quote_plus(tag)}"
-        result = self.http.get_json(url, use_cache=use_cache)
+        result = self.http.get_json(url, use_cache=use_cache, fresh=fresh)
         if not result.ok or not isinstance(result.data, dict):
             return None
         obj = result.data.get("object")
@@ -324,7 +336,7 @@ class GitHubClient:
         kind = str(obj.get("type", ""))
         if kind == "tag" and sha:
             # annotated tag: the ref points at a tag object, not at the commit
-            deref = self.http.get_json(f"{API_ROOT}/repos/{self.repo}/git/tags/{sha}", use_cache=use_cache)
+            deref = self.http.get_json(f"{API_ROOT}/repos/{self.repo}/git/tags/{sha}", use_cache=use_cache, fresh=fresh)
             if deref.ok and isinstance(deref.data, dict):
                 inner = deref.data.get("object")
                 if isinstance(inner, dict) and inner.get("sha"):

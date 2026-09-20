@@ -136,9 +136,14 @@ class FakeGitHubClient:
         self.comment_calls: list[int] = []
         self.tag_commit_result = tag_commit
         self.tag_commit_calls: list[str] = []
+        self.list_releases_calls: list[dict] = []
+        self.compare_calls: list[dict] = []
+        self.last_releases_from_cache: bool | None = None
+        self.last_releases_age_seconds: float | None = None
         self.http = type("FakeHttp", (), {"token": token})()
 
-    def list_releases(self, *, per_page: int = 20, use_cache: bool = True):
+    def list_releases(self, *, per_page: int = 20, use_cache: bool = True, fresh: bool = False):
+        self.list_releases_calls.append({"per_page": per_page, "use_cache": use_cache, "fresh": fresh})
         return list(self.releases)
 
     def latest_release(self, *, include_prereleases: bool = False, per_page: int = 20):
@@ -148,7 +153,8 @@ class FakeGitHubClient:
             return release
         return None
 
-    def compare(self, base_tag: str, head_tag: str, *, use_cache: bool = True):
+    def compare(self, base_tag: str, head_tag: str, *, use_cache: bool = True, fresh: bool = False):
+        self.compare_calls.append({"base": base_tag, "head": head_tag, "use_cache": use_cache, "fresh": fresh})
         # tag...tag -> release diff; tag...sha/branch -> provenance probe
         if base_tag.startswith("v2") and head_tag and not head_tag.startswith("v2"):
             return self.head_compare_result
@@ -156,7 +162,7 @@ class FakeGitHubClient:
             return self.head_compare_result
         return self.compare_result
 
-    def tag_commit(self, tag: str, *, use_cache: bool = True):
+    def tag_commit(self, tag: str, *, use_cache: bool = True, fresh: bool = False):
         """Release commit lookup used by the phase-4 local-git fallback."""
         self.tag_commit_calls.append(tag)
         return self.tag_commit_result

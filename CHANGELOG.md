@@ -4,6 +4,23 @@ All notable changes to this project are documented here. The format loosely
 follows [Keep a Changelog](https://keepachangelog.com/) and the project uses
 semantic versioning.
 
+## [1.3.1] - 2026-09-20
+
+修复：交互式检查不再静默使用数小时前的磁盘缓存（用户报告：桌面快捷方式每次
+检测都显示上一次的结果）。设计缺陷是 `check` / `report` / `watch` / `update`
+与缓存的 TTL（默认 360 分钟）共用同一条缓存策略——缓存本是为 `watch` 的限流
+保护设计的，却让手动检查拿到陈旧答案。
+
+### Fixed
+
+- `run_check` 对**决定性且廉价**的端点（release 列表、compare、tag commit）
+  一律实时拉取（`fresh=True`）：跳过新鲜缓存读，成功后仍回写缓存，网络失败
+  时照旧回退到陈旧缓存并如实标注 degraded。
+- **昂贵的 issue 搜索/评论端点保留正常缓存 TTL**（限流保护不变）。
+- 报告头部新增数据时效行：「更新数据：实时（刚从 GitHub 获取）」或
+  「更新数据：缓存（约 N 分钟前获取，GitHub 不可达时的兜底）」；JSON 契约
+  新增 `release_data_from_cache` / `release_data_age_seconds`。
+
 ## [1.3.0] - 2026-09-18
 
 第四阶段：**Managed Local Overrides**（受管本地修改）+ GitHub compare 404 的本地 git 兜底。

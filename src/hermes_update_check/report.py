@@ -59,6 +59,15 @@ SECTION_ENV = ("本地环境", "LOCAL ENVIRONMENT")
 SECTION_NOTES = ("备注", "NOTES")
 
 
+def _format_age(seconds: float, *, zh: bool) -> str:
+    """Compact human age for cache-staleness labels (minutes dominate below 2h)."""
+    minutes = max(1, round(seconds / 60))
+    if minutes < 60:
+        return f"{minutes} 分钟" if zh else f"{minutes} min"
+    hours = minutes / 60
+    return f"{hours:.1f} 小时" if zh else f"{hours:.1f} h"
+
+
 class Reporter:
     """Renders an UpdateCheck for humans (rich) or machines (markdown/json)."""
 
@@ -80,6 +89,7 @@ class Reporter:
         console = self.console
         console.blank()
         console.print_markup(f"[bold]{REPORT_TITLE}[/bold]")
+        self._render_data_freshness(check)
         console.blank()
 
         self._render_provenance(check)
@@ -103,6 +113,26 @@ class Reporter:
         self._render_notes(check)
 
     # -- sections ------------------------------------------------------------ #
+
+    def _render_data_freshness(self, check: UpdateCheck) -> None:
+        """Say plainly whether the release data behind this report is live or cached."""
+        if not check.releases:
+            return
+        if check.release_data_from_cache:
+            age = check.release_data_age_seconds or 0.0
+            label = _format_age(age, zh=self.lang == "zh")
+            msg = (
+                f"更新数据：缓存（约 {label}前获取，GitHub 不可达时的兜底）"
+                if self.lang == "zh"
+                else f"Release data: cached (fetched ~{label} ago; offline fallback)"
+            )
+        else:
+            msg = (
+                "更新数据：实时（刚从 GitHub 获取）"
+                if self.lang == "zh"
+                else "Release data: live (just fetched from GitHub)"
+            )
+        self.console.print_markup(f"[dim]{msg}[/dim]")
 
     def _render_provenance(self, check: UpdateCheck) -> None:
         prov = check.provenance

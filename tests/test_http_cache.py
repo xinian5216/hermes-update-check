@@ -116,3 +116,48 @@ def test_require_ok_raises_typed_errors() -> None:
         pass
     else:  # pragma: no cover
         raise AssertionError("NetworkError not raised")
+
+
+def test_fresh_request_skips_cache_read_but_writes_back(tmp_path: Path, monkeypatch) -> None:
+    """fresh=True must re-fetch even when a fresh cached entry exists, and refresh it."""
+    from hermes_update_check.http import HttpResult
+
+    cache = DiskCache(tmp_path, ttl_minutes=60)
+    cache.set("http://example.invalid/fresh", {"old": True})
+    client = HttpClient(timeout=2, retries=0, cache=cache)
+    calls = {"n": 0}
+
+    def fake_request(url: str, headers) -> HttpResult:
+        calls["n"] += 1
+        return HttpResult(url=url, status=200, data={"new": True})
+
+    monkeypatch.setattr(client, "_request_with_retries", fake_request)
+    result = client.get_json("http://example.invalid/fresh", fresh=True)
+    assert result.ok and result.data == {"new": True}
+    assert result.from_cache is False
+    assert calls["n"] == 1  # the fresh entry was NOT served from cache
+    # ...but the fresh response still refreshed the cache for everyone else
+    hit = cache.get("http://example.invalid/fresh")
+    assert hit is not None and hit[0] == {"new": True}
+    # a normal (non-fresh) call now serves from cache without hitting the network
+    again = client.get_json("http://example.invalid/fresh")
+    assert again.from_cache is True and again.data == {"new": True}
+    assert calls["n"] == 1
+
+
+def test_fresh_request_still_falls_back_to_stale_cache(tmp_path: Path, monkeypatch) -> None:
+    """fresh means "don't trust fresh cache", not "die when the network dies"."""
+    from hermes_update_check.http import HttpResult
+
+    cache = DiskCache(tmp_path, ttl_minutes=0)  # nothing is ever fresh here
+    cache.set("http://example.invalid/stale", {"old": True})
+    client = HttpClient(timeout=2, retries=0, cache=cache)
+
+    def failing_request(url: str, headers) -> HttpResult:
+        return HttpResult(url=url, error="connection failed: test")
+
+    monkeypatch.setattr(client, "_request_with_retries", failing_request)
+    result = client.get_json("http://example.invalid/stale", fresh=True)
+    assert result.ok is True
+    assert result.from_cache is True and result.stale is True
+    assert result.data == {"old": True}

@@ -5,8 +5,8 @@ Read this before opening files: it is regenerated from the source by
 
 ## Quick facts
 
-- package: `hermes_update_check` - 32 modules, 16894 lines
-- tests: 472 test functions in 28 files (offline, no network)
+- package: `hermes_update_check` - 32 modules, 16954 lines
+- tests: 476 test functions in 28 files (offline, no network)
 - docs: `README.md` (user guide), `SECURITY.md` (privacy policy), `CHANGELOG.md`
 - invariants: never updates Hermes without an explicit `y`; unknown data is reported as
   UNKNOWN, never as safe; exit codes are a public contract (see `errors.py`)
@@ -44,9 +44,9 @@ Read this before opening files: it is regenerated from the source by
 | [`cli`](../hermes_update_check/cli.py) | 1707 | Command line interface |
 | [`overrides`](../hermes_update_check/overrides.py) | 1324 | Managed Local Overrides: intentional local customization is not corruption |
 | [`risk`](../hermes_update_check/risk.py) | 1195 | The risk engine: everything that turns observations into an Update Risk Score |
-| [`report`](../hermes_update_check/report.py) | 901 | Report rendering: the human-readable answer, in Chinese or English |
+| [`report`](../hermes_update_check/report.py) | 931 | Report rendering: the human-readable answer, in Chinese or English |
+| [`checker`](../hermes_update_check/checker.py) | 905 | Orchestration: gather every input, then hand it to the risk engine |
 | [`config`](../hermes_update_check/config.py) | 897 | Configuration loading, validation and path resolution |
-| [`checker`](../hermes_update_check/checker.py) | 895 | Orchestration: gather every input, then hand it to the risk engine |
 | [`updater`](../hermes_update_check/updater.py) | 812 | Update execution: snapshot -> update -> health check -> (rollback) |
 | [`clusters`](../hermes_update_check/clusters.py) | 804 | Regression clustering: turn raw issue hits into *credible* regression signals |
 | [`provenance`](../hermes_update_check/provenance.py) | 797 | Code provenance: *what code is actually running*, not just what it calls itself |
@@ -55,13 +55,13 @@ Read this before opening files: it is regenerated from the source by
 | [`advisor`](../hermes_update_check/advisor.py) | 659 | The advisor: turn provenance + risk + readiness + gates into one verdict |
 | [`preflight`](../hermes_update_check/preflight.py) | 635 | Pre-update checks: is this machine actually in a state where an update is safe to start? |
 | [`usage_profile`](../hermes_update_check/usage_profile.py) | 614 | Which parts of Hermes this user actually depends on |
-| [`github_api`](../hermes_update_check/github_api.py) | 573 | GitHub API access for the Hermes repository: releases, compares, issue searches |
+| [`github_api`](../hermes_update_check/github_api.py) | 585 | GitHub API access for the Hermes repository: releases, compares, issue searches |
 | [`health`](../hermes_update_check/health.py) | 555 | Post-update health checks: did the update actually leave a working install? |
 | [`local_env`](../hermes_update_check/local_env.py) | 533 | Local environment detection: what Hermes is installed here, how, and in what state |
 | [`util`](../hermes_update_check/util.py) | 512 | Small, dependency-free helpers: subprocess runner, JSON IO, time parsing, hashing |
 | [`rollback_safety`](../hermes_update_check/rollback_safety.py) | 344 | Can we actually get back if the update goes wrong? |
 | [`state`](../hermes_update_check/state.py) | 327 | State files: `update_state.json`, watch state, cache/snapshot directories |
-| [`http`](../hermes_update_check/http.py) | 309 | HTTP layer: stdlib-only client with timeouts, retries, on-disk cache and rate-limit awareness |
+| [`http`](../hermes_update_check/http.py) | 317 | HTTP layer: stdlib-only client with timeouts, retries, on-disk cache and rate-limit awareness |
 | [`versioning`](../hermes_update_check/versioning.py) | 299 | Version parsing and comparison |
 | [`console`](../hermes_update_check/console.py) | 228 | Terminal rendering: pretty with `rich`, correct with plain text |
 | [`errors`](../hermes_update_check/errors.py) | 120 | Exceptions and process exit codes |
@@ -111,7 +111,7 @@ _no public symbols_
 
 ### `checker` — Orchestration: gather every input, then hand it to the risk engine
 
-`hermes_update_check/checker.py` (895 lines)
+`hermes_update_check/checker.py` (905 lines)
 
 | kind | symbol | line | purpose |
 |---|---|---|---|
@@ -119,16 +119,16 @@ _no public symbols_
 | constant | `BASELINE_MIN_DAYS` | 77 | 3.0 |
 | constant | `BASELINE_MAX_DAYS` | 78 | 14.0 |
 | class | **UpdateCheck** — degraded, update_status, channel, action, tracking_main, recommended_action | 107 | The complete result of one check - everything the report needs |
-| function | `build_http_client(cfg: Config, state_root: Path, *, logger: Optional[logging.Logger] = …, no_cache: bool = …) -> tuple[HttpClient, bool]` | 338 | Create the HTTP client with token and disk cache |
-| function | `resolve_github_token(cfg: Config) -> tuple[Optional[str], bool]` | 354 | Find a GitHub token in the environment (never in the config file) |
-| function | `build_github_client(cfg: Config, state_root: Path, *, logger: Optional[logging.Logger] = …, no_cache: bool = …) -> tuple[GitHubClient, bool, HttpClient]` | 368 |  |
-| function | `run_check(cfg: Config, *, env: Optional[LocalEnv] = …, client: Optional[GitHubClient] = …, state_root: Optional[Path] = …, no_cache: bool = …, include_issues: Optional[bool] = …, logger: Optional[logging.Logger] = …) -> UpdateCheck` | 385 | Full check: local env -> releases -> compare -> issues -> risk assessment |
-| function | `collect_issue_signal(cfg: Config, client: GitHubClient, release: Release, *, provenance: Optional[CodeProvenance] = …, logger: Optional[logging.Logger] = …, use_cache: bool = …) -> IssueSignal` | 671 | Search GitHub issues filed after the release, plus a baseline window |
-| function | `issue_signal_confidence(signal: IssueSignal) -> int` | 850 | Issue Signal Confidence (0-100): how much should the issue data be trusted? |
-| function | `summarize_release_line(release: Release) -> str` | 878 | One-line label like ``v0.21.3 (v2026.9.14) - 0.6 days old`` |
-| function | `level_of(score: Optional[int]) -> str` | 886 |  |
-| function | `iso_now() -> str` | 890 |  |
-| function | `normalise_release_tag(tag: Optional[str]) -> Optional[str]` | 894 |  |
+| function | `build_http_client(cfg: Config, state_root: Path, *, logger: Optional[logging.Logger] = …, no_cache: bool = …) -> tuple[HttpClient, bool]` | 342 | Create the HTTP client with token and disk cache |
+| function | `resolve_github_token(cfg: Config) -> tuple[Optional[str], bool]` | 358 | Find a GitHub token in the environment (never in the config file) |
+| function | `build_github_client(cfg: Config, state_root: Path, *, logger: Optional[logging.Logger] = …, no_cache: bool = …) -> tuple[GitHubClient, bool, HttpClient]` | 372 |  |
+| function | `run_check(cfg: Config, *, env: Optional[LocalEnv] = …, client: Optional[GitHubClient] = …, state_root: Optional[Path] = …, no_cache: bool = …, include_issues: Optional[bool] = …, logger: Optional[logging.Logger] = …) -> UpdateCheck` | 389 | Full check: local env -> releases -> compare -> issues -> risk assessment |
+| function | `collect_issue_signal(cfg: Config, client: GitHubClient, release: Release, *, provenance: Optional[CodeProvenance] = …, logger: Optional[logging.Logger] = …, use_cache: bool = …) -> IssueSignal` | 681 | Search GitHub issues filed after the release, plus a baseline window |
+| function | `issue_signal_confidence(signal: IssueSignal) -> int` | 860 | Issue Signal Confidence (0-100): how much should the issue data be trusted? |
+| function | `summarize_release_line(release: Release) -> str` | 888 | One-line label like ``v0.21.3 (v2026.9.14) - 0.6 days old`` |
+| function | `level_of(score: Optional[int]) -> str` | 896 |  |
+| function | `iso_now() -> str` | 900 |  |
+| function | `normalise_release_tag(tag: Optional[str]) -> Optional[str]` | 904 |  |
 
 ### `cli` — Command line interface
 
@@ -269,7 +269,7 @@ _no public symbols_
 
 ### `github_api` — GitHub API access for the Hermes repository: releases, compares, issue searches
 
-`hermes_update_check/github_api.py` (573 lines)
+`hermes_update_check/github_api.py` (585 lines)
 
 | kind | symbol | line | purpose |
 |---|---|---|---|
@@ -286,10 +286,10 @@ _no public symbols_
 | class | **IssueComment** — from_maintainer, to_dict | 189 |  |
 | class | **IssueSearchResult** | 209 |  |
 | class | **GitHubClient** — list_releases, latest_release, compare, tag_commit, search_issues, get_rate_limit | 219 | Thin, typed wrapper over the three endpoints this tool needs |
-| function | `extract_display_version(name: str, body: str, tag: str) -> Optional[str]` | 470 | Find the SemVer-ish display version behind a date tag |
-| function | `extract_pr_count(text: str | None) -> Optional[int]` | 509 | Estimate the number of PRs a release bundles, from its own release notes |
-| function | `build_issue_query(repo: str, *, created_after: Optional[datetime] = …, created_before: Optional[datetime] = …, keywords: Sequence[str] = …, label: Optional[str] = …, state: Optional[str] = …) -> str` | 533 | Compose a GitHub issue-search query string |
-| function | `parse_repo_slug(slug: str) -> tuple[str, str]` | 569 |  |
+| function | `extract_display_version(name: str, body: str, tag: str) -> Optional[str]` | 482 | Find the SemVer-ish display version behind a date tag |
+| function | `extract_pr_count(text: str | None) -> Optional[int]` | 521 | Estimate the number of PRs a release bundles, from its own release notes |
+| function | `build_issue_query(repo: str, *, created_after: Optional[datetime] = …, created_before: Optional[datetime] = …, keywords: Sequence[str] = …, label: Optional[str] = …, state: Optional[str] = …) -> str` | 545 | Compose a GitHub issue-search query string |
+| function | `parse_repo_slug(slug: str) -> tuple[str, str]` | 581 |  |
 
 ### `health` — Post-update health checks: did the update actually leave a working install?
 
@@ -302,7 +302,7 @@ _no public symbols_
 
 ### `http` — HTTP layer: stdlib-only client with timeouts, retries, on-disk cache and rate-limit awareness
 
-`hermes_update_check/http.py` (309 lines)
+`hermes_update_check/http.py` (317 lines)
 
 | kind | symbol | line | purpose |
 |---|---|---|---|
@@ -310,8 +310,8 @@ _no public symbols_
 | class | **HttpResult** — ok, degraded, header, to_dict | 38 | Outcome of one HTTP GET, including cache provenance |
 | class | **DiskCache** — get, set, clear | 79 | Tiny JSON cache: one file per cache key, TTL checked on read |
 | class | **HttpClient** — get_json, probe_rate_limit | 136 | Blocking JSON GET client with retry, cache and rate-limit handling |
-| function | `rate_limit_message(reset_header: Optional[str]) -> str` | 282 |  |
-| function | `require_ok(result: HttpResult, *, what: str) -> Any` | 303 | Turn an HttpResult into data or raise the right typed error |
+| function | `rate_limit_message(reset_header: Optional[str]) -> str` | 290 |  |
+| function | `require_ok(result: HttpResult, *, what: str) -> Any` | 311 | Turn an HttpResult into data or raise the right typed error |
 
 ### `i18n` — Tiny two-language (zh/en) translation helper
 
@@ -541,12 +541,12 @@ _no public symbols_
 
 ### `report` — Report rendering: the human-readable answer, in Chinese or English
 
-`hermes_update_check/report.py` (901 lines)
+`hermes_update_check/report.py` (931 lines)
 
 | kind | symbol | line | purpose |
 |---|---|---|---|
 | constant | `REPORT_TITLE` | 43 | 'Hermes Update Advisor' |
-| class | **Reporter** — render, recommendation_lines, to_markdown | 62 | Renders an UpdateCheck for humans (rich) or machines (markdown/json) |
+| class | **Reporter** — render, recommendation_lines, to_markdown | 71 | Renders an UpdateCheck for humans (rich) or machines (markdown/json) |
 
 ### `risk` — The risk engine: everything that turns observations into an Update Risk Score
 
@@ -734,7 +734,7 @@ _no public symbols_
 | file | tests | lines | focus |
 |---|---|---|---|
 | [`tests/test_advisor.py`](../tests/test_advisor.py) | 19 | 353 | Advisor tests: priority order, recheck computation, and 'unknown is not safe' |
-| [`tests/test_checker.py`](../tests/test_checker.py) | 13 | 277 | Orchestration tests: run_check with an injected (fake) GitHub client |
+| [`tests/test_checker.py`](../tests/test_checker.py) | 14 | 300 | Orchestration tests: run_check with an injected (fake) GitHub client |
 | [`tests/test_cli.py`](../tests/test_cli.py) | 13 | 211 | CLI-level tests: exit codes, JSON output, commands that never touch the network |
 | [`tests/test_cli_commands.py`](../tests/test_cli_commands.py) | 13 | 299 | End-to-end-ish command tests: every CLI handler, with the outside world stubbed |
 | [`tests/test_clusters.py`](../tests/test_clusters.py) | 16 | 274 | Regression-cluster tests: grading, independence and credibility |
@@ -742,7 +742,7 @@ _no public symbols_
 | [`tests/test_entrypoints.py`](../tests/test_entrypoints.py) | 10 | 122 | Smoke tests for the two entry points that had no direct coverage |
 | [`tests/test_gates.py`](../tests/test_gates.py) | 23 | 480 | Hard-gate tests: gates must override a low score and never be bypassed silently |
 | [`tests/test_github_api.py`](../tests/test_github_api.py) | 12 | 215 | GitHub payload parsing tests (fixtures only - no network) |
-| [`tests/test_http_cache.py`](../tests/test_http_cache.py) | 10 | 118 | HTTP layer tests: cache TTL, stale fallback, failure handling (no external network) |
+| [`tests/test_http_cache.py`](../tests/test_http_cache.py) | 12 | 163 | HTTP layer tests: cache TTL, stale fallback, failure handling (no external network) |
 | [`tests/test_impact.py`](../tests/test_impact.py) | 20 | 340 | Personal Impact, Core Feature Readiness and Systemic Critical Risk |
 | [`tests/test_local_env.py`](../tests/test_local_env.py) | 19 | 280 | Environment-detection tests: the layer that reads the *real* machine |
 | [`tests/test_notify.py`](../tests/test_notify.py) | 14 | 262 | Notification-channel tests: payload shape, failure handling, no secret leakage |
@@ -751,7 +751,7 @@ _no public symbols_
 | [`tests/test_preflight_health.py`](../tests/test_preflight_health.py) | 13 | 184 | Preflight and health-check tests (local filesystem only) |
 | [`tests/test_provenance.py`](../tests/test_provenance.py) | 18 | 345 | Code provenance tests: the five cases from the design brief, plus the rest |
 | [`tests/test_repo_hygiene.py`](../tests/test_repo_hygiene.py) | 3 | 76 | Repository hygiene: nothing important may be silently ignored or stale |
-| [`tests/test_report.py`](../tests/test_report.py) | 10 | 159 | Report rendering tests (plain-text console, no network) |
+| [`tests/test_report.py`](../tests/test_report.py) | 11 | 175 | Report rendering tests (plain-text console, no network) |
 | [`tests/test_risk.py`](../tests/test_risk.py) | 33 | 564 | Risk-engine tests: the scoring rules are the product, so they are pinned here |
 | [`tests/test_rollback_safety.py`](../tests/test_rollback_safety.py) | 7 | 182 | Rollback safety: the pre-update check that can block *executing* an update |
 | [`tests/test_scan_secrets.py`](../tests/test_scan_secrets.py) | 16 | 273 | Tests for the secret/privacy scanner - the guard needs its own guard |

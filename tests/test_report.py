@@ -157,3 +157,19 @@ def test_json_output_is_markup_free(cfg, hermes_home, state_root) -> None:
         assert key in parsed["local"]
     for key in ("change_risk", "regression_signal", "data_confidence", "overall"):
         assert key in parsed["risk"]
+
+
+def test_report_shows_data_freshness_line(cfg, hermes_home, state_root, capsys) -> None:
+    """The report must say live vs cached up front (user trust: no silent stale data)."""
+    check = build_check(cfg, hermes_home, state_root)
+    check.release_data_from_cache = False
+    check.release_data_age_seconds = None
+    Reporter(Console(plain=True), lang="zh").render(check)
+    assert "更新数据：实时" in capsys.readouterr().out
+
+    check.release_data_from_cache = True
+    check.release_data_age_seconds = 45 * 60  # 45 minutes
+    Reporter(Console(plain=True), lang="en").render(check)
+    out = capsys.readouterr().out
+    assert "Release data: cached" in out
+    assert "45 min" in out
