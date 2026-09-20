@@ -5,12 +5,12 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](pyproject.toml)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](pyproject.toml)
-[![Tests: 538 offline](https://img.shields.io/badge/tests-538%20offline-brightgreen.svg)](AGENTS.md)
+[![Tests: 542 offline](https://img.shields.io/badge/tests-542%20offline-brightgreen.svg)](AGENTS.md)
 
 > **先检查 → 再评估 → 给建议 → 你确认 → 才更新。**
 > 这个工具永远不会自己更新 Hermes。
 
-最新发布：**v1.3.0**（[Release 页](https://github.com/xinian5216/hermes-update-check/releases/latest)附带 wheel 与 sdist，
+最新发布：**v1.3.1**（[Release 页](https://github.com/xinian5216/hermes-update-check/releases/latest)附带 wheel 与 sdist，
 可直接 `pip install` 安装，无需 git 与 curl 脚本）。
 
 面向 [Hermes Agent](https://github.com/NousResearch/hermes-agent) 的「更新检测与风险评估」工具，用来避免因为盲目更新导致的
@@ -228,12 +228,12 @@ irm https://raw.githubusercontent.com/xinian5216/hermes-update-check/main/instal
 附带构建好的 wheel 与 sdist，适合内网、离线镜像或想固定版本的场景：
 
 ```bash
-# 文件名里带版本号，换版本时把 1.3.0 改掉即可
-pip install "https://github.com/xinian5216/hermes-update-check/releases/download/v1.3.0/hermes_update_check-1.3.0-py3-none-any.whl"
+# 文件名里带版本号，换版本时把 1.3.1 改掉即可
+pip install "https://github.com/xinian5216/hermes-update-check/releases/download/v1.3.1/hermes_update_check-1.3.1-py3-none-any.whl"
 hermes-update-check --version
 ```
 
-也可以先下载再用本机工具装（`pipx install ./hermes_update_check-1.3.0-py3-none-any.whl`）。
+也可以先下载再用本机工具装（`pipx install ./hermes_update_check-1.3.1-py3-none-any.whl`）。
 装完就是同一个命令，`check` / `report` / `watch` 全都能用。两点要知道：
 
 * `update` 只是替你调用 **Hermes 自身的** `hermes update`（本工具从不自己改 Hermes），
@@ -1066,7 +1066,7 @@ fi
 
 ```bash
 uv venv .venv && uv pip install -e ".[dev]" --python .venv/bin/python
-.venv/bin/python -m pytest -q          # 538 个测试（472 个函数），全部离线：不用网络、不碰真实安装
+.venv/bin/python -m pytest -q          # 542 个测试（476 个函数），全部离线：不用网络、不碰真实安装
 .venv/bin/python -m pytest -q tests/test_provenance.py tests/test_gates.py tests/test_advisor.py
 ```
 
@@ -1145,7 +1145,7 @@ python scripts/build_index.py --check   # 只校验是否过期（CI 用，过�
 ### 开发循环（本地 = CI 同一套门槛）
 
 ```bash
-python -m pytest -q                                   # 538 个测试（472 个函数），离线
+python -m pytest -q                                   # 542 个测试（476 个函数），离线
 python -m pytest --cov --cov-fail-under=80            # 覆盖率门槛（当前 82%）
 ruff check .                                          # lint（0 findings 才能过）
 ruff format --check .                                 # 格式检查（如需改写：ruff format .）
